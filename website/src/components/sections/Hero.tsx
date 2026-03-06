@@ -11,10 +11,10 @@ export default function Hero() {
         {/* Text */}
         <div>
           <p className="hero-fade-in text-accent font-semibold text-sm uppercase tracking-widest mb-4">
-            Solutions-Focused Development Studio
+            Custom Tools for Smarter Operations
           </p>
           <h1 className="hero-fade-in hero-fade-in-delay-1 text-white mb-6">
-            We Build the Tools That Fix Your Business
+            We Build the Tools That Improve Your Business
           </h1>
           <p className="hero-fade-in hero-fade-in-delay-2 text-lg md:text-xl text-white/60 max-w-lg mb-10 leading-relaxed">
             You describe the problem. We design and build a working solution —
