@@ -6,7 +6,7 @@ const problems = [
       </svg>
     ),
     title: "Manual Data Entry",
-    description: "Hours spent typing information that could be captured automatically.",
+    description: "We build tools that capture and move data automatically — no more retyping.",
   },
   {
     icon: (
@@ -15,7 +15,7 @@ const problems = [
       </svg>
     ),
     title: "Slow Reporting",
-    description: "Compiling reports manually when they could be generated instantly.",
+    description: "We automate report generation so insights are ready when you need them.",
   },
   {
     icon: (
@@ -24,7 +24,7 @@ const problems = [
       </svg>
     ),
     title: "Disconnected Tools",
-    description: "Software systems that don't talk to each other, creating extra work.",
+    description: "We connect your systems so data flows between them without manual transfers.",
   },
   {
     icon: (
@@ -33,7 +33,7 @@ const problems = [
       </svg>
     ),
     title: "Slow Customer Response",
-    description: "Inquiries that take too long to handle due to manual processes.",
+    description: "We streamline communication workflows so your team responds faster.",
   },
   {
     icon: (
@@ -42,7 +42,7 @@ const problems = [
       </svg>
     ),
     title: "Repetitive Admin Tasks",
-    description: "The same steps repeated daily that could be automated.",
+    description: "We automate the daily busywork so your team focuses on what matters.",
   },
   {
     icon: (
@@ -51,7 +51,7 @@ const problems = [
       </svg>
     ),
     title: "No Visibility Into Data",
-    description: "Decisions made on gut feeling because insights are buried in spreadsheets.",
+    description: "We build dashboards that surface the insights buried in your spreadsheets.",
   },
 ];
 
@@ -63,12 +63,21 @@ export default function ProblemSection() {
           <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
             The Problem
           </p>
-          <h2 className="mb-6">Sound Familiar?</h2>
-          <p className="text-lg text-muted">
+          <p className="text-lg text-muted mb-6">
             Every business has processes that drain time and energy.
             These are the headaches we eliminate.
           </p>
+          <h2>Sound Familiar?</h2>
+          <p className="text-lg text-muted mt-6">
+            CrumbLabz identifies these inefficiencies and builds targeted tools
+            that eliminate them — quickly and without the overhead of a traditional
+            software project.
+          </p>
         </div>
+
+        <h3 className="text-center text-muted font-semibold text-sm uppercase tracking-widest mb-8 animate-in">
+          Some Examples
+        </h3>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {problems.map((problem, i) => (
