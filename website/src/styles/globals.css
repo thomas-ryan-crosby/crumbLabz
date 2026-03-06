@@ -3,20 +3,28 @@
 @theme {
   --color-charcoal: #2d2d2d;
   --color-charcoal-light: #3d3d3d;
+  --color-charcoal-dark: #1a1a1a;
   --color-accent: #e87a2e;
   --color-accent-hover: #d46a1e;
+  --color-accent-light: #fef3eb;
   --color-neutral: #f7f7f5;
   --color-muted: #6b6b6b;
   --color-border: #e0e0e0;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    @apply text-charcoal leading-relaxed;
+    @apply text-charcoal leading-relaxed antialiased;
   }
 
   h1, h2, h3, h4 {
-    @apply font-bold leading-tight;
+    @apply font-bold leading-tight tracking-tight;
   }
 
   h1 {
@@ -29,5 +37,45 @@
 
   h3 {
     @apply text-xl md:text-2xl;
+  }
+}
+
+/* Scroll-triggered animations */
+@layer utilities {
+  .animate-in {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s var(--ease-out-expo), transform 0.6s var(--ease-out-expo);
+  }
+
+  .animate-in.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .animate-in-delay-1 { transition-delay: 100ms; }
+  .animate-in-delay-2 { transition-delay: 200ms; }
+  .animate-in-delay-3 { transition-delay: 300ms; }
+  .animate-in-delay-4 { transition-delay: 400ms; }
+  .animate-in-delay-5 { transition-delay: 500ms; }
+
+  /* Hero entrance — plays on load, no scroll trigger needed */
+  .hero-fade-in {
+    animation: heroFadeIn 0.8s var(--ease-out-expo) both;
+  }
+
+  .hero-fade-in-delay-1 { animation-delay: 150ms; }
+  .hero-fade-in-delay-2 { animation-delay: 300ms; }
+  .hero-fade-in-delay-3 { animation-delay: 450ms; }
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

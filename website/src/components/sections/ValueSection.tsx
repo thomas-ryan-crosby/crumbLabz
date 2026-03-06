@@ -1,30 +1,43 @@
 const values = [
-  { stat: "Days", label: "Not months — working solutions delivered rapidly" },
-  { stat: "Targeted", label: "Focused tools that solve specific problems" },
-  { stat: "Practical", label: "Built to improve how your business actually operates" },
+  {
+    stat: "Days, Not Months",
+    description: "Working solutions delivered rapidly so you see results immediately.",
+  },
+  {
+    stat: "Built for You",
+    description: "Every tool is designed around your specific workflow and needs.",
+  },
+  {
+    stat: "Real Results",
+    description: "Measurable improvements in efficiency, speed, and clarity.",
+  },
 ];
 
 export default function ValueSection() {
   return (
-    <section className="bg-neutral py-20 md:py-28">
+    <section className="py-24 md:py-32 bg-neutral">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="max-w-3xl mx-auto text-center mb-16">
-          <h2 className="mb-6">Solutions Built Faster Than Ever</h2>
+        <div className="max-w-2xl mx-auto text-center mb-16 animate-in">
+          <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
+            The Difference
+          </p>
+          <h2 className="mb-6">Why CrumbLabz?</h2>
           <p className="text-lg text-muted">
-            Modern development tools make it possible to design and deploy
-            working solutions rapidly. Instead of months of development,
-            CrumbLabz focuses on targeted tools that solve specific operational
-            problems.
+            We&apos;re not a consulting firm that bills by the hour.
+            We&apos;re builders who deliver tools that work.
           </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
-          {values.map((item) => (
-            <div key={item.stat} className="text-center">
-              <div className="text-3xl font-bold text-accent mb-2">
+          {values.map((item, i) => (
+            <div
+              key={item.stat}
+              className={`animate-in animate-in-delay-${i + 1} text-center bg-white rounded-xl p-10 border border-border`}
+            >
+              <div className="text-2xl md:text-3xl font-black text-accent mb-3">
                 {item.stat}
               </div>
-              <p className="text-muted">{item.label}</p>
+              <p className="text-muted leading-relaxed">{item.description}</p>
             </div>
           ))}
         </div>

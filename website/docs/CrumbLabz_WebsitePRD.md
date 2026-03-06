@@ -63,45 +63,71 @@ Home
 The site should remain relatively simple in order to keep the messaging focused and avoid overwhelming visitors.
 
 **Home Page**
-The home page should quickly communicate the core value proposition and guide users toward starting a conversation.
+The home page is the primary sales experience. It should tell the full CrumbLabz story in a single scroll — problem, process, proof, solutions, and conversion — so visitors never need to leave to understand the value proposition. Inner pages serve as deeper dives for engaged visitors.
+
 Hero Section
+Layout: Split — left-aligned text with cookie logo graphic on the right.
 Headline:
-Turn Business Headaches Into Working Tools
+We Build the Tools That Fix Your Business
 Subheadline:
-Describe the problem slowing down your business. CrumbLabz designs and builds solutions that make operations run smoother.
+You describe the problem. We design and build a working solution — often in days, not months.
 Primary CTA:
 Tell Us Your Headache
-Supporting Visual:
-Clean illustration or graphic representing problem-solving or operational efficiency.
+Secondary CTA (ghost button):
+See How It Works
+The hero background should be the charcoal brand color. Text left-aligned for stronger visual hierarchy. Subtle entrance animations on load.
+
+Trust Bar
+Immediately below the hero. Displays key credibility metrics in a horizontal strip.
+Example metrics:
+Rapid Delivery | Custom Built | No Long Contracts | Ongoing Support Available
+The trust bar bridges the hero promise with the detailed content below. Light background to create visual separation.
 
 Problem Section
 Title:
-Every Business Has Operational Headaches
-Body:
-Many companies struggle with repetitive tasks, slow workflows, disconnected systems, or time-consuming reporting. These problems often consume hours of valuable time each week.
-CrumbLabz identifies these inefficiencies and builds tools that eliminate them.
-Example problems:
-Manual data entry
- Slow reporting processes
- Disconnected software tools
- Customer inquiries that take too long to handle
- Repetitive administrative tasks
+Sound Familiar?
+Layout: Icon-driven card grid (2x3 on desktop, stacked on mobile).
+Each card should have an icon, a short problem title, and one sentence.
+Cards should animate in on scroll (staggered fade-up).
+The tone should be empathetic — acknowledging pain, not lecturing.
+
+How It Works (Home Summary)
+Title:
+From Problem to Solution in Four Steps
+Layout: Horizontal numbered timeline on desktop, vertical on mobile.
+Steps: Describe / Map / Build / Deploy — each with a one-line description.
+Link to full How It Works page for deeper detail.
+This section must feel effortless — the process should look simple even if the work is complex.
 
 Value Section
 Title:
-Solutions Built Faster Than Ever
-Body:
-Modern development tools make it possible to design and deploy working solutions rapidly. Instead of months of development, CrumbLabz focuses on targeted tools that solve specific operational problems.
-The result is smoother workflows, faster decisions, and significant time savings.
+Why CrumbLabz?
+Layout: Three columns with large accent-colored stats/keywords and supporting text.
+Stats: "Days, Not Months" / "Built for You" / "Real Results"
+Each column should have a brief supporting sentence.
+Background: Light neutral (alternating from the section above).
 
-Call to Action Section
+Social Proof Section (Placeholder)
+Title:
+Trusted by Businesses Like Yours
+Layout: Testimonial cards or a single rotating quote.
+For launch, use placeholder content that can be swapped with real testimonials.
+Even placeholder social proof is better than none — it anchors credibility.
+
+Call to Action Section with Embedded Contact Form
 Title:
 Start With One Problem
 Body:
 Tell us about a process in your business that feels slow, repetitive, or frustrating.
-CrumbLabz will help map the problem and build a solution.
-CTA Button:
-Start the Conversation
+The section should include an embedded compact contact form (Name, Email, Describe your headache) directly on the home page so visitors can convert at peak interest without navigating away.
+Full contact page remains as an alternative with all fields.
+
+**Design Interaction Notes**
+Scroll Animations: All major sections should animate in on scroll using subtle fade-up and stagger effects. Keep animations fast (300-500ms) and tasteful — never distracting.
+Header: Transparent over the hero, transitions to solid white with shadow on scroll. This creates visual depth and lets the hero breathe.
+Hover States: All interactive elements (buttons, cards, links) should have clear hover transitions. Cards lift with a subtle shadow. Buttons darken.
+Page Transitions: Smooth and immediate. No loading spinners between internal navigation.
+Favicon: Use the CrumbLabz cookie icon as the browser favicon.
 
 **How It Works Page**
 This page should clearly describe the CrumbLabz engagement process.
