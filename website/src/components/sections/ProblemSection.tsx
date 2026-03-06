@@ -60,10 +60,8 @@ export default function ProblemSection() {
     <section className="py-24 md:py-32">
       <div className="max-w-7xl mx-auto px-6">
         <div className="max-w-2xl mx-auto text-center mb-16 animate-in">
-          <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
-            The Problem
-          </p>
-          <p className="text-lg text-muted mb-6">
+          <h2 className="mb-6">The Problem</h2>
+          <p className="text-lg text-muted mb-10">
             Every business has processes that drain time and energy.
             These are the headaches we eliminate.
           </p>
