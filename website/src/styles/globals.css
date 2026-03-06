@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-charcoal: #2d2d2d;
+  --color-charcoal-light: #3d3d3d;
+  --color-accent: #e87a2e;
+  --color-accent-hover: #d46a1e;
+  --color-neutral: #f7f7f5;
+  --color-muted: #6b6b6b;
+  --color-border: #e0e0e0;
+}
+
+@layer base {
+  body {
+    @apply text-charcoal leading-relaxed;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-bold leading-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl;
+  }
+}
