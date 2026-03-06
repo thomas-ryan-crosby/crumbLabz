@@ -6,3 +6,5 @@ export interface ContactSubmission {
   headache: string;
   createdAt: Date;
 }
+
+export type ContactStatus = "new" | "contacted" | "in_progress" | "closed";
