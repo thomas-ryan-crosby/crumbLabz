@@ -10,6 +10,7 @@ import {
   permanentlyDeleteContact,
   getActivities,
   getClientDocuments,
+  addClientDocument,
   updateClientDocument,
   getCurrentTeamMember,
   PIPELINE_STAGES,
@@ -465,95 +466,18 @@ function ContactDetail({
 
       {/* Documents tab */}
       {tab === "documents" && (
-        <div className="px-6 py-6 max-w-3xl">
-          {viewingDoc ? (
-            <div>
-              <button
-                onClick={() => setViewingDoc(null)}
-                className="text-sm text-accent hover:text-accent-hover font-medium mb-4 flex items-center gap-1 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-                </svg>
-                Back to documents
-              </button>
-
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold">{viewingDoc.title}</h3>
-                  <p className="text-xs text-muted mt-1">
-                    {viewingDoc.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
-                    {viewingDoc.createdAt?.toLocaleString() || "—"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {(["draft", "review", "approved", "sent"] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleDocStatusChange(viewingDoc.id, s)}
-                      className={`text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition-colors ${
-                        viewingDoc.status === s
-                          ? s === "approved"
-                            ? "bg-green-600/10 text-green-700 border-current"
-                            : s === "sent"
-                              ? "bg-blue-500/10 text-blue-600 border-current"
-                              : s === "review"
-                                ? "bg-accent/10 text-accent border-current"
-                                : "bg-charcoal/10 text-charcoal border-current"
-                          : "border-border text-muted hover:border-charcoal"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
-                <ReactMarkdown>{viewingDoc.content}</ReactMarkdown>
-              </div>
-            </div>
-          ) : loadingDocs ? (
-            <p className="text-muted text-sm">Loading documents...</p>
-          ) : documents.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-muted text-sm">No documents yet.</p>
-              <p className="text-muted text-xs mt-1">
-                Documents will be auto-generated after the discovery call via Fireflies.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {documents.map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => setViewingDoc(d)}
-                  className="w-full text-left bg-neutral rounded-lg p-4 hover:bg-border/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="font-medium text-sm">{d.title}</p>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-                      d.status === "approved"
-                        ? "bg-green-600/10 text-green-700"
-                        : d.status === "sent"
-                          ? "bg-blue-500/10 text-blue-600"
-                          : d.status === "review"
-                            ? "bg-accent/10 text-accent"
-                            : "bg-charcoal/10 text-charcoal"
-                    }`}>
-                      {d.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted">
-                    {d.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
-                    {d.type.replace(/_/g, " ")} &middot;{" "}
-                    {d.createdAt?.toLocaleDateString() || "—"}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <DocumentsPanel
+          contactId={contact.id}
+          documents={documents}
+          loadingDocs={loadingDocs}
+          viewingDoc={viewingDoc}
+          setViewingDoc={setViewingDoc}
+          onDocStatusChange={handleDocStatusChange}
+          onDocumentsChanged={async () => {
+            const updated = await getClientDocuments(contact.id);
+            setDocuments(updated);
+          }}
+        />
       )}
 
       {/* Details tab */}
@@ -717,6 +641,294 @@ function ContactDetail({
       </div>
       )}
     </div>
+  );
+}
+
+function DocumentsPanel({
+  contactId,
+  documents,
+  loadingDocs,
+  viewingDoc,
+  setViewingDoc,
+  onDocStatusChange,
+  onDocumentsChanged,
+}: {
+  contactId: string;
+  documents: ClientDocument[];
+  loadingDocs: boolean;
+  viewingDoc: ClientDocument | null;
+  setViewingDoc: (doc: ClientDocument | null) => void;
+  onDocStatusChange: (docId: string, status: string) => Promise<void>;
+  onDocumentsChanged: () => Promise<void>;
+}) {
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadContent, setUploadContent] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
+  const productDocs = documents.filter((d) =>
+    ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
+  );
+  const otherDocs = documents.filter(
+    (d) => d.type === "other" && !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
+  );
+
+  const handleUploadTranscript = async () => {
+    if (!uploadTitle.trim() || !uploadContent.trim()) return;
+    setUploading(true);
+    await addClientDocument(contactId, {
+      title: uploadTitle.trim(),
+      type: "meeting_transcript",
+      content: uploadContent.trim(),
+      status: "approved",
+      generatedBy: "manual",
+    });
+    setUploadTitle("");
+    setUploadContent("");
+    setShowUpload(false);
+    setUploading(false);
+    await onDocumentsChanged();
+  };
+
+  const handleGenerate = async (type: "problem_definition" | "solution_one_pager") => {
+    let sourceContent = "";
+    if (type === "problem_definition") {
+      const transcript = meetingDocs[0];
+      if (!transcript) return;
+      sourceContent = transcript.content;
+    } else {
+      const prd = productDocs.find((d) => d.type === "problem_definition");
+      if (!prd) return;
+      sourceContent = prd.content;
+    }
+
+    setGenerating(type);
+    try {
+      const res = await fetch("/api/generate-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, sourceContent }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const title = type === "problem_definition"
+        ? "Problem Definition Document"
+        : "Solution One-Pager";
+
+      await addClientDocument(contactId, {
+        title,
+        type,
+        content: data.content,
+        status: "draft",
+        generatedBy: "ai",
+      });
+      await onDocumentsChanged();
+    } catch (err) {
+      console.error("Generation error:", err);
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  if (viewingDoc) {
+    return (
+      <div className="px-6 py-6 max-w-3xl">
+        <button
+          onClick={() => setViewingDoc(null)}
+          className="text-sm text-accent hover:text-accent-hover font-medium mb-4 flex items-center gap-1 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+          Back to documents
+        </button>
+
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold">{viewingDoc.title}</h3>
+            <p className="text-xs text-muted mt-1">
+              {viewingDoc.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
+              {viewingDoc.createdAt?.toLocaleString() || "—"}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {(["draft", "review", "approved", "sent"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => onDocStatusChange(viewingDoc.id, s)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition-colors ${
+                  viewingDoc.status === s
+                    ? s === "approved"
+                      ? "bg-green-600/10 text-green-700 border-current"
+                      : s === "sent"
+                        ? "bg-blue-500/10 text-blue-600 border-current"
+                        : s === "review"
+                          ? "bg-accent/10 text-accent border-current"
+                          : "bg-charcoal/10 text-charcoal border-current"
+                    : "border-border text-muted hover:border-charcoal"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
+          <ReactMarkdown>{viewingDoc.content}</ReactMarkdown>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingDocs) {
+    return <div className="px-6 py-6"><p className="text-muted text-sm">Loading documents...</p></div>;
+  }
+
+  return (
+    <div className="px-6 py-6 max-w-3xl space-y-8">
+      {/* Meeting Documents */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Meeting Documents</h3>
+          <button
+            onClick={() => setShowUpload(!showUpload)}
+            className="text-xs font-medium px-3 py-1.5 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+          >
+            {showUpload ? "Cancel" : "+ Add Transcript"}
+          </button>
+        </div>
+
+        {showUpload && (
+          <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+            <input
+              type="text"
+              placeholder="Meeting title (e.g. Discovery Call — Acme Corp)"
+              value={uploadTitle}
+              onChange={(e) => setUploadTitle(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
+            />
+            <textarea
+              placeholder="Paste meeting transcript or notes here..."
+              value={uploadContent}
+              onChange={(e) => setUploadContent(e.target.value)}
+              rows={8}
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors resize-y"
+            />
+            <button
+              onClick={handleUploadTranscript}
+              disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()}
+              className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              {uploading ? "Saving..." : "Save Transcript"}
+            </button>
+          </div>
+        )}
+
+        {meetingDocs.length === 0 && !showUpload ? (
+          <p className="text-muted text-xs">No meeting documents yet. Add a transcript to get started.</p>
+        ) : (
+          <div className="space-y-2">
+            {meetingDocs.map((d) => (
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Product Documents */}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Product Documents</h3>
+
+        {/* Generate buttons */}
+        <div className="flex gap-2 flex-wrap mb-3">
+          <button
+            onClick={() => handleGenerate("problem_definition")}
+            disabled={meetingDocs.length === 0 || generating !== null}
+            className="text-xs font-medium px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+          >
+            {generating === "problem_definition" ? (
+              <>
+                <span className="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                Generating...
+              </>
+            ) : (
+              "Generate Problem Definition"
+            )}
+          </button>
+          <button
+            onClick={() => handleGenerate("solution_one_pager")}
+            disabled={!productDocs.some((d) => d.type === "problem_definition") || generating !== null}
+            className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+          >
+            {generating === "solution_one_pager" ? (
+              <>
+                <span className="w-3 h-3 border-2 border-violet-600/30 border-t-violet-600 rounded-full animate-spin" />
+                Generating...
+              </>
+            ) : (
+              "Generate Solution One-Pager"
+            )}
+          </button>
+        </div>
+
+        {meetingDocs.length === 0 && productDocs.length === 0 && (
+          <p className="text-muted text-xs">Add a meeting transcript first, then generate product documents from it.</p>
+        )}
+
+        {productDocs.length > 0 && (
+          <div className="space-y-2">
+            {productDocs.map((d) => (
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Other Documents */}
+      {otherDocs.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Other</h3>
+          <div className="space-y-2">
+            {otherDocs.map((d) => (
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocCard({ doc, onClick }: { doc: ClientDocument; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-neutral rounded-lg p-4 hover:bg-border/50 transition-colors"
+    >
+      <div className="flex items-center justify-between mb-1">
+        <p className="font-medium text-sm">{doc.title}</p>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+          doc.status === "approved"
+            ? "bg-green-600/10 text-green-700"
+            : doc.status === "sent"
+              ? "bg-blue-500/10 text-blue-600"
+              : doc.status === "review"
+                ? "bg-accent/10 text-accent"
+                : "bg-charcoal/10 text-charcoal"
+        }`}>
+          {doc.status}
+        </span>
+      </div>
+      <p className="text-xs text-muted">
+        {doc.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
+        {doc.type.replace(/_/g, " ")} &middot;{" "}
+        {doc.createdAt?.toLocaleDateString() || "—"}
+      </p>
+    </button>
   );
 }
 
