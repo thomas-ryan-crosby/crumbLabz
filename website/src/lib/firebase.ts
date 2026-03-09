@@ -6,8 +6,10 @@ import {
   getDocs,
   doc,
   updateDoc,
+  deleteDoc,
   query,
   orderBy,
+  where,
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
@@ -98,27 +100,84 @@ export interface Contact {
   notes: string;
   createdAt: Date | null;
   updatedAt: Date | null;
+  deletedAt: Date | null;
+}
+
+function mapContact(d: { id: string; data: () => Record<string, unknown> }): Contact {
+  const data = d.data();
+  return {
+    id: d.id,
+    name: (data.name as string) || "",
+    company: (data.company as string) || "",
+    email: (data.email as string) || "",
+    phone: (data.phone as string) || "",
+    headache: (data.headache as string) || "",
+    stage: (data.stage as string) || (data.status as string) || "new_lead",
+    assignee: (data.assignee as string) || "",
+    notes: (data.notes as string) || "",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    deletedAt: data.deletedAt instanceof Timestamp ? data.deletedAt.toDate() : null,
+  };
 }
 
 export async function getContacts(): Promise<Contact[]> {
   const q = query(collection(db, "contacts"), orderBy("createdAt", "desc"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      name: data.name || "",
-      company: data.company || "",
-      email: data.email || "",
-      phone: data.phone || "",
-      headache: data.headache || "",
-      stage: data.stage || data.status || "new_lead",
-      assignee: data.assignee || "",
-      notes: data.notes || "",
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
-    };
+  return snapshot.docs
+    .map(mapContact)
+    .filter((c) => !c.deletedAt);
+}
+
+export async function getDeletedContacts(): Promise<Contact[]> {
+  const q = query(
+    collection(db, "contacts"),
+    where("deletedAt", "!=", null),
+    orderBy("deletedAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(mapContact);
+}
+
+export async function softDeleteContact(id: string, actorName?: string) {
+  await updateDoc(doc(db, "contacts", id), {
+    deletedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
+  if (actorName) {
+    await addActivity(id, {
+      type: "stage_change",
+      description: "Moved to Deleted",
+      user: actorName,
+    });
+  }
+}
+
+export async function restoreContact(id: string, actorName?: string) {
+  await updateDoc(doc(db, "contacts", id), {
+    deletedAt: null,
+    updatedAt: serverTimestamp(),
+  });
+  if (actorName) {
+    await addActivity(id, {
+      type: "stage_change",
+      description: "Restored from Deleted",
+      user: actorName,
+    });
+  }
+}
+
+export async function permanentlyDeleteContact(id: string) {
+  // Delete subcollections first
+  const activitySnap = await getDocs(collection(db, "contacts", id, "activity"));
+  for (const d of activitySnap.docs) {
+    await deleteDoc(d.ref);
+  }
+  const docsSnap = await getDocs(collection(db, "contacts", id, "documents"));
+  for (const d of docsSnap.docs) {
+    await deleteDoc(d.ref);
+  }
+  await deleteDoc(doc(db, "contacts", id));
 }
 
 export async function updateContact(

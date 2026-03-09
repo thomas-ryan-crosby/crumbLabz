@@ -3,7 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   getContacts,
+  getDeletedContacts,
   updateContact,
+  softDeleteContact,
+  restoreContact,
+  permanentlyDeleteContact,
   getActivities,
   getClientDocuments,
   updateClientDocument,
@@ -21,15 +25,18 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const currentMember = getCurrentTeamMember(user);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [deletedContacts, setDeletedContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Contact | null>(null);
   const [filterStage, setFilterStage] = useState("all");
   const [filterAssignee, setFilterAssignee] = useState("all");
   const [search, setSearch] = useState("");
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const loadContacts = useCallback(async () => {
-    const data = await getContacts();
+    const [data, deleted] = await Promise.all([getContacts(), getDeletedContacts()]);
     setContacts(data);
+    setDeletedContacts(deleted);
     setLoading(false);
   }, []);
 
@@ -69,7 +76,19 @@ export default function ContactsPage() {
       >
         {/* Header */}
         <div className="px-6 py-5 border-b border-border space-y-3">
-          <h1 className="text-xl font-bold">Contacts</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold">{showDeleted ? "Deleted Contacts" : "Contacts"}</h1>
+            <button
+              onClick={() => { setShowDeleted(!showDeleted); setSelected(null); }}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                showDeleted
+                  ? "bg-red-500/10 text-red-600"
+                  : "bg-neutral text-muted hover:bg-border"
+              }`}
+            >
+              {showDeleted ? "Back to Contacts" : `Deleted (${deletedContacts.length})`}
+            </button>
+          </div>
           <input
             type="text"
             placeholder="Search contacts..."
@@ -78,61 +97,99 @@ export default function ContactsPage() {
             className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
           />
 
-          {/* Stage filters */}
-          <div className="flex gap-1.5 flex-wrap">
-            <FilterChip
-              active={filterStage === "all"}
-              onClick={() => setFilterStage("all")}
-            >
-              All ({contacts.length})
-            </FilterChip>
-            {PIPELINE_STAGES.map((s) => {
-              const count = contacts.filter((c) => c.stage === s.value).length;
-              if (count === 0) return null;
-              return (
+          {!showDeleted && (
+            <>
+              {/* Stage filters */}
+              <div className="flex gap-1.5 flex-wrap">
                 <FilterChip
-                  key={s.value}
-                  active={filterStage === s.value}
-                  onClick={() => setFilterStage(s.value)}
+                  active={filterStage === "all"}
+                  onClick={() => setFilterStage("all")}
                 >
-                  {s.label} ({count})
+                  All ({contacts.length})
                 </FilterChip>
-              );
-            })}
-          </div>
+                {PIPELINE_STAGES.map((s) => {
+                  const count = contacts.filter((c) => c.stage === s.value).length;
+                  if (count === 0) return null;
+                  return (
+                    <FilterChip
+                      key={s.value}
+                      active={filterStage === s.value}
+                      onClick={() => setFilterStage(s.value)}
+                    >
+                      {s.label} ({count})
+                    </FilterChip>
+                  );
+                })}
+              </div>
 
-          {/* Assignee filters */}
-          <div className="flex gap-1.5 flex-wrap">
-            <FilterChip
-              active={filterAssignee === "all"}
-              onClick={() => setFilterAssignee("all")}
-              variant="secondary"
-            >
-              All Team
-            </FilterChip>
-            {TEAM_MEMBERS.map((m) => (
-              <FilterChip
-                key={m.id}
-                active={filterAssignee === m.id}
-                onClick={() => setFilterAssignee(m.id)}
-                variant="secondary"
-              >
-                {m.initials}
-              </FilterChip>
-            ))}
-            <FilterChip
-              active={filterAssignee === "unassigned"}
-              onClick={() => setFilterAssignee("unassigned")}
-              variant="secondary"
-            >
-              Unassigned
-            </FilterChip>
-          </div>
+              {/* Assignee filters */}
+              <div className="flex gap-1.5 flex-wrap">
+                <FilterChip
+                  active={filterAssignee === "all"}
+                  onClick={() => setFilterAssignee("all")}
+                  variant="secondary"
+                >
+                  All Team
+                </FilterChip>
+                {TEAM_MEMBERS.map((m) => (
+                  <FilterChip
+                    key={m.id}
+                    active={filterAssignee === m.id}
+                    onClick={() => setFilterAssignee(m.id)}
+                    variant="secondary"
+                  >
+                    {m.initials}
+                  </FilterChip>
+                ))}
+                <FilterChip
+                  active={filterAssignee === "unassigned"}
+                  onClick={() => setFilterAssignee("unassigned")}
+                  variant="secondary"
+                >
+                  Unassigned
+                </FilterChip>
+              </div>
+            </>
+          )}
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto divide-y divide-border">
-          {filtered.length === 0 ? (
+          {showDeleted ? (
+            deletedContacts.length === 0 ? (
+              <div className="px-6 py-10 text-center text-muted text-sm">
+                No deleted contacts.
+              </div>
+            ) : (
+              deletedContacts.map((contact) => {
+                const daysLeft = contact.deletedAt
+                  ? Math.max(0, 10 - Math.floor((Date.now() - contact.deletedAt.getTime()) / (1000 * 60 * 60 * 24)))
+                  : 0;
+                return (
+                  <button
+                    key={contact.id}
+                    onClick={() => setSelected(contact)}
+                    className={`w-full text-left px-6 py-4 hover:bg-neutral/50 transition-colors ${
+                      selected?.id === contact.id ? "bg-neutral" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-medium text-sm">{contact.name}</p>
+                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-500/10 text-red-600">
+                        {daysLeft}d remaining
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted mb-1">
+                      {contact.company} &middot; {contact.email}
+                    </p>
+                    <p className="text-xs text-muted/60 mt-1">
+                      Deleted {contact.deletedAt?.toLocaleDateString() || "—"}
+                    </p>
+                  </button>
+                );
+              })
+            )
+          ) : filtered.length === 0 ? (
             <div className="px-6 py-10 text-center text-muted text-sm">
               No contacts found.
             </div>
@@ -176,6 +233,7 @@ export default function ContactsPage() {
         <ContactDetail
           contact={selected}
           actorName={currentMember?.name || "Unknown"}
+          isDeleted={showDeleted}
           onClose={() => setSelected(null)}
           onUpdate={async (id, fields) => {
             await updateContact(id, fields, currentMember?.name);
@@ -183,6 +241,21 @@ export default function ContactsPage() {
             setSelected((prev) =>
               prev && prev.id === id ? { ...prev, ...fields } : prev
             );
+          }}
+          onDelete={async (id) => {
+            await softDeleteContact(id, currentMember?.name);
+            setSelected(null);
+            await loadContacts();
+          }}
+          onRestore={async (id) => {
+            await restoreContact(id, currentMember?.name);
+            setSelected(null);
+            await loadContacts();
+          }}
+          onPermanentDelete={async (id) => {
+            await permanentlyDeleteContact(id);
+            setSelected(null);
+            await loadContacts();
           }}
         />
       ) : (
@@ -197,20 +270,29 @@ export default function ContactsPage() {
 function ContactDetail({
   contact,
   actorName,
+  isDeleted,
   onClose,
   onUpdate,
+  onDelete,
+  onRestore,
+  onPermanentDelete,
 }: {
   contact: Contact;
   actorName: string;
+  isDeleted: boolean;
   onClose: () => void;
   onUpdate: (
     id: string,
     fields: { stage?: string; assignee?: string; notes?: string }
   ) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onRestore: (id: string) => Promise<void>;
+  onPermanentDelete: (id: string) => Promise<void>;
 }) {
   const [tab, setTab] = useState<"details" | "documents">("details");
   const [notes, setNotes] = useState(contact.notes);
   const [saving, setSaving] = useState(false);
+  const [confirmPermanentDelete, setConfirmPermanentDelete] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -221,6 +303,7 @@ function ContactDetail({
     setNotes(contact.notes);
     setTab("details");
     setViewingDoc(null);
+    setConfirmPermanentDelete(false);
     setLoadingActivity(true);
     setLoadingDocs(true);
     getActivities(contact.id).then((data) => {
@@ -274,24 +357,67 @@ function ContactDetail({
             <h2 className="text-lg font-bold">{contact.name}</h2>
             <p className="text-muted text-sm">{contact.company}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="lg:hidden p-2 text-muted hover:text-charcoal transition-colors"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
+          <div className="flex items-center gap-2">
+            {isDeleted ? (
+              <>
+                <button
+                  onClick={() => onRestore(contact.id)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-green-600/10 text-green-700 hover:bg-green-600/20 transition-colors"
+                >
+                  Restore
+                </button>
+                {confirmPermanentDelete ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-red-600">Are you sure?</span>
+                    <button
+                      onClick={() => onPermanentDelete(contact.id)}
+                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    >
+                      Yes, delete forever
+                    </button>
+                    <button
+                      onClick={() => setConfirmPermanentDelete(false)}
+                      className="text-xs font-medium px-3 py-1.5 rounded-full bg-neutral text-muted hover:bg-border transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmPermanentDelete(true)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                  >
+                    Delete Forever
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => onDelete(contact.id)}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+              >
+                Delete
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 text-muted hover:text-charcoal transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18 18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18 18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -325,6 +451,17 @@ function ContactDetail({
           </button>
         </div>
       </div>
+
+      {/* Deleted banner */}
+      {isDeleted && contact.deletedAt && (
+        <div className="px-6 py-3 bg-red-500/10 border-b border-red-500/20">
+          <p className="text-sm text-red-600 font-medium">
+            This contact was deleted on {contact.deletedAt.toLocaleDateString()}.
+            {" "}It will be permanently removed in{" "}
+            {Math.max(0, 10 - Math.floor((Date.now() - contact.deletedAt.getTime()) / (1000 * 60 * 60 * 24)))} days.
+          </p>
+        </div>
+      )}
 
       {/* Documents tab */}
       {tab === "documents" && (
