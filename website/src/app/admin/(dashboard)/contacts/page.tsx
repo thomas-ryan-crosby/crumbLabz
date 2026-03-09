@@ -665,6 +665,7 @@ function DocumentsPanel({
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadContent, setUploadContent] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [extractingPdf, setExtractingPdf] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
   const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
@@ -690,6 +691,25 @@ function DocumentsPanel({
     setShowUpload(false);
     setUploading(false);
     await onDocumentsChanged();
+  };
+
+  const handlePdfUpload = async (file: File) => {
+    setExtractingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/extract-pdf", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUploadContent(data.text);
+      if (!uploadTitle.trim()) {
+        setUploadTitle(file.name.replace(/\.pdf$/i, ""));
+      }
+    } catch (err) {
+      console.error("PDF extraction error:", err);
+    } finally {
+      setExtractingPdf(false);
+    }
   };
 
   const handleGenerate = async (type: "problem_definition" | "solution_one_pager") => {
@@ -811,6 +831,32 @@ function DocumentsPanel({
               onChange={(e) => setUploadTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
             />
+
+            {/* PDF upload */}
+            <label className="flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed border-border text-sm text-muted hover:border-accent hover:text-accent cursor-pointer transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+              </svg>
+              {extractingPdf ? "Extracting text from PDF..." : "Upload PDF to extract text"}
+              <input
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePdfUpload(file);
+                  e.target.value = "";
+                }}
+                disabled={extractingPdf}
+              />
+            </label>
+
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted">or paste text</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
             <textarea
               placeholder="Paste meeting transcript or notes here..."
               value={uploadContent}
@@ -820,7 +866,7 @@ function DocumentsPanel({
             />
             <button
               onClick={handleUploadTranscript}
-              disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()}
+              disabled={uploading || extractingPdf || !uploadTitle.trim() || !uploadContent.trim()}
               className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               {uploading ? "Saving..." : "Save Transcript"}
