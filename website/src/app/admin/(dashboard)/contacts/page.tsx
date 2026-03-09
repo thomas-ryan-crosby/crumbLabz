@@ -726,17 +726,14 @@ function DocumentsPanel({
       if (!transcript) return;
       sourceContent = transcript.content;
 
-      // If no text content but has a file, try to extract text from the PDF
+      // If no text content but has a file, extract text server-side (avoids CORS)
       if (!sourceContent && transcript.fileUrl) {
         setGenerating(type);
         try {
-          const fileRes = await fetch(transcript.fileUrl);
-          const blob = await fileRes.blob();
-          const formData = new FormData();
-          formData.append("file", blob, transcript.fileName);
           const extractRes = await fetch("/api/extract-pdf", {
             method: "POST",
-            body: formData,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: transcript.fileUrl }),
           });
           const extractData = await extractRes.json();
           if (extractRes.ok && extractData.text) {
