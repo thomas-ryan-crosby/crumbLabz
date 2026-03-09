@@ -36,6 +36,12 @@ export default function ContactForm() {
     setSubmitting(true);
     try {
       await submitContactForm(formData);
+      // Send welcome email (fire-and-forget — don't block form success)
+      fetch("/api/email/welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      }).catch(() => {});
       setSubmitted(true);
     } catch {
       alert("Something went wrong. Please try again.");
@@ -49,7 +55,8 @@ export default function ContactForm() {
       <div className="bg-neutral rounded-xl p-10 text-center">
         <h3 className="mb-3">Thanks for reaching out!</h3>
         <p className="text-muted">
-          We received your message and will be in touch soon.
+          We just sent you an email with next steps, including a link to book
+          your free discovery call. Check your inbox!
         </p>
       </div>
     );

@@ -205,4 +205,70 @@ export async function signOut() {
   return firebaseSignOut(auth);
 }
 
+// --- Client documents ---
+
+export interface ClientDocument {
+  id: string;
+  title: string;
+  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "other";
+  content: string;
+  status: "draft" | "review" | "approved" | "sent";
+  generatedBy: "ai" | "manual";
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export async function addClientDocument(
+  contactId: string,
+  data: {
+    title: string;
+    type: ClientDocument["type"];
+    content: string;
+    status?: ClientDocument["status"];
+    generatedBy?: ClientDocument["generatedBy"];
+  }
+) {
+  return addDoc(collection(db, "contacts", contactId, "documents"), {
+    title: data.title,
+    type: data.type,
+    content: data.content,
+    status: data.status || "draft",
+    generatedBy: data.generatedBy || "manual",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getClientDocuments(contactId: string): Promise<ClientDocument[]> {
+  const q = query(
+    collection(db, "contacts", contactId, "documents"),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      title: data.title || "",
+      type: data.type || "other",
+      content: data.content || "",
+      status: data.status || "draft",
+      generatedBy: data.generatedBy || "manual",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    };
+  });
+}
+
+export async function updateClientDocument(
+  contactId: string,
+  documentId: string,
+  fields: { content?: string; status?: string; title?: string }
+) {
+  return updateDoc(doc(db, "contacts", contactId, "documents", documentId), {
+    ...fields,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export { auth, db, onAuthStateChanged, type User };

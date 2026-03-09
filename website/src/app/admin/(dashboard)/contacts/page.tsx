@@ -5,13 +5,17 @@ import {
   getContacts,
   updateContact,
   getActivities,
+  getClientDocuments,
+  updateClientDocument,
   getCurrentTeamMember,
   PIPELINE_STAGES,
   TEAM_MEMBERS,
   type Contact,
   type Activity,
+  type ClientDocument,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
+import ReactMarkdown from "react-markdown";
 
 export default function ContactsPage() {
   const { user } = useAuth();
@@ -204,17 +208,28 @@ function ContactDetail({
     fields: { stage?: string; assignee?: string; notes?: string }
   ) => Promise<void>;
 }) {
+  const [tab, setTab] = useState<"details" | "documents">("details");
   const [notes, setNotes] = useState(contact.notes);
   const [saving, setSaving] = useState(false);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
+  const [documents, setDocuments] = useState<ClientDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+  const [viewingDoc, setViewingDoc] = useState<ClientDocument | null>(null);
 
   useEffect(() => {
     setNotes(contact.notes);
+    setTab("details");
+    setViewingDoc(null);
     setLoadingActivity(true);
+    setLoadingDocs(true);
     getActivities(contact.id).then((data) => {
       setActivities(data);
       setLoadingActivity(false);
+    });
+    getClientDocuments(contact.id).then((data) => {
+      setDocuments(data);
+      setLoadingDocs(false);
     });
   }, [contact.id, contact.notes]);
 
@@ -238,34 +253,174 @@ function ContactDetail({
     setSaving(false);
   };
 
+  const handleDocStatusChange = async (
+    docId: string,
+    status: string
+  ) => {
+    await updateClientDocument(contact.id, docId, { status });
+    const updated = await getClientDocuments(contact.id);
+    setDocuments(updated);
+    if (viewingDoc?.id === docId) {
+      setViewingDoc(updated.find((d) => d.id === docId) || null);
+    }
+  };
+
   return (
     <div className="flex-1 bg-white overflow-y-auto">
       {/* Header */}
-      <div className="px-6 py-5 border-b border-border flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-bold">{contact.name}</h2>
-          <p className="text-muted text-sm">{contact.company}</p>
-        </div>
-        <button
-          onClick={onClose}
-          className="lg:hidden p-2 text-muted hover:text-charcoal transition-colors"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            viewBox="0 0 24 24"
+      <div className="px-6 py-5 border-b border-border">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold">{contact.name}</h2>
+            <p className="text-muted text-sm">{contact.company}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 text-muted hover:text-charcoal transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18 18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => { setTab("details"); setViewingDoc(null); }}
+            className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
+              tab === "details"
+                ? "bg-charcoal text-white"
+                : "text-muted hover:bg-neutral"
+            }`}
+          >
+            Details
+          </button>
+          <button
+            onClick={() => { setTab("documents"); setViewingDoc(null); }}
+            className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
+              tab === "documents"
+                ? "bg-charcoal text-white"
+                : "text-muted hover:bg-neutral"
+            }`}
+          >
+            Documents
+            {documents.length > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                tab === "documents" ? "bg-white/20" : "bg-accent/10 text-accent"
+              }`}>
+                {documents.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
+      {/* Documents tab */}
+      {tab === "documents" && (
+        <div className="px-6 py-6 max-w-3xl">
+          {viewingDoc ? (
+            <div>
+              <button
+                onClick={() => setViewingDoc(null)}
+                className="text-sm text-accent hover:text-accent-hover font-medium mb-4 flex items-center gap-1 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                </svg>
+                Back to documents
+              </button>
+
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">{viewingDoc.title}</h3>
+                  <p className="text-xs text-muted mt-1">
+                    {viewingDoc.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
+                    {viewingDoc.createdAt?.toLocaleString() || "—"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {(["draft", "review", "approved", "sent"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleDocStatusChange(viewingDoc.id, s)}
+                      className={`text-xs font-medium px-3 py-1.5 rounded-full border capitalize transition-colors ${
+                        viewingDoc.status === s
+                          ? s === "approved"
+                            ? "bg-green-600/10 text-green-700 border-current"
+                            : s === "sent"
+                              ? "bg-blue-500/10 text-blue-600 border-current"
+                              : s === "review"
+                                ? "bg-accent/10 text-accent border-current"
+                                : "bg-charcoal/10 text-charcoal border-current"
+                          : "border-border text-muted hover:border-charcoal"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
+                <ReactMarkdown>{viewingDoc.content}</ReactMarkdown>
+              </div>
+            </div>
+          ) : loadingDocs ? (
+            <p className="text-muted text-sm">Loading documents...</p>
+          ) : documents.length === 0 ? (
+            <div className="text-center py-10">
+              <p className="text-muted text-sm">No documents yet.</p>
+              <p className="text-muted text-xs mt-1">
+                Documents will be auto-generated after the discovery call via Fireflies.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {documents.map((d) => (
+                <button
+                  key={d.id}
+                  onClick={() => setViewingDoc(d)}
+                  className="w-full text-left bg-neutral rounded-lg p-4 hover:bg-border/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-medium text-sm">{d.title}</p>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+                      d.status === "approved"
+                        ? "bg-green-600/10 text-green-700"
+                        : d.status === "sent"
+                          ? "bg-blue-500/10 text-blue-600"
+                          : d.status === "review"
+                            ? "bg-accent/10 text-accent"
+                            : "bg-charcoal/10 text-charcoal"
+                    }`}>
+                      {d.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {d.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
+                    {d.type.replace(/_/g, " ")} &middot;{" "}
+                    {d.createdAt?.toLocaleDateString() || "—"}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Details tab */}
+      {tab === "details" && (
       <div className="px-6 py-6 space-y-6 max-w-2xl">
         {/* Contact info */}
         <div className="grid sm:grid-cols-2 gap-4">
@@ -423,6 +578,7 @@ function ContactDetail({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

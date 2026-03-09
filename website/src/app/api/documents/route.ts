@@ -9,6 +9,10 @@ const DOC_LABELS: Record<string, string> = {
   CrumbLabz_ClientProcess: "Client Process",
   CrumbLabz_BrandIdentify: "Brand Identity",
   CrumbLabz_WebsitePRD: "Website PRD",
+  CrumbLabz_AutomationPlaybook: "Automation Playbook",
+  CallScript_DiscoveryCall: "Call Script: Discovery Call",
+  CallScript_SolutionReview: "Call Script: Solution Review",
+  CallScript_MVPPresentation: "Call Script: MVP Presentation",
 };
 
 export async function GET(request: Request) {
