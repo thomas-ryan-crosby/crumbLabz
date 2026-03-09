@@ -717,18 +717,48 @@ function DocumentsPanel({
     }
   };
 
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
   const handleGenerate = async (type: "problem_definition" | "solution_one_pager") => {
     let sourceContent = "";
     if (type === "problem_definition") {
       const transcript = meetingDocs[0];
       if (!transcript) return;
       sourceContent = transcript.content;
+
+      // If no text content but has a file, try to extract text from the PDF
+      if (!sourceContent && transcript.fileUrl) {
+        setGenerating(type);
+        try {
+          const fileRes = await fetch(transcript.fileUrl);
+          const blob = await fileRes.blob();
+          const formData = new FormData();
+          formData.append("file", blob, transcript.fileName);
+          const extractRes = await fetch("/api/extract-pdf", {
+            method: "POST",
+            body: formData,
+          });
+          const extractData = await extractRes.json();
+          if (extractRes.ok && extractData.text) {
+            sourceContent = extractData.text;
+          }
+        } catch {
+          // extraction failed, will show error below
+        }
+      }
+
+      if (!sourceContent) {
+        setGenerating(null);
+        setGenerateError("The meeting document has no text content. Please add text notes to the transcript or upload a PDF with extractable text.");
+        return;
+      }
     } else {
       const prd = productDocs.find((d) => d.type === "problem_definition");
       if (!prd) return;
       sourceContent = prd.content;
     }
 
+    setGenerateError(null);
     setGenerating(type);
     try {
       const res = await fetch("/api/generate-document", {
@@ -1064,6 +1094,12 @@ function DocumentsPanel({
             )}
           </button>
         </div>
+
+        {generateError && (
+          <div className="mb-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-sm text-red-600">{generateError}</p>
+          </div>
+        )}
 
         {meetingDocs.length === 0 && productDocs.length === 0 && (
           <p className="text-muted text-xs">Add a meeting transcript first, then generate product documents from it.</p>
