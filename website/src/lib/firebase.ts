@@ -20,6 +20,12 @@ import {
   onAuthStateChanged,
   type User,
 } from "firebase/auth";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -33,6 +39,7 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 // --- Pipeline stages (maps to the 8-phase client process) ---
 
@@ -271,6 +278,8 @@ export interface ClientDocument {
   title: string;
   type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "other";
   content: string;
+  fileUrl: string;
+  fileName: string;
   status: "draft" | "review" | "approved" | "sent";
   generatedBy: "ai" | "manual";
   createdAt: Date | null;
@@ -282,7 +291,9 @@ export async function addClientDocument(
   data: {
     title: string;
     type: ClientDocument["type"];
-    content: string;
+    content?: string;
+    fileUrl?: string;
+    fileName?: string;
     status?: ClientDocument["status"];
     generatedBy?: ClientDocument["generatedBy"];
   }
@@ -290,12 +301,25 @@ export async function addClientDocument(
   return addDoc(collection(db, "contacts", contactId, "documents"), {
     title: data.title,
     type: data.type,
-    content: data.content,
+    content: data.content || "",
+    fileUrl: data.fileUrl || "",
+    fileName: data.fileName || "",
     status: data.status || "draft",
     generatedBy: data.generatedBy || "manual",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function uploadDocumentFile(
+  contactId: string,
+  file: File
+): Promise<{ url: string; name: string }> {
+  const path = `contacts/${contactId}/documents/${Date.now()}_${file.name}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  return { url, name: file.name };
 }
 
 export async function getClientDocuments(contactId: string): Promise<ClientDocument[]> {
@@ -311,6 +335,8 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
       title: data.title || "",
       type: data.type || "other",
       content: data.content || "",
+      fileUrl: data.fileUrl || "",
+      fileName: data.fileName || "",
       status: data.status || "draft",
       generatedBy: data.generatedBy || "manual",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,

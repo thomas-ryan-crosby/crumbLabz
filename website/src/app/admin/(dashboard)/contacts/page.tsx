@@ -11,6 +11,7 @@ import {
   getActivities,
   getClientDocuments,
   addClientDocument,
+  uploadDocumentFile,
   updateClientDocument,
   getCurrentTeamMember,
   PIPELINE_STAGES,
@@ -664,8 +665,8 @@ function DocumentsPanel({
   const [showUpload, setShowUpload] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadContent, setUploadContent] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [extractingPdf, setExtractingPdf] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
   const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
@@ -676,39 +677,33 @@ function DocumentsPanel({
     (d) => d.type === "other" && !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
 
-  const handleUploadTranscript = async () => {
-    if (!uploadTitle.trim() || !uploadContent.trim()) return;
+  const handleUploadDocument = async () => {
+    if (!uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)) return;
     setUploading(true);
-    await addClientDocument(contactId, {
-      title: uploadTitle.trim(),
-      type: "meeting_transcript",
-      content: uploadContent.trim(),
-      status: "approved",
-      generatedBy: "manual",
-    });
-    setUploadTitle("");
-    setUploadContent("");
-    setShowUpload(false);
-    setUploading(false);
-    await onDocumentsChanged();
-  };
-
-  const handlePdfUpload = async (file: File) => {
-    setExtractingPdf(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/extract-pdf", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setUploadContent(data.text);
-      if (!uploadTitle.trim()) {
-        setUploadTitle(file.name.replace(/\.pdf$/i, ""));
+      let fileUrl = "";
+      let fileName = "";
+      if (uploadFile) {
+        const result = await uploadDocumentFile(contactId, uploadFile);
+        fileUrl = result.url;
+        fileName = result.name;
       }
-    } catch (err) {
-      console.error("PDF extraction error:", err);
+      await addClientDocument(contactId, {
+        title: uploadTitle.trim(),
+        type: "meeting_transcript",
+        content: uploadContent.trim(),
+        fileUrl,
+        fileName,
+        status: "approved",
+        generatedBy: "manual",
+      });
+      setUploadTitle("");
+      setUploadContent("");
+      setUploadFile(null);
+      setShowUpload(false);
+      await onDocumentsChanged();
     } finally {
-      setExtractingPdf(false);
+      setUploading(false);
     }
   };
 
@@ -797,9 +792,39 @@ function DocumentsPanel({
           </div>
         </div>
 
-        <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
-          <ReactMarkdown>{viewingDoc.content}</ReactMarkdown>
-        </div>
+        {viewingDoc.fileUrl && (
+          <div className="flex items-center gap-3 mb-4 bg-neutral rounded-lg p-4">
+            <svg className="w-8 h-8 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M7 18H17V16H7V18M17 14H7V12H17V14M7 10H11V8H7V10M15 2H5C3.89 2 3 2.89 3 4V20C3 21.11 3.89 22 5 22H19C20.11 22 21 21.11 21 20V8L15 2M19 20H5V4H14V9H19V20Z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{viewingDoc.fileName}</p>
+              <p className="text-xs text-muted">Uploaded file</p>
+            </div>
+            <a
+              href={viewingDoc.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors shrink-0"
+            >
+              View / Download
+            </a>
+          </div>
+        )}
+
+        {viewingDoc.fileUrl && viewingDoc.fileName.toLowerCase().endsWith(".pdf") && (
+          <iframe
+            src={viewingDoc.fileUrl}
+            className="w-full h-[600px] rounded-lg border border-border mb-4"
+            title={viewingDoc.title}
+          />
+        )}
+
+        {viewingDoc.content && (
+          <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
+            <ReactMarkdown>{viewingDoc.content}</ReactMarkdown>
+          </div>
+        )}
       </div>
     );
   }
@@ -832,44 +857,57 @@ function DocumentsPanel({
               className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
             />
 
-            {/* PDF upload */}
-            <label className="flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed border-border text-sm text-muted hover:border-accent hover:text-accent cursor-pointer transition-colors">
+            {/* File upload */}
+            <label className={`flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed text-sm cursor-pointer transition-colors ${
+              uploadFile ? "border-accent bg-accent/5 text-accent" : "border-border text-muted hover:border-accent hover:text-accent"
+            }`}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
               </svg>
-              {extractingPdf ? "Extracting text from PDF..." : "Upload PDF to extract text"}
+              {uploadFile ? uploadFile.name : "Upload a file (PDF, DOC, etc.)"}
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.doc,.docx,.txt"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) handlePdfUpload(file);
-                  e.target.value = "";
+                  if (file) {
+                    setUploadFile(file);
+                    if (!uploadTitle.trim()) {
+                      setUploadTitle(file.name.replace(/\.[^.]+$/, ""));
+                    }
+                  }
                 }}
-                disabled={extractingPdf}
               />
             </label>
+            {uploadFile && (
+              <button
+                onClick={() => setUploadFile(null)}
+                className="text-xs text-muted hover:text-red-600 transition-colors"
+              >
+                Remove file
+              </button>
+            )}
 
             <div className="flex items-center gap-2">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted">or paste text</span>
+              <span className="text-xs text-muted">and/or add notes</span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
             <textarea
-              placeholder="Paste meeting transcript or notes here..."
+              placeholder="Paste meeting transcript or notes (optional if uploading a file)..."
               value={uploadContent}
               onChange={(e) => setUploadContent(e.target.value)}
-              rows={8}
+              rows={6}
               className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors resize-y"
             />
             <button
-              onClick={handleUploadTranscript}
-              disabled={uploading || extractingPdf || !uploadTitle.trim() || !uploadContent.trim()}
+              onClick={handleUploadDocument}
+              disabled={uploading || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)}
               className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              {uploading ? "Saving..." : "Save Transcript"}
+              {uploading ? "Uploading..." : "Save Document"}
             </button>
           </div>
         )}
@@ -970,8 +1008,9 @@ function DocCard({ doc, onClick }: { doc: ClientDocument; onClick: () => void })
         </span>
       </div>
       <p className="text-xs text-muted">
-        {doc.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
-        {doc.type.replace(/_/g, " ")} &middot;{" "}
+        {doc.generatedBy === "ai" ? "AI Generated" : "Manual"}
+        {doc.fileName ? ` · ${doc.fileName}` : ` · ${doc.type.replace(/_/g, " ")}`}
+        {" · "}
         {doc.createdAt?.toLocaleDateString() || "—"}
       </p>
     </button>
