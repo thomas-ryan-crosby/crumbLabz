@@ -721,32 +721,16 @@ function DocumentsPanel({
 
   const handleGenerate = async (type: "problem_definition" | "solution_one_pager") => {
     let sourceContent = "";
+    let fileUrl = "";
+
     if (type === "problem_definition") {
       const transcript = meetingDocs[0];
       if (!transcript) return;
       sourceContent = transcript.content;
+      fileUrl = transcript.fileUrl;
 
-      // If no text content but has a file, extract text server-side (avoids CORS)
-      if (!sourceContent && transcript.fileUrl) {
-        setGenerating(type);
-        try {
-          const extractRes = await fetch("/api/extract-pdf", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: transcript.fileUrl }),
-          });
-          const extractData = await extractRes.json();
-          if (extractRes.ok && extractData.text) {
-            sourceContent = extractData.text;
-          }
-        } catch {
-          // extraction failed, will show error below
-        }
-      }
-
-      if (!sourceContent) {
-        setGenerating(null);
-        setGenerateError("The meeting document has no text content. Please add text notes to the transcript or upload a PDF with extractable text.");
+      if (!sourceContent && !fileUrl) {
+        setGenerateError("No meeting document content or file found. Please add a transcript first.");
         return;
       }
     } else {
@@ -761,7 +745,7 @@ function DocumentsPanel({
       const res = await fetch("/api/generate-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, sourceContent }),
+        body: JSON.stringify({ type, sourceContent: sourceContent || undefined, fileUrl: fileUrl || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

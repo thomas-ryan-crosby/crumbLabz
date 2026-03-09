@@ -139,6 +139,38 @@ export async function generateProblemDefinition(
   return textBlock?.text || "";
 }
 
+export async function generateProblemDefinitionFromPdf(
+  pdfBase64: string
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4000,
+    system: PROBLEM_DEFINITION_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: {
+              type: "base64",
+              media_type: "application/pdf",
+              data: pdfBase64,
+            },
+          },
+          {
+            type: "text",
+            text: "Here is the PDF of the discovery call transcript. Please produce the Problem Definition Document.",
+          },
+        ],
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.text || "";
+}
+
 export async function generateSolutionOnePager(
   problemDefinition: string
 ): Promise<string> {
