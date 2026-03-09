@@ -13,12 +13,15 @@ import {
   addClientDocument,
   uploadDocumentFile,
   updateClientDocument,
+  saveRevisionAndUpdate,
+  getDocumentRevisions,
   getCurrentTeamMember,
   PIPELINE_STAGES,
   TEAM_MEMBERS,
   type Contact,
   type Activity,
   type ClientDocument,
+  type DocumentRevision,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
@@ -469,6 +472,7 @@ function ContactDetail({
       {tab === "documents" && (
         <DocumentsPanel
           contactId={contact.id}
+          actorName={actorName}
           documents={documents}
           loadingDocs={loadingDocs}
           viewingDoc={viewingDoc}
@@ -647,6 +651,7 @@ function ContactDetail({
 
 function DocumentsPanel({
   contactId,
+  actorName,
   documents,
   loadingDocs,
   viewingDoc,
@@ -655,6 +660,7 @@ function DocumentsPanel({
   onDocumentsChanged,
 }: {
   contactId: string;
+  actorName: string;
   documents: ClientDocument[];
   loadingDocs: boolean;
   viewingDoc: ClientDocument | null;
@@ -668,6 +674,10 @@ function DocumentsPanel({
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [revisions, setRevisions] = useState<DocumentRevision[]>([]);
+  const [loadingRevisions, setLoadingRevisions] = useState(false);
+  const [viewingRevision, setViewingRevision] = useState<DocumentRevision | null>(null);
+  const [showRevisions, setShowRevisions] = useState(false);
 
   const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
   const productDocs = documents.filter((d) =>
@@ -733,13 +743,30 @@ function DocumentsPanel({
         ? "Problem Definition Document"
         : "Solution One-Pager";
 
-      await addClientDocument(contactId, {
-        title,
-        type,
-        content: data.content,
-        status: "draft",
-        generatedBy: "ai",
-      });
+      // Check if a document of this type already exists — if so, save revision
+      const existing = productDocs.find((d) => d.type === type);
+      if (existing && existing.content) {
+        await saveRevisionAndUpdate(
+          contactId,
+          existing.id,
+          {
+            content: existing.content,
+            title: existing.title,
+            status: existing.status,
+            version: existing.version || 1,
+          },
+          { content: data.content, title, status: "draft" },
+          actorName
+        );
+      } else {
+        await addClientDocument(contactId, {
+          title,
+          type,
+          content: data.content,
+          status: "draft",
+          generatedBy: "ai",
+        });
+      }
       await onDocumentsChanged();
     } catch (err) {
       console.error("Generation error:", err);
@@ -748,11 +775,32 @@ function DocumentsPanel({
     }
   };
 
+  // Load revisions when viewing a product document
+  useEffect(() => {
+    if (viewingDoc && ["problem_definition", "solution_one_pager", "development_plan"].includes(viewingDoc.type)) {
+      setLoadingRevisions(true);
+      setViewingRevision(null);
+      setShowRevisions(false);
+      getDocumentRevisions(contactId, viewingDoc.id).then((data) => {
+        setRevisions(data);
+        setLoadingRevisions(false);
+      });
+    } else {
+      setRevisions([]);
+      setViewingRevision(null);
+      setShowRevisions(false);
+    }
+  }, [viewingDoc?.id, contactId]);
+
+  const isProductDoc = viewingDoc && ["problem_definition", "solution_one_pager", "development_plan"].includes(viewingDoc.type);
+
   if (viewingDoc) {
+    const displayContent = viewingRevision ? viewingRevision.content : viewingDoc.content;
+
     return (
       <div className="px-6 py-6 max-w-3xl">
         <button
-          onClick={() => setViewingDoc(null)}
+          onClick={() => { setViewingDoc(null); setViewingRevision(null); }}
           className="text-sm text-accent hover:text-accent-hover font-medium mb-4 flex items-center gap-1 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -765,11 +813,27 @@ function DocumentsPanel({
           <div>
             <h3 className="text-lg font-bold">{viewingDoc.title}</h3>
             <p className="text-xs text-muted mt-1">
-              {viewingDoc.generatedBy === "ai" ? "AI Generated" : "Manual"} &middot;{" "}
-              {viewingDoc.createdAt?.toLocaleString() || "—"}
+              {viewingDoc.generatedBy === "ai" ? "AI Generated" : "Manual"}
+              {" · v"}{viewingDoc.version || 1}
+              {" · "}{viewingDoc.createdAt?.toLocaleString() || "—"}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {isProductDoc && revisions.length > 0 && (
+              <button
+                onClick={() => { setShowRevisions(!showRevisions); setViewingRevision(null); }}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${
+                  showRevisions
+                    ? "bg-charcoal text-white"
+                    : "bg-neutral text-muted hover:bg-border"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                {revisions.length} revision{revisions.length !== 1 ? "s" : ""}
+              </button>
+            )}
             {(["draft", "review", "approved", "sent"] as const).map((s) => (
               <button
                 key={s}
@@ -791,6 +855,44 @@ function DocumentsPanel({
             ))}
           </div>
         </div>
+
+        {/* Revision history sidebar */}
+        {showRevisions && (
+          <div className="mb-4 bg-neutral rounded-lg p-4">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-muted mb-2">Version History</h4>
+            <div className="space-y-1">
+              <button
+                onClick={() => setViewingRevision(null)}
+                className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${
+                  !viewingRevision ? "bg-accent/10 text-accent font-medium" : "text-muted hover:bg-border/50"
+                }`}
+              >
+                v{viewingDoc.version || 1} (current) — {viewingDoc.updatedAt?.toLocaleDateString() || "—"}
+              </button>
+              {revisions.map((rev) => (
+                <button
+                  key={rev.id}
+                  onClick={() => setViewingRevision(rev)}
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg transition-colors ${
+                    viewingRevision?.id === rev.id ? "bg-accent/10 text-accent font-medium" : "text-muted hover:bg-border/50"
+                  }`}
+                >
+                  v{rev.version} — {rev.editedBy} — {rev.createdAt?.toLocaleDateString() || "—"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Viewing old revision banner */}
+        {viewingRevision && (
+          <div className="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+            <p className="text-sm text-amber-700 font-medium">
+              Viewing version {viewingRevision.version} — saved by {viewingRevision.editedBy} on{" "}
+              {viewingRevision.createdAt?.toLocaleString() || "—"}
+            </p>
+          </div>
+        )}
 
         {viewingDoc.fileUrl && (
           <div className="flex items-center gap-3 mb-4 bg-neutral rounded-lg p-4">
@@ -820,9 +922,9 @@ function DocumentsPanel({
           />
         )}
 
-        {viewingDoc.content && (
+        {displayContent && (
           <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
-            <ReactMarkdown>{viewingDoc.content}</ReactMarkdown>
+            <ReactMarkdown>{displayContent}</ReactMarkdown>
           </div>
         )}
       </div>
@@ -939,6 +1041,8 @@ function DocumentsPanel({
                 <span className="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
                 Generating...
               </>
+            ) : productDocs.some((d) => d.type === "problem_definition") ? (
+              "Regenerate Problem Definition"
             ) : (
               "Generate Problem Definition"
             )}
@@ -953,6 +1057,8 @@ function DocumentsPanel({
                 <span className="w-3 h-3 border-2 border-violet-600/30 border-t-violet-600 rounded-full animate-spin" />
                 Generating...
               </>
+            ) : productDocs.some((d) => d.type === "solution_one_pager") ? (
+              "Regenerate Solution One-Pager"
             ) : (
               "Generate Solution One-Pager"
             )}
@@ -1009,6 +1115,7 @@ function DocCard({ doc, onClick }: { doc: ClientDocument; onClick: () => void })
       </div>
       <p className="text-xs text-muted">
         {doc.generatedBy === "ai" ? "AI Generated" : "Manual"}
+        {["problem_definition", "solution_one_pager", "development_plan"].includes(doc.type) && ` · v${doc.version || 1}`}
         {doc.fileName ? ` · ${doc.fileName}` : ` · ${doc.type.replace(/_/g, " ")}`}
         {" · "}
         {doc.createdAt?.toLocaleDateString() || "—"}

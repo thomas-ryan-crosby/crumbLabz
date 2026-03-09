@@ -282,8 +282,19 @@ export interface ClientDocument {
   fileName: string;
   status: "draft" | "review" | "approved" | "sent";
   generatedBy: "ai" | "manual";
+  version: number;
   createdAt: Date | null;
   updatedAt: Date | null;
+}
+
+export interface DocumentRevision {
+  id: string;
+  version: number;
+  content: string;
+  title: string;
+  status: string;
+  editedBy: string;
+  createdAt: Date | null;
 }
 
 export async function addClientDocument(
@@ -306,6 +317,7 @@ export async function addClientDocument(
     fileName: data.fileName || "",
     status: data.status || "draft",
     generatedBy: data.generatedBy || "manual",
+    version: 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -339,6 +351,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
       fileName: data.fileName || "",
       status: data.status || "draft",
       generatedBy: data.generatedBy || "manual",
+      version: (data.version as number) || 1,
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
@@ -353,6 +366,62 @@ export async function updateClientDocument(
   return updateDoc(doc(db, "contacts", contactId, "documents", documentId), {
     ...fields,
     updatedAt: serverTimestamp(),
+  });
+}
+
+// --- Document revisions ---
+
+export async function saveRevisionAndUpdate(
+  contactId: string,
+  documentId: string,
+  currentDoc: { content: string; title: string; status: string; version: number },
+  newFields: { content?: string; title?: string; status?: string },
+  actorName: string
+) {
+  // Save the current state as a revision
+  await addDoc(
+    collection(db, "contacts", contactId, "documents", documentId, "revisions"),
+    {
+      version: currentDoc.version,
+      content: currentDoc.content,
+      title: currentDoc.title,
+      status: currentDoc.status,
+      editedBy: actorName,
+      createdAt: serverTimestamp(),
+    }
+  );
+
+  // Update the document with new content and bump version
+  const nextVersion = currentDoc.version + 1;
+  await updateDoc(doc(db, "contacts", contactId, "documents", documentId), {
+    ...newFields,
+    version: nextVersion,
+    updatedAt: serverTimestamp(),
+  });
+
+  return nextVersion;
+}
+
+export async function getDocumentRevisions(
+  contactId: string,
+  documentId: string
+): Promise<DocumentRevision[]> {
+  const q = query(
+    collection(db, "contacts", contactId, "documents", documentId, "revisions"),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      version: (data.version as number) || 1,
+      content: (data.content as string) || "",
+      title: (data.title as string) || "",
+      status: (data.status as string) || "",
+      editedBy: (data.editedBy as string) || "",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    };
   });
 }
 
