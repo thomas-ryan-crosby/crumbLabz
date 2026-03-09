@@ -867,6 +867,66 @@ function DocumentsPanel({
           </div>
         </div>
 
+        {/* Download buttons for product documents */}
+        {isProductDoc && displayContent && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/documents/download-pdf", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ markdown: displayContent, title: viewingDoc.title }),
+                  });
+                  if (!res.ok) throw new Error("Failed to generate PDF");
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${viewingDoc.title}.pdf`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error("PDF download error:", err);
+                }
+              }}
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Download PDF
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/documents/download-docx", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ markdown: displayContent, title: viewingDoc.title }),
+                  });
+                  if (!res.ok) throw new Error("Failed to generate DOCX");
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${viewingDoc.title}.docx`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  console.error("DOCX download error:", err);
+                }
+              }}
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Download Word
+            </button>
+          </div>
+        )}
+
         {/* Revision history sidebar */}
         {showRevisions && (
           <div className="mb-4 bg-neutral rounded-lg p-4">
