@@ -94,12 +94,19 @@ export async function generatePdf(
       renderToken(doc, token, contentWidth);
     }
 
-    // Add headers and footers to all buffered pages
+    // Add headers and footers to all buffered pages.
+    // CRITICAL: save/restore doc.x and doc.y around every switchToPage + draw
+    // because doc.text() and doc.image() advance the cursor, which can trigger
+    // pdfkit's auto-pagination and create empty ghost pages.
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
+      const savedX = doc.x;
+      const savedY = doc.y;
       drawHeader(doc);
       drawFooter(doc, i + 1, pages.count);
+      doc.x = savedX;
+      doc.y = savedY;
     }
 
     doc.end();

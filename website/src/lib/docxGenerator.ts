@@ -296,7 +296,7 @@ export async function generateDocx(
         children: [
           new ImageRun({
             data: logoBuffer,
-            transformation: { width: 160, height: 40 },
+            transformation: { width: 220, height: 55 },
             type: "png",
           }),
         ],
