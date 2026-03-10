@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import { marked, type Token, type Tokens } from "marked";
-import { getLogoFullBuffer, getLogoCookieBuffer } from "@/assets/logos";
+import { LOGO_FULL_BASE64, LOGO_COOKIE_BASE64 } from "@/assets/logos";
 
 const CHARCOAL = "#2d2d2d";
 const ACCENT = "#e87a2e";
@@ -14,10 +14,6 @@ const HEADER_ZONE = 80;
 const FOOTER_ZONE = 50;
 const BODY_FONT_SIZE = 11;
 const LINE_HEIGHT = 1.4;
-
-// Pre-load logo buffers (embedded base64, works in serverless)
-const logoFullBuffer = getLogoFullBuffer();
-const logoCookieBuffer = getLogoCookieBuffer();
 
 function stripBrandingTokens(tokens: Token[]): Token[] {
   const filtered: Token[] = [];
@@ -124,8 +120,8 @@ function drawHeader(doc: PDFKit.PDFDocument) {
   // White background to cover any content that may have bled into the header zone
   doc.rect(0, 0, pageWidth, PAGE_MARGIN_TOP + HEADER_ZONE - 10).fill("#ffffff");
 
-  // Logo image — large and prominent (embedded buffer, works in serverless)
-  doc.image(logoFullBuffer, PAGE_MARGIN_X, PAGE_MARGIN_TOP - 2, {
+  // Logo image — large and prominent (data URI, works in serverless)
+  doc.image("data:image/png;base64," + LOGO_FULL_BASE64, PAGE_MARGIN_X, PAGE_MARGIN_TOP - 2, {
     height: 56,
   });
 
@@ -175,8 +171,8 @@ function drawFooter(
     .lineWidth(0.5)
     .stroke();
 
-  // Cookie icon in footer (embedded buffer)
-  doc.image(logoCookieBuffer, PAGE_MARGIN_X, y + 5, { height: 16 });
+  // Cookie icon in footer (data URI, works in serverless)
+  doc.image("data:image/png;base64," + LOGO_COOKIE_BASE64, PAGE_MARGIN_X, y + 5, { height: 16 });
 
   // Footer text with clickable website link
   const textX = PAGE_MARGIN_X + 22;
