@@ -2509,11 +2509,11 @@ function DocumentsPanel({
             ) : (
               <div className="space-y-2">
                 {changeRequests.map((cr) => (
-                  <div key={cr.id} className="bg-neutral rounded-lg p-3 relative group">
+                  <div key={cr.id} className="bg-neutral rounded-lg p-3 relative">
                     <button
                       onClick={() => handleDeleteChangeRequest(cr.id, cr.title)}
                       title="Delete feature request"
-                      className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-all text-xs font-bold"
+                      className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-700 transition-colors text-xs font-bold"
                     >
                       ×
                     </button>
@@ -2702,14 +2702,14 @@ function DocumentsPanel({
 
 function DocCard({ doc, onClick, onDelete, deleting }: { doc: ClientDocument; onClick: () => void; onDelete?: () => void; deleting?: boolean }) {
   return (
-    <div className="relative group">
+    <div className="relative">
       <button
         onClick={onClick}
         className="w-full text-left bg-neutral rounded-lg p-4 hover:bg-border/50 transition-colors"
       >
         <div className="flex items-center justify-between mb-1">
-          <p className="font-medium text-sm">{doc.title}</p>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+          <p className={`font-medium text-sm ${onDelete ? "pr-6" : ""}`}>{doc.title}</p>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize shrink-0 ${
             doc.status === "approved"
               ? "bg-green-600/10 text-green-700"
               : doc.status === "sent"
@@ -2738,10 +2738,10 @@ function DocCard({ doc, onClick, onDelete, deleting }: { doc: ClientDocument; on
       </button>
       {onDelete && (
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(); }}
           disabled={deleting}
           title="Delete document"
-          className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-all text-xs font-bold"
+          className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-700 transition-colors text-xs font-bold"
         >
           {deleting ? "..." : "×"}
         </button>
