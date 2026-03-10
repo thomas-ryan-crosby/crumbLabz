@@ -286,6 +286,7 @@ export interface ClientDocument {
   generatedBy: "ai" | "manual";
   version: number;
   projectId: string;
+  adminNotes: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -358,6 +359,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
       generatedBy: data.generatedBy || "manual",
       version: (data.version as number) || 1,
       projectId: (data.projectId as string) || "",
+      adminNotes: (data.adminNotes as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
@@ -367,7 +369,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
 export async function updateClientDocument(
   contactId: string,
   documentId: string,
-  fields: { content?: string; status?: string; title?: string }
+  fields: { content?: string; status?: string; title?: string; adminNotes?: string }
 ) {
   return updateDoc(doc(db, "contacts", contactId, "documents", documentId), {
     ...fields,
