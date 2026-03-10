@@ -24,12 +24,15 @@ import {
   createReviewToken,
   getDocumentComments,
   tagDocumentsWithProject,
+  getChangeRequests,
+  updateChangeRequest,
   type Contact,
   type Activity,
   type ClientDocument,
   type DocumentRevision,
   type DocumentComment,
   type Project,
+  type ChangeRequest,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
@@ -757,7 +760,7 @@ function DocumentsPanel({
   const productDocs = contextDocs.filter((d) =>
     ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
-  const solutionDocs = contextDocs.filter((d) => d.type === "solution_overview");
+  const solutionDocs = contextDocs.filter((d) => ["solution_overview", "getting_started"].includes(d.type));
   const otherDocs = contextDocs.filter(
     (d) => !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan", "solution_overview"].includes(d.type)
   );
@@ -1022,6 +1025,124 @@ function DocumentsPanel({
     } finally {
       setGenerating(null);
     }
+  };
+
+  const handleGenerateGettingStarted = async () => {
+    if (!activeProject?.repoUrl) return;
+    setGenerating("getting_started");
+    setGenerateError(null);
+    try {
+      const urlParts = activeProject.repoUrl.replace("https://github.com/", "").split("/");
+      const repoOwner = urlParts[0];
+      const repoName = urlParts[1];
+
+      // Pass solution overview content as context if it exists
+      const overviewDoc = solutionDocs.find((d) => d.type === "solution_overview");
+
+      const res = await fetch("/api/generate-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "getting_started",
+          repoOwner,
+          repoName,
+          projectName: activeProject.name,
+          sourceContent: overviewDoc?.content || "",
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to generate getting started guide");
+      }
+
+      const data = await res.json();
+      const existing = solutionDocs.find((d) => d.type === "getting_started");
+      if (existing) {
+        await saveRevisionAndUpdate(
+          contactId,
+          existing.id,
+          { content: existing.content, title: existing.title, status: existing.status, version: existing.version || 1 },
+          { content: data.content },
+          "AI"
+        );
+      } else {
+        await addClientDocument(contactId, {
+          title: `Getting Started — ${activeProject.name}`,
+          type: "getting_started",
+          content: data.content,
+          status: "draft",
+          generatedBy: "ai",
+          projectId: activeProjectId,
+        });
+      }
+      await onDocumentsChanged();
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Failed to generate getting started guide");
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  // Change requests state
+  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
+  const [solutionReviewSent, setSolutionReviewSent] = useState(false);
+  const [sendingSolutionReview, setSendingSolutionReview] = useState(false);
+
+  // Load change requests when project changes
+  useEffect(() => {
+    if (activeProjectId && activeProjectId !== "__unassigned__") {
+      getChangeRequests(contactId, activeProjectId).then(setChangeRequests);
+    }
+  }, [contactId, activeProjectId, documents]);
+
+  const handleSendSolutionForReview = async () => {
+    setSendingSolutionReview(true);
+    try {
+      const tokenId = await createReviewToken({
+        contactId,
+        contactName,
+        companyName,
+        contactEmail,
+        createdBy: actorName,
+        projectId: activeProjectId,
+        reviewType: "solution_assets",
+      });
+
+      const baseUrl = window.location.origin;
+      const reviewUrl = `${baseUrl}/review/${tokenId}`;
+
+      const res = await fetch("/api/email/send-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl, reviewType: "solution_assets" }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send email");
+      }
+
+      // Update solution doc statuses to "sent"
+      for (const d of solutionDocs) {
+        if (d.status === "draft") {
+          await updateClientDocument(contactId, d.id, { status: "sent" });
+        }
+      }
+
+      setSolutionReviewSent(true);
+      await onDocumentsChanged();
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Failed to send solution review");
+    } finally {
+      setSendingSolutionReview(false);
+    }
+  };
+
+  const handleChangeRequestStatus = async (requestId: string, status: ChangeRequest["status"]) => {
+    await updateChangeRequest(contactId, requestId, { status });
+    const updated = await getChangeRequests(contactId, activeProjectId);
+    setChangeRequests(updated);
   };
 
   // Load revisions when viewing a product document
@@ -1716,23 +1837,43 @@ function DocumentsPanel({
               </a>
             </div>
 
-            <button
-              onClick={handleGenerateSolutionOverview}
-              disabled={generating !== null}
-              className="text-xs font-medium px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
-            >
-              {generating === "solution_overview" ? (
-                <>
-                  <span className="w-3 h-3 border-2 border-teal-600/30 border-t-teal-600 rounded-full animate-spin" />
-                  Reading repo &amp; generating...
-                </>
-              ) : solutionDocs.length > 0 ? (
-                "Regenerate Solution Overview"
-              ) : (
-                "Generate Solution Overview"
-              )}
-            </button>
+            {/* Generate buttons */}
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={handleGenerateSolutionOverview}
+                disabled={generating !== null}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+              >
+                {generating === "solution_overview" ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-teal-600/30 border-t-teal-600 rounded-full animate-spin" />
+                    Generating...
+                  </>
+                ) : solutionDocs.some((d) => d.type === "solution_overview") ? (
+                  "Regenerate Solution Overview"
+                ) : (
+                  "Generate Solution Overview"
+                )}
+              </button>
+              <button
+                onClick={handleGenerateGettingStarted}
+                disabled={generating !== null || !solutionDocs.some((d) => d.type === "solution_overview")}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+              >
+                {generating === "getting_started" ? (
+                  <>
+                    <span className="w-3 h-3 border-2 border-cyan-600/30 border-t-cyan-600 rounded-full animate-spin" />
+                    Generating...
+                  </>
+                ) : solutionDocs.some((d) => d.type === "getting_started") ? (
+                  "Regenerate Getting Started Guide"
+                ) : (
+                  "Generate Getting Started Guide"
+                )}
+              </button>
+            </div>
 
+            {/* Solution doc cards */}
             {solutionDocs.length > 0 && (
               <div className="space-y-2">
                 {solutionDocs.map((d) => (
@@ -1743,6 +1884,82 @@ function DocumentsPanel({
 
             {solutionDocs.length === 0 && !generating && (
               <p className="text-muted text-xs">Generate a solution overview to create client-facing tech documentation from the GitHub repository.</p>
+            )}
+
+            {/* Send Solution Assets for Review */}
+            {solutionDocs.length > 0 && !generating && (
+              <div>
+                {solutionReviewSent ? (
+                  <div className="px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2">
+                    <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    <p className="text-sm text-blue-700 font-medium">Solution assets sent to {contactEmail} for review.</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSendSolutionForReview}
+                    disabled={sendingSolutionReview}
+                    className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {sendingSolutionReview ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                        </svg>
+                        Send Solution to Client for Review
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Change Requests */}
+            {changeRequests.length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wide text-muted mb-2 mt-4">Change Requests</h4>
+                <div className="space-y-2">
+                  {changeRequests.map((cr) => (
+                    <div key={cr.id} className="bg-neutral rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <h5 className="text-sm font-medium">{cr.title}</h5>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                            cr.priority === "high" ? "bg-red-500/10 text-red-700"
+                              : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
+                                : "bg-blue-500/10 text-blue-700"
+                          }`}>{cr.priority}</span>
+                          <select
+                            value={cr.status}
+                            onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
+                              cr.status === "open" ? "bg-blue-500/10 text-blue-700"
+                                : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
+                                  : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
+                                    : "bg-neutral text-muted"
+                            }`}
+                          >
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted">{cr.description}</p>
+                      <p className="text-[10px] text-muted mt-1">
+                        {cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         ) : (

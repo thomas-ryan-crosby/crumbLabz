@@ -6,6 +6,7 @@ import {
   generateSolutionOnePager,
   generateDevelopmentPlan,
   generateSolutionOverview,
+  generateGettingStarted,
 } from "@/lib/documentGeneration";
 
 // Key files to read from repo for solution overview generation
@@ -111,6 +112,18 @@ export async function POST(request: Request) {
       }
       const { tree, files } = await fetchRepoContents(repoOwner, repoName);
       const content = await generateSolutionOverview(tree, files, projectName || repoName);
+      return NextResponse.json({ content });
+    }
+
+    if (type === "getting_started") {
+      if (!repoOwner || !repoName) {
+        return NextResponse.json(
+          { error: "repoOwner and repoName are required for getting_started" },
+          { status: 400 }
+        );
+      }
+      const { tree, files } = await fetchRepoContents(repoOwner, repoName);
+      const content = await generateGettingStarted(tree, files, sourceContent || "", projectName || repoName);
       return NextResponse.json({ content });
     }
 

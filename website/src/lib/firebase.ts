@@ -278,7 +278,7 @@ export async function signOut() {
 export interface ClientDocument {
   id: string;
   title: string;
-  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "solution_overview" | "other";
+  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "solution_overview" | "getting_started" | "other";
   content: string;
   fileUrl: string;
   fileName: string;
@@ -440,10 +440,25 @@ export interface ReviewToken {
   companyName: string;
   contactEmail: string;
   projectId: string;
+  reviewType: "project_docs" | "solution_assets";
   createdAt: Date | null;
   expiresAt: Date | null;
   createdBy: string;
   status: "active" | "completed" | "expired";
+}
+
+export interface ChangeRequest {
+  id: string;
+  contactId: string;
+  projectId: string;
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+  status: "open" | "in_progress" | "resolved" | "closed";
+  author: string;
+  reviewTokenId: string;
+  createdAt: Date | null;
+  updatedAt: Date | null;
 }
 
 export interface DocumentComment {
@@ -463,6 +478,7 @@ function mapReviewToken(d: { id: string; data: () => Record<string, unknown> }):
     companyName: (data.companyName as string) || "",
     contactEmail: (data.contactEmail as string) || "",
     projectId: (data.projectId as string) || "",
+    reviewType: (data.reviewType as ReviewToken["reviewType"]) || "project_docs",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toDate() : null,
     createdBy: (data.createdBy as string) || "",
@@ -477,6 +493,7 @@ export async function createReviewToken(data: {
   contactEmail: string;
   createdBy: string;
   projectId?: string;
+  reviewType?: "project_docs" | "solution_assets";
 }): Promise<string> {
   const tokenId = crypto.randomUUID();
   const expiresAt = new Date();
@@ -490,6 +507,7 @@ export async function createReviewToken(data: {
     contactEmail: data.contactEmail,
     createdBy: data.createdBy,
     projectId: data.projectId || "",
+    reviewType: data.reviewType || "project_docs",
     status: "active",
     createdAt: serverTimestamp(),
     expiresAt: Timestamp.fromDate(expiresAt),
@@ -550,6 +568,75 @@ export async function getDocumentComments(
       reviewTokenId: (data.reviewTokenId as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     };
+  });
+}
+
+// --- Change Requests ---
+
+export async function addChangeRequest(
+  contactId: string,
+  projectId: string,
+  data: {
+    title: string;
+    description: string;
+    priority: ChangeRequest["priority"];
+    author: string;
+    reviewTokenId: string;
+  }
+) {
+  return addDoc(collection(db, "contacts", contactId, "changeRequests"), {
+    ...data,
+    projectId,
+    status: "open",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getChangeRequests(
+  contactId: string,
+  projectId?: string
+): Promise<ChangeRequest[]> {
+  let q;
+  if (projectId) {
+    q = query(
+      collection(db, "contacts", contactId, "changeRequests"),
+      where("projectId", "==", projectId),
+      orderBy("createdAt", "desc")
+    );
+  } else {
+    q = query(
+      collection(db, "contacts", contactId, "changeRequests"),
+      orderBy("createdAt", "desc")
+    );
+  }
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      contactId: (data.contactId as string) || contactId,
+      projectId: (data.projectId as string) || "",
+      title: (data.title as string) || "",
+      description: (data.description as string) || "",
+      priority: (data.priority as ChangeRequest["priority"]) || "medium",
+      status: (data.status as ChangeRequest["status"]) || "open",
+      author: (data.author as string) || "",
+      reviewTokenId: (data.reviewTokenId as string) || "",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    };
+  });
+}
+
+export async function updateChangeRequest(
+  contactId: string,
+  requestId: string,
+  fields: { status?: ChangeRequest["status"]; priority?: ChangeRequest["priority"] }
+) {
+  return updateDoc(doc(db, "contacts", contactId, "changeRequests", requestId), {
+    ...fields,
+    updatedAt: serverTimestamp(),
   });
 }
 

@@ -363,6 +363,99 @@ export async function generateSolutionOverview(
   return textBlock?.text || "";
 }
 
+const GETTING_STARTED_PROMPT = `You are a technical writer at CrumbLabz, a company that builds custom software tools for businesses.
+
+You have been given the contents of a GitHub repository — including file tree structure, key file contents, and a Solution Overview document. Your job is to produce a **Getting Started Guide** — an extremely specific, step-by-step guide that tells a non-technical user exactly how to use the solution that was built for them.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Then write in clean markdown format:
+
+# Getting Started Guide — [Project Name]
+
+## Welcome
+- Brief welcome message (1-2 sentences)
+- What this guide covers
+
+## Accessing Your Solution
+- Exact URL to access the application (if found in the code, otherwise note "Your CrumbLabz team will provide the access URL")
+- Browser recommendations
+- Mobile vs desktop experience
+
+## Logging In
+- Step-by-step login process
+- Where to find the login page
+- Default credentials or how to get your first login
+- Password reset process (if applicable)
+
+## Your First Time Using [Solution Name]
+- What you'll see when you first log in (describe the dashboard/home screen)
+- Key navigation elements — what each menu item or tab does
+- Walk through the most common task step by step with numbered instructions
+
+## Key Workflows
+
+### [Primary Workflow Name]
+1. Step-by-step numbered instructions
+2. What to click, what to type, what to expect
+3. Include what success looks like at each step
+
+### [Secondary Workflow Name]
+1. Same level of detail
+2. Be extremely specific about button names, field labels, etc.
+
+(Include as many workflow sections as the codebase reveals)
+
+## Tips & Best Practices
+- Common pitfalls and how to avoid them
+- Keyboard shortcuts or time-saving features (if any)
+- Recommended workflow order
+
+## Getting Help
+- How to report issues or request changes
+- This is an iterative process — CrumbLabz will continue working with you to refine and improve the solution until it fully meets your needs
+- Contact information for support
+
+## What's Next
+- Mention that this is a living tool — improvements and new features can be added based on your feedback
+- Encourage the client to submit change requests for anything that could work better
+
+End the document with this footer:
+
+---
+
+*Prepared by CrumbLabz | crumblabz.com*
+*This document is confidential and intended for the named client only.*
+
+Be EXTREMELY specific. Use actual button names, field labels, and page titles found in the source code. If the code references specific routes (like /dashboard, /settings, /reports), mention them. The reader should be able to follow this guide with zero technical knowledge and successfully use every feature of the application. Think of this as a product manual that a new employee could follow on their first day.`;
+
+export async function generateGettingStarted(
+  repoTree: string,
+  fileContents: string,
+  solutionOverview: string,
+  projectName: string
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8000,
+    system: GETTING_STARTED_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Project name: ${projectName}\n\n## Solution Overview\n\n${solutionOverview}\n\n## Repository File Tree\n\n${repoTree}\n\n## Key File Contents\n\n${fileContents}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.text || "";
+}
+
 const CLAUDE_MD_PROMPT = `You are a senior developer at CrumbLabz, a company that builds custom software tools for businesses.
 
 You have been given three project documents: a Problem Definition, a Solution One-Pager, and a Development Plan. Your job is to synthesize these into a CLAUDE.md file — a concise, developer-facing project context file that gives an AI coding assistant everything it needs to understand and build this project.
