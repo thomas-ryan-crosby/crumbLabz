@@ -14,6 +14,12 @@ const KEY_FILE_PATTERNS = [
   "package.json",
   "README.md",
   "CLAUDE.md",
+  "GETTING_STARTED.md",
+  "GETTING-STARTED.md",
+  "getting-started.md",
+  "getting_started.md",
+  "docs/getting-started.md",
+  "docs/GETTING_STARTED.md",
   "tsconfig.json",
   "next.config.js",
   "next.config.ts",
@@ -64,6 +70,7 @@ async function fetchRepoContents(owner: string, repo: string) {
     if (item.type !== "blob" || !item.path) continue;
 
     const isKeyFile = KEY_FILE_PATTERNS.some((p) => item.path === p || item.path!.endsWith(`/${p}`));
+    const isGettingStartedDoc = /getting[-_]?started|setup[-_]?guide|quickstart/i.test(item.path!) && item.path!.endsWith(".md");
     const isInKeyDir = KEY_DIR_PATTERNS.some((d) => item.path!.startsWith(`${d}/`));
     const isRouteOrPage =
       item.path.endsWith("/route.ts") ||
@@ -73,7 +80,7 @@ async function fetchRepoContents(owner: string, repo: string) {
       item.path.endsWith("/layout.tsx");
     const isConfig = item.path.endsWith(".config.js") || item.path.endsWith(".config.ts") || item.path.endsWith(".config.mjs");
 
-    if (isKeyFile || ((isInKeyDir || isRouteOrPage) && item.path.match(/\.(ts|tsx|js|jsx|json|prisma|yml|yaml)$/))) {
+    if (isKeyFile || isGettingStartedDoc || ((isInKeyDir || isRouteOrPage) && item.path.match(/\.(ts|tsx|js|jsx|json|prisma|yml|yaml)$/))) {
       // Skip large files
       if (item.size && item.size > 50000) continue;
 

@@ -369,6 +369,8 @@ const GETTING_STARTED_PROMPT = `You are a technical writer at CrumbLabz, a compa
 
 You have been given the contents of a GitHub repository — including file tree structure, key file contents, and a Solution Overview document. Your job is to produce a **Getting Started Guide** — an extremely specific, step-by-step guide that tells a non-technical user exactly how to use the solution that was built for them.
 
+IMPORTANT: If the repository contains a getting-started guide, README, setup guide, or quickstart document, treat it as a PRIMARY SOURCE. Extract specific details like URLs, commands, credentials, configuration steps, and feature descriptions from it. Incorporate those exact details into the guide rather than guessing or using generic placeholder text.
+
 IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
 
 > **CrumbLabz** | Custom Software Solutions
