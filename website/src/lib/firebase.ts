@@ -287,6 +287,7 @@ export interface ClientDocument {
   version: number;
   projectId: string;
   adminNotes: string;
+  generatedFromCommit: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -312,6 +313,7 @@ export async function addClientDocument(
     status?: ClientDocument["status"];
     generatedBy?: ClientDocument["generatedBy"];
     projectId?: string;
+    generatedFromCommit?: string;
   }
 ) {
   return addDoc(collection(db, "contacts", contactId, "documents"), {
@@ -323,6 +325,7 @@ export async function addClientDocument(
     status: data.status || "draft",
     generatedBy: data.generatedBy || "manual",
     projectId: data.projectId || "",
+    generatedFromCommit: data.generatedFromCommit || "",
     version: 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -360,6 +363,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
       version: (data.version as number) || 1,
       projectId: (data.projectId as string) || "",
       adminNotes: (data.adminNotes as string) || "",
+      generatedFromCommit: (data.generatedFromCommit as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
@@ -369,7 +373,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
 export async function updateClientDocument(
   contactId: string,
   documentId: string,
-  fields: { content?: string; status?: string; title?: string; adminNotes?: string }
+  fields: { content?: string; status?: string; title?: string; adminNotes?: string; generatedFromCommit?: string }
 ) {
   return updateDoc(doc(db, "contacts", contactId, "documents", documentId), {
     ...fields,

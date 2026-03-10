@@ -131,7 +131,7 @@ async function fetchRepoContents(owner: string, repo: string) {
     // Deployments API may not be available for all repos
   }
 
-  return { tree: treeLines, files: fileContents.join("\n\n"), deploymentUrl };
+  return { tree: treeLines, files: fileContents.join("\n\n"), deploymentUrl, commitSha: refData.object.sha };
 }
 
 export async function POST(request: Request) {
@@ -145,10 +145,10 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const { tree, files, deploymentUrl } = await fetchRepoContents(repoOwner, repoName);
+      const { tree, files, deploymentUrl, commitSha } = await fetchRepoContents(repoOwner, repoName);
       const deploymentContext = deploymentUrl ? `\n\n## Live Deployment URL\n\nThe application is deployed and accessible at: ${deploymentUrl}` : "";
       const content = await generateSolutionOverview(tree, files + deploymentContext, projectName || repoName);
-      return NextResponse.json({ content });
+      return NextResponse.json({ content, commitSha });
     }
 
     if (type === "getting_started") {
@@ -158,10 +158,10 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const { tree, files, deploymentUrl } = await fetchRepoContents(repoOwner, repoName);
+      const { tree, files, deploymentUrl, commitSha } = await fetchRepoContents(repoOwner, repoName);
       const deploymentContext = deploymentUrl ? `\n\n## Live Deployment URL\n\nThe application is deployed and accessible at: ${deploymentUrl}\nThe login page is at: ${deploymentUrl}/login or ${deploymentUrl}/admin/login (check the routes in the code to determine which)` : "";
       const content = await generateGettingStarted(tree, files + deploymentContext, sourceContent || "", projectName || repoName);
-      return NextResponse.json({ content });
+      return NextResponse.json({ content, commitSha });
     }
 
     if (!type || (!sourceContent && !fileUrl)) {
