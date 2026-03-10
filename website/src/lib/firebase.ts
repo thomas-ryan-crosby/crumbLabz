@@ -658,6 +658,11 @@ export interface Project {
   repoName: string;
   repoUrl: string;
   status: "active" | "completed" | "on_hold";
+  retainerAmount: number;
+  monthlyRate: number;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  paymentStatus: "unpaid" | "retainer_paid" | "active" | "past_due" | "cancelled";
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -685,24 +690,31 @@ export async function addProject(
   });
 }
 
+function mapProject(d: { id: string; data: () => Record<string, unknown> }): Project {
+  const data = d.data();
+  return {
+    id: d.id,
+    contactId: (data.contactId as string) || "",
+    contactName: (data.contactName as string) || "",
+    companyName: (data.companyName as string) || "",
+    name: (data.name as string) || "",
+    repoName: (data.repoName as string) || "",
+    repoUrl: (data.repoUrl as string) || "",
+    status: (data.status as Project["status"]) || "active",
+    retainerAmount: (data.retainerAmount as number) || 0,
+    monthlyRate: (data.monthlyRate as number) || 0,
+    stripeCustomerId: (data.stripeCustomerId as string) || "",
+    stripeSubscriptionId: (data.stripeSubscriptionId as string) || "",
+    paymentStatus: (data.paymentStatus as Project["paymentStatus"]) || "unpaid",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+  };
+}
+
 export async function getProjects(): Promise<Project[]> {
   const q = query(collection(db, "projects"), orderBy("createdAt", "desc"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      contactId: (data.contactId as string) || "",
-      contactName: (data.contactName as string) || "",
-      companyName: (data.companyName as string) || "",
-      name: (data.name as string) || "",
-      repoName: (data.repoName as string) || "",
-      repoUrl: (data.repoUrl as string) || "",
-      status: (data.status as Project["status"]) || "active",
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
-    };
-  });
+  return snapshot.docs.map(mapProject);
 }
 
 export async function getProjectsForContact(contactId: string): Promise<Project[]> {
@@ -712,21 +724,7 @@ export async function getProjectsForContact(contactId: string): Promise<Project[
     orderBy("createdAt", "desc")
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
-    const data = d.data();
-    return {
-      id: d.id,
-      contactId: (data.contactId as string) || "",
-      contactName: (data.contactName as string) || "",
-      companyName: (data.companyName as string) || "",
-      name: (data.name as string) || "",
-      repoName: (data.repoName as string) || "",
-      repoUrl: (data.repoUrl as string) || "",
-      status: (data.status as Project["status"]) || "active",
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
-    };
-  });
+  return snapshot.docs.map(mapProject);
 }
 
 export async function tagDocumentsWithProject(
@@ -744,7 +742,17 @@ export async function tagDocumentsWithProject(
 
 export async function updateProject(
   projectId: string,
-  fields: { status?: Project["status"]; name?: string; repoName?: string; repoUrl?: string }
+  fields: {
+    status?: Project["status"];
+    name?: string;
+    repoName?: string;
+    repoUrl?: string;
+    retainerAmount?: number;
+    monthlyRate?: number;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    paymentStatus?: Project["paymentStatus"];
+  }
 ) {
   return updateDoc(doc(db, "projects", projectId), {
     ...fields,

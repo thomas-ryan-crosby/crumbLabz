@@ -731,6 +731,11 @@ function DocumentsPanel({
   const [adminNotesOriginal, setAdminNotesOriginal] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
   const [repoHead, setRepoHead] = useState<{ sha: string; message: string; date: string } | null>(null);
+  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
+  const [retainerInput, setRetainerInput] = useState("");
+  const [monthlyInput, setMonthlyInput] = useState("");
+  const [savingPayment, setSavingPayment] = useState(false);
+  const [sendingInvoice, setSendingInvoice] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -1211,6 +1216,64 @@ function DocumentsPanel({
       setShowNewUpdate(false);
     } finally {
       setPublishingUpdate(false);
+    }
+  };
+
+  const handleSavePaymentConfig = async () => {
+    if (!activeProject) return;
+    setSavingPayment(true);
+    try {
+      await updateProject(activeProject.id, {
+        retainerAmount: parseFloat(retainerInput) || 0,
+        monthlyRate: parseFloat(monthlyInput) || 0,
+      });
+      const updated = await getProjectsForContact(contactId);
+      setProjects(updated);
+      setShowPaymentConfig(false);
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  const handleSendInvoice = async () => {
+    if (!activeProject || !activeProject.retainerAmount || !activeProject.monthlyRate) return;
+    setSendingInvoice(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: activeProject.id,
+          contactId,
+          contactName,
+          contactEmail,
+          companyName,
+          projectName: activeProject.name,
+          retainerAmount: activeProject.retainerAmount,
+          monthlyRate: activeProject.monthlyRate,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create checkout");
+      }
+
+      const data = await res.json();
+      // Update project with Stripe customer ID
+      if (data.customerId) {
+        await updateProject(activeProject.id, { stripeCustomerId: data.customerId });
+      }
+      // Open checkout in new tab for admin to share or copy
+      if (data.checkoutUrl) {
+        window.open(data.checkoutUrl, "_blank");
+      }
+      const updated = await getProjectsForContact(contactId);
+      setProjects(updated);
+    } catch (err) {
+      console.error("Invoice error:", err);
+    } finally {
+      setSendingInvoice(false);
     }
   };
 
@@ -2113,6 +2176,126 @@ function DocumentsPanel({
           <p className="text-muted text-xs">Create a GitHub repository first to generate solution assets.</p>
         )}
       </div>
+
+      {/* Billing */}
+      {activeProject && (
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Billing</h3>
+
+          {/* Payment status badge */}
+          {activeProject.paymentStatus !== "unpaid" && (
+            <div className={`mb-3 px-4 py-3 rounded-lg flex items-center gap-2 ${
+              activeProject.paymentStatus === "active" ? "bg-emerald-500/10 border border-emerald-500/20" :
+              activeProject.paymentStatus === "retainer_paid" ? "bg-blue-500/10 border border-blue-500/20" :
+              activeProject.paymentStatus === "past_due" ? "bg-red-500/10 border border-red-500/20" :
+              "bg-neutral border border-border"
+            }`}>
+              <span className={`text-xs font-bold uppercase ${
+                activeProject.paymentStatus === "active" ? "text-emerald-700" :
+                activeProject.paymentStatus === "retainer_paid" ? "text-blue-700" :
+                activeProject.paymentStatus === "past_due" ? "text-red-700" :
+                "text-muted"
+              }`}>
+                {activeProject.paymentStatus === "retainer_paid" ? "Retainer Paid" :
+                 activeProject.paymentStatus === "active" ? "Subscription Active" :
+                 activeProject.paymentStatus === "past_due" ? "Past Due" :
+                 "Cancelled"}
+              </span>
+              {activeProject.retainerAmount > 0 && (
+                <span className="text-xs text-muted">
+                  · ${activeProject.retainerAmount.toLocaleString()} retainer + ${activeProject.monthlyRate.toLocaleString()}/mo
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Config / Send Invoice */}
+          {activeProject.paymentStatus === "unpaid" && (
+            <div className="space-y-3">
+              {activeProject.retainerAmount > 0 && activeProject.monthlyRate > 0 && !showPaymentConfig ? (
+                <div className="bg-neutral rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium">
+                        ${activeProject.retainerAmount.toLocaleString()} retainer + ${activeProject.monthlyRate.toLocaleString()}/mo
+                      </p>
+                      <p className="text-xs text-muted">Payment not yet initiated</p>
+                    </div>
+                    <button
+                      onClick={() => { setShowPaymentConfig(true); setRetainerInput(activeProject.retainerAmount.toString()); setMonthlyInput(activeProject.monthlyRate.toString()); }}
+                      className="text-xs text-muted hover:text-charcoal transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleSendInvoice}
+                    disabled={sendingInvoice}
+                    className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {sendingInvoice ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Creating Checkout...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                        </svg>
+                        Generate Payment Link
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-neutral rounded-lg p-4 space-y-3">
+                  <p className="text-xs font-medium text-muted">Set the retainer and monthly rate for this project.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-muted block mb-1">Retainer ($)</label>
+                      <input
+                        type="number"
+                        value={retainerInput || (showPaymentConfig ? "" : "")}
+                        onChange={(e) => setRetainerInput(e.target.value)}
+                        placeholder="e.g. 2500"
+                        className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-muted block mb-1">Monthly Rate ($)</label>
+                      <input
+                        type="number"
+                        value={monthlyInput || (showPaymentConfig ? "" : "")}
+                        onChange={(e) => setMonthlyInput(e.target.value)}
+                        placeholder="e.g. 500"
+                        className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSavePaymentConfig}
+                      disabled={savingPayment || !retainerInput || !monthlyInput}
+                      className="text-sm font-medium px-4 py-2 rounded-lg bg-charcoal text-white hover:bg-charcoal-light disabled:opacity-40 transition-colors"
+                    >
+                      {savingPayment ? "Saving..." : "Save"}
+                    </button>
+                    {showPaymentConfig && (
+                      <button
+                        onClick={() => setShowPaymentConfig(false)}
+                        className="text-sm text-muted hover:text-charcoal transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Maintenance & Continuous Development */}
       {activeProject?.repoUrl && (
