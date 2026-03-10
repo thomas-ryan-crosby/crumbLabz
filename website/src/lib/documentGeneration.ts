@@ -171,6 +171,92 @@ export async function generateProblemDefinitionFromPdf(
   return textBlock?.text || "";
 }
 
+const DEVELOPMENT_PLAN_PROMPT = `You are a technical lead at CrumbLabz, a company that builds custom software tools for businesses.
+
+You have been given a Solution One-Pager for a client. Your job is to produce a **Development Plan** — a detailed but readable technical roadmap that guides the build.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Then write in clean markdown format:
+
+# Development Plan — [Client Company Name]
+
+## MVP Scope
+- The minimum set of features required to solve the core problem
+- Feature list with priority ranking: **Must Have** / **Nice to Have** / **Future**
+- Brief user story or workflow description for each Must Have feature
+
+## Technical Architecture
+- High-level system design overview
+- **Frontend:** What the user-facing layer will look like (web app, dashboard, mobile, etc.)
+- **Backend:** Server-side approach and key services
+- **Database:** Data storage approach and key entities
+- **Integrations:** Third-party APIs, services, or systems that need to connect
+- **Hosting:** Where and how the solution will be deployed
+
+## Development Phases
+
+### Phase 1: MVP Build (Week 1–2)
+- Detailed breakdown of what gets built in the initial sprint
+- Key milestones and checkpoints
+
+### Phase 2: Client Review & Refinements (Week 2–3)
+- Demo to client
+- Feedback incorporation
+- Bug fixes and adjustments
+
+### Phase 3: Production Hardening & Deployment
+- Performance optimization
+- Security review
+- Deployment to production environment
+- Client onboarding and training
+
+## Assumptions & Dependencies
+- What needs to be true for this plan to succeed
+- Client-provided access, credentials, sample data, etc.
+- Any third-party API availability or limitations
+
+## Risk Register
+- Known risks and their potential impact
+- Mitigation strategy for each risk
+
+## Success Metrics
+- How we will measure whether the build is successful
+- Tie back to the client's original success criteria from the Problem Definition
+
+End the document with this footer:
+
+---
+
+*Prepared by CrumbLabz | crumblabz.com*
+*This document is confidential and intended for the named client only.*
+
+Write clearly enough that both technical and non-technical stakeholders can follow. Use specific technology names where helpful but always explain what they do. This document should give the development team a clear roadmap and give the client confidence in the plan.`;
+
+export async function generateDevelopmentPlan(
+  solutionOnePager: string
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 5000,
+    system: DEVELOPMENT_PLAN_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Here is the Solution One-Pager:\n\n${solutionOnePager}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.text || "";
+}
+
 export async function generateSolutionOnePager(
   problemDefinition: string
 ): Promise<string> {

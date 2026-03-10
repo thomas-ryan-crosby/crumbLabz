@@ -3,6 +3,7 @@ import {
   generateProblemDefinition,
   generateProblemDefinitionFromPdf,
   generateSolutionOnePager,
+  generateDevelopmentPlan,
 } from "@/lib/documentGeneration";
 
 export async function POST(request: Request) {
@@ -47,9 +48,17 @@ export async function POST(request: Request) {
         );
       }
       content = await generateSolutionOnePager(sourceContent);
+    } else if (type === "development_plan") {
+      if (!sourceContent) {
+        return NextResponse.json(
+          { error: "sourceContent is required for development_plan" },
+          { status: 400 }
+        );
+      }
+      content = await generateDevelopmentPlan(sourceContent);
     } else {
       return NextResponse.json(
-        { error: "Invalid document type. Use problem_definition or solution_one_pager" },
+        { error: "Invalid document type. Use problem_definition, solution_one_pager, or development_plan" },
         { status: 400 }
       );
     }

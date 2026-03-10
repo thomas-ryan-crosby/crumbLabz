@@ -719,7 +719,7 @@ function DocumentsPanel({
 
   const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const handleGenerate = async (type: "problem_definition" | "solution_one_pager") => {
+  const handleGenerate = async (type: "problem_definition" | "solution_one_pager" | "development_plan") => {
     let sourceContent = "";
     let fileUrl = "";
 
@@ -733,10 +733,14 @@ function DocumentsPanel({
         setGenerateError("No meeting document content or file found. Please add a transcript first.");
         return;
       }
-    } else {
+    } else if (type === "solution_one_pager") {
       const prd = productDocs.find((d) => d.type === "problem_definition");
       if (!prd) return;
       sourceContent = prd.content;
+    } else if (type === "development_plan") {
+      const sop = productDocs.find((d) => d.type === "solution_one_pager");
+      if (!sop) return;
+      sourceContent = sop.content;
     }
 
     setGenerateError(null);
@@ -752,7 +756,9 @@ function DocumentsPanel({
 
       const title = type === "problem_definition"
         ? "Problem Definition Document"
-        : "Solution One-Pager";
+        : type === "solution_one_pager"
+          ? "Solution One-Pager"
+          : "Development Plan";
 
       // Check if a document of this type already exists — if so, save revision
       const existing = productDocs.find((d) => d.type === type);
@@ -1132,6 +1138,22 @@ function DocumentsPanel({
               "Regenerate Solution One-Pager"
             ) : (
               "Generate Solution One-Pager"
+            )}
+          </button>
+          <button
+            onClick={() => handleGenerate("development_plan")}
+            disabled={!productDocs.some((d) => d.type === "solution_one_pager") || generating !== null}
+            className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+          >
+            {generating === "development_plan" ? (
+              <>
+                <span className="w-3 h-3 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                Generating...
+              </>
+            ) : productDocs.some((d) => d.type === "development_plan") ? (
+              "Regenerate Development Plan"
+            ) : (
+              "Generate Development Plan"
             )}
           </button>
         </div>

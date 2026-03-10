@@ -126,10 +126,10 @@ function drawHeader(doc: PDFKit.PDFDocument) {
   // White background to cover any content that may have bled into the header zone
   doc.rect(0, 0, pageWidth, PAGE_MARGIN_TOP + HEADER_ZONE - 10).fill("#ffffff");
 
-  // Logo image — sized prominently
+  // Logo image — large and prominent
   if (fs.existsSync(logoFullPath)) {
-    doc.image(logoFullPath, PAGE_MARGIN_X, PAGE_MARGIN_TOP + 2, {
-      height: 48,
+    doc.image(logoFullPath, PAGE_MARGIN_X, PAGE_MARGIN_TOP - 2, {
+      height: 56,
     });
   } else {
     doc
@@ -194,18 +194,25 @@ function drawFooter(
     doc.image(cookiePath, PAGE_MARGIN_X, y + 5, { height: 16 });
   }
 
-  // Footer text — use lineBreak: false to prevent cursor advancement / extra pages
+  // Footer text with clickable website link
   const textX = hasCookie ? PAGE_MARGIN_X + 22 : PAGE_MARGIN_X;
+  const footerTextY = y + 10;
   doc
     .font("Helvetica")
     .fontSize(7.5)
     .fillColor(MUTED)
-    .text(
-      "Prepared by CrumbLabz  |  crumblabz.com  |  Confidential",
-      textX,
-      y + 10,
-      { lineBreak: false }
-    );
+    .text("Prepared by CrumbLabz  |  ", textX, footerTextY, {
+      lineBreak: false,
+      continued: true,
+    })
+    .fillColor(ACCENT)
+    .text("crumblabz.com", {
+      lineBreak: false,
+      continued: true,
+      link: "https://crumblabz.com",
+    })
+    .fillColor(MUTED)
+    .text("  |  Confidential", { lineBreak: false });
 
   // Page number — right-aligned, no line break
   doc
