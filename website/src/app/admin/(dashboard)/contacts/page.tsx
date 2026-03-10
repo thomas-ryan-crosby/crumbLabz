@@ -1556,6 +1556,8 @@ function DocumentsPanel({
   };
 
   const isProductDoc = viewingDoc && ["problem_definition", "solution_one_pager", "development_plan"].includes(viewingDoc.type);
+  const isDevDoc = viewingDoc && ["development_plan", "feature_specification", "problem_definition", "solution_one_pager", "solution_overview"].includes(viewingDoc.type);
+  const [copiedMarkdown, setCopiedMarkdown] = useState(false);
 
   if (viewingDoc) {
     const displayContent = viewingRevision ? viewingRevision.content : viewingDoc.content;
@@ -1638,63 +1640,101 @@ function DocumentsPanel({
           </div>
         </div>
 
-        {/* Download buttons for product documents */}
-        {isProductDoc && displayContent && (
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch("/api/documents/download-pdf", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ markdown: displayContent, title: viewingDoc.title }),
-                  });
-                  if (!res.ok) throw new Error("Failed to generate PDF");
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `${viewingDoc.title}.pdf`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } catch (err) {
-                  console.error("PDF download error:", err);
-                }
-              }}
-              className="text-xs font-medium px-3 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-              Download PDF
-            </button>
-            <button
-              onClick={async () => {
-                try {
-                  const res = await fetch("/api/documents/download-docx", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ markdown: displayContent, title: viewingDoc.title }),
-                  });
-                  if (!res.ok) throw new Error("Failed to generate DOCX");
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `${viewingDoc.title}.docx`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } catch (err) {
-                  console.error("DOCX download error:", err);
-                }
-              }}
-              className="text-xs font-medium px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-              Download Word
-            </button>
+        {/* Download / Copy buttons */}
+        {displayContent && (
+          <div className="flex gap-2 flex-wrap mb-4">
+            {isProductDoc && (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/documents/download-pdf", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ markdown: displayContent, title: viewingDoc.title }),
+                      });
+                      if (!res.ok) throw new Error("Failed to generate PDF");
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${viewingDoc.title}.pdf`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      console.error("PDF download error:", err);
+                    }
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Download PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/documents/download-docx", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ markdown: displayContent, title: viewingDoc.title }),
+                      });
+                      if (!res.ok) throw new Error("Failed to generate DOCX");
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${viewingDoc.title}.docx`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      console.error("DOCX download error:", err);
+                    }
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Download Word
+                </button>
+              </>
+            )}
+            {isDevDoc && (
+              <>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(displayContent);
+                    setCopiedMarkdown(true);
+                    setTimeout(() => setCopiedMarkdown(false), 2000);
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                  </svg>
+                  {copiedMarkdown ? "Copied!" : "Copy Markdown"}
+                </button>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([displayContent], { type: "text/markdown" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `${viewingDoc.title.replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-")}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Download .md
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -2266,6 +2306,14 @@ function DocumentsPanel({
           </button>
         </div>
 
+        {generating && ["problem_definition", "solution_one_pager", "development_plan"].includes(generating) && (
+          <GeneratingProgress label={
+            generating === "problem_definition" ? "Generating Problem Definition" :
+            generating === "solution_one_pager" ? "Generating Solution One-Pager" :
+            "Generating Development Plan"
+          } />
+        )}
+
         {generateError && (
           <div className="mb-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg">
             <p className="text-sm text-red-600">{generateError}</p>
@@ -2490,6 +2538,12 @@ function DocumentsPanel({
                 )}
               </button>
             </div>
+
+            {generating && ["solution_overview", "getting_started"].includes(generating) && (
+              <GeneratingProgress label={
+                generating === "solution_overview" ? "Generating Solution Overview" : "Generating Getting Started Guide"
+              } />
+            )}
 
             {/* Solution doc cards */}
             {solutionDocs.length > 0 && (
@@ -2811,14 +2865,20 @@ function DocumentsPanel({
                   />
                 </div>
 
-                <button
-                  onClick={handleGenerateFeatureDoc}
-                  disabled={generatingFeatureDoc || (selectedMinuteIds.length === 0 && selectedRequestIds.length === 0 && !featureDocNotes.trim())}
-                  className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                >
-                  {generatingFeatureDoc ? "Generating with AI..." : "Generate Feature Specification"}
-                </button>
+                {!generatingFeatureDoc && (
+                  <button
+                    onClick={handleGenerateFeatureDoc}
+                    disabled={selectedMinuteIds.length === 0 && selectedRequestIds.length === 0 && !featureDocNotes.trim()}
+                    className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Generate Feature Specification
+                  </button>
+                )}
               </div>
+            )}
+
+            {generatingFeatureDoc && (
+              <GeneratingProgress label="Generating Feature Specification" />
             )}
 
             {featureDocs.length === 0 && !showCreateFeatureDoc ? (
@@ -3025,6 +3085,54 @@ function DocCard({ doc, onClick, onDelete, deleting }: { doc: ClientDocument; on
           {deleting ? "..." : "×"}
         </button>
       )}
+    </div>
+  );
+}
+
+function GeneratingProgress({ label }: { label: string }) {
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState("Preparing...");
+
+  useEffect(() => {
+    const stages = [
+      { at: 5, text: "Analyzing inputs..." },
+      { at: 20, text: "Processing content..." },
+      { at: 40, text: "Generating document..." },
+      { at: 60, text: "Refining structure..." },
+      { at: 80, text: "Finalizing..." },
+      { at: 90, text: "Almost done..." },
+    ];
+
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 92) return prev; // Stall near end until real completion
+        const increment = prev < 30 ? 2 : prev < 60 ? 1.5 : prev < 80 ? 0.8 : 0.3;
+        const next = Math.min(prev + increment, 92);
+        const currentStage = [...stages].reverse().find((s) => next >= s.at);
+        if (currentStage) setStage(currentStage.text);
+        return next;
+      });
+    }, 300);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="bg-white border border-border rounded-lg p-4 mb-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium text-charcoal">{label}</p>
+        <p className="text-xs text-muted">{Math.round(progress)}%</p>
+      </div>
+      <div className="w-full h-2 bg-neutral rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full bg-accent rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted flex items-center gap-1.5">
+        <span className="w-3 h-3 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+        {stage}
+      </p>
     </div>
   );
 }
