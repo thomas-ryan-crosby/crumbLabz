@@ -1287,8 +1287,19 @@ function DocumentsPanel({
             <p className="text-xs text-muted mt-1">
               {viewingDoc.generatedBy === "ai" ? "AI Generated" : "Manual"}
               {" · v"}{viewingDoc.version || 1}
-              {" · "}{viewingDoc.createdAt?.toLocaleString() || "—"}
+              {" · "}{viewingDoc.updatedAt?.toLocaleString() || viewingDoc.createdAt?.toLocaleString() || "—"}
             </p>
+            {viewingDoc.generatedFromCommit && (
+              <p className="text-[10px] text-muted mt-1">
+                Generated from commit <span className="font-mono bg-neutral px-1.5 py-0.5 rounded border border-border">{viewingDoc.generatedFromCommit.slice(0, 7)}</span>
+                {repoHead && viewingDoc.generatedFromCommit !== repoHead.sha && (
+                  <span className="text-amber-600 font-medium ml-1.5">· codebase has changed</span>
+                )}
+                {repoHead && viewingDoc.generatedFromCommit === repoHead.sha && (
+                  <span className="text-emerald-600 font-medium ml-1.5">· up to date</span>
+                )}
+              </p>
+            )}
           </div>
           <div className="flex gap-2 items-center">
             {isProductDoc && revisions.length > 0 && (
@@ -2054,22 +2065,7 @@ function DocumentsPanel({
             {solutionDocs.length > 0 && (
               <div className="space-y-2">
                 {solutionDocs.map((d) => (
-                  <div key={d.id}>
-                    <DocCard doc={d} onClick={() => setViewingDoc(d)} />
-                    {d.generatedFromCommit && (
-                      <div className="flex items-center gap-1.5 mt-1 ml-1">
-                        <span className="text-[10px] text-muted">
-                          Generated from <span className="font-mono bg-neutral px-1 py-0.5 rounded">{d.generatedFromCommit.slice(0, 7)}</span>
-                        </span>
-                        {repoHead && d.generatedFromCommit !== repoHead.sha && (
-                          <span className="text-[10px] text-amber-600 font-medium">· outdated</span>
-                        )}
-                        {repoHead && d.generatedFromCommit === repoHead.sha && (
-                          <span className="text-[10px] text-emerald-600 font-medium">· current</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
                 ))}
               </div>
             )}
@@ -2309,8 +2305,13 @@ function DocCard({ doc, onClick }: { doc: ClientDocument; onClick: () => void })
         {["problem_definition", "solution_one_pager", "development_plan"].includes(doc.type) && ` · v${doc.version || 1}`}
         {doc.fileName ? ` · ${doc.fileName}` : ` · ${doc.type.replace(/_/g, " ")}`}
         {" · "}
-        {doc.createdAt?.toLocaleDateString() || "—"}
+        {doc.updatedAt?.toLocaleString() || doc.createdAt?.toLocaleString() || "—"}
       </p>
+      {doc.generatedFromCommit && (
+        <p className="text-[10px] text-muted mt-1">
+          Generated from <span className="font-mono bg-white/60 px-1 py-0.5 rounded">{doc.generatedFromCommit.slice(0, 7)}</span>
+        </p>
+      )}
     </button>
   );
 }
