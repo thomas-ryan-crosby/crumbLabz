@@ -2566,7 +2566,59 @@ function DocumentsPanel({
             )}
           </div>
 
-          {/* Feature Requests / Change Requests */}
+          {/* Feature Requests — ticket-style items from clients or CrumbLabz */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-xs font-bold text-charcoal mb-2">Feature Requests</h4>
+            {changeRequests.length === 0 ? (
+              <p className="text-muted text-xs">No requests yet. Clients can submit from the portal or you can create from meeting minutes.</p>
+            ) : (
+              <div className="space-y-2">
+                {changeRequests.map((cr) => (
+                  <div key={cr.id} className="bg-neutral rounded-lg p-3 relative">
+                    <button
+                      onClick={() => handleDeleteChangeRequest(cr.id, cr.title)}
+                      title="Delete feature request"
+                      className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-700 transition-colors text-xs font-bold"
+                    >
+                      ×
+                    </button>
+                    <div className="flex items-center justify-between mb-1">
+                      <h5 className="text-sm font-medium">{cr.title}</h5>
+                      <div className="flex items-center gap-2">
+                        {cr.source && cr.source !== "review" && (
+                          <span className="text-[10px] text-muted capitalize">{cr.source.replace("_", " ")}</span>
+                        )}
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          cr.priority === "high" ? "bg-red-500/10 text-red-700"
+                            : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
+                              : "bg-blue-500/10 text-blue-700"
+                        }`}>{cr.priority}</span>
+                        <select
+                          value={cr.status}
+                          onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
+                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
+                            cr.status === "open" ? "bg-blue-500/10 text-blue-700"
+                              : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
+                                : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
+                                  : "bg-neutral text-muted"
+                          }`}
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted">{cr.description}</p>
+                    <p className="text-[10px] text-muted mt-1">{cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Feature Backlog — formal specs promoted from meetings + requests */}
           <div className="border-t border-border pt-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-bold text-charcoal">Feature Backlog</h4>
@@ -2574,14 +2626,14 @@ function DocumentsPanel({
                 onClick={() => setShowCreateFeatureDoc(!showCreateFeatureDoc)}
                 className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 transition-colors"
               >
-                {showCreateFeatureDoc ? "Cancel" : "Create Feature Doc"}
+                {showCreateFeatureDoc ? "Cancel" : "+ Create Spec"}
               </button>
             </div>
 
-            {/* Create Feature Doc — multi-select inputs */}
+            {/* Create Feature Spec — multi-select inputs */}
             {showCreateFeatureDoc && (
               <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-3 space-y-3">
-                <p className="text-xs text-violet-700 font-medium">Select meeting minutes and/or feature requests to include as inputs for the AI-generated feature specification.</p>
+                <p className="text-xs text-violet-700 font-medium">Select meeting minutes and/or feature requests to promote into a formal feature specification.</p>
 
                 {/* Meeting Minutes selection */}
                 {maintenanceMeetings.length > 0 && (
@@ -2647,66 +2699,17 @@ function DocumentsPanel({
                 </button>
               </div>
             )}
-            {changeRequests.length === 0 ? (
-              <p className="text-muted text-xs">No requests yet. Clients can submit from the portal or you can create from meeting minutes.</p>
-            ) : (
-              <div className="space-y-2">
-                {changeRequests.map((cr) => (
-                  <div key={cr.id} className="bg-neutral rounded-lg p-3 relative">
-                    <button
-                      onClick={() => handleDeleteChangeRequest(cr.id, cr.title)}
-                      title="Delete feature request"
-                      className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-700 transition-colors text-xs font-bold"
-                    >
-                      ×
-                    </button>
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="text-sm font-medium">{cr.title}</h5>
-                      <div className="flex items-center gap-2">
-                        {cr.source && cr.source !== "review" && (
-                          <span className="text-[10px] text-muted capitalize">{cr.source.replace("_", " ")}</span>
-                        )}
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                          cr.priority === "high" ? "bg-red-500/10 text-red-700"
-                            : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
-                              : "bg-blue-500/10 text-blue-700"
-                        }`}>{cr.priority}</span>
-                        <select
-                          value={cr.status}
-                          onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
-                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
-                            cr.status === "open" ? "bg-blue-500/10 text-blue-700"
-                              : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
-                                : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
-                                  : "bg-neutral text-muted"
-                          }`}
-                        >
-                          <option value="open">Open</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="closed">Closed</option>
-                        </select>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted">{cr.description}</p>
-                    <p className="text-[10px] text-muted mt-1">{cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* Feature Documents */}
-          {featureDocs.length > 0 && (
-            <div className="border-t border-border pt-4">
-              <h4 className="text-xs font-bold text-charcoal mb-2">Feature Documents</h4>
+            {featureDocs.length === 0 && !showCreateFeatureDoc ? (
+              <p className="text-muted text-xs">No feature specs yet. Promote meeting minutes and feature requests into formal specifications.</p>
+            ) : (
               <div className="space-y-2">
                 {featureDocs.map((d) => (
                   <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Change Log */}
           <div className="border-t border-border pt-4">

@@ -540,11 +540,11 @@ export default function PortalPage() {
                 </div>
               )}
 
-              {/* Feature Documents */}
+              {/* Feature Backlog */}
               {featureDocs.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b] mb-3">Feature Documents</h3>
-                  <p className="text-xs text-[#6b6b6b] mb-3">Feature specifications created from your feedback and meetings. Review and approve each document before we begin implementation.</p>
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b] mb-3">Feature Backlog</h3>
+                  <p className="text-xs text-[#6b6b6b] mb-3">Formal feature specifications created from your feedback and meetings. Review and approve each document before we begin implementation.</p>
                   <div className="space-y-3">
                     {featureDocs.map((d) => (
                       <button
