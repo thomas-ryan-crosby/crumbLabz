@@ -282,7 +282,7 @@ export interface ClientDocument {
   content: string;
   fileUrl: string;
   fileName: string;
-  status: "draft" | "review" | "approved" | "sent";
+  status: "draft" | "review" | "approved" | "revision_requested" | "sent";
   generatedBy: "ai" | "manual";
   version: number;
   createdAt: Date | null;
@@ -422,6 +422,124 @@ export async function getDocumentRevisions(
       title: (data.title as string) || "",
       status: (data.status as string) || "",
       editedBy: (data.editedBy as string) || "",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    };
+  });
+}
+
+// --- Review tokens ---
+
+export interface ReviewToken {
+  id: string;
+  contactId: string;
+  contactName: string;
+  companyName: string;
+  contactEmail: string;
+  createdAt: Date | null;
+  expiresAt: Date | null;
+  createdBy: string;
+  status: "active" | "completed" | "expired";
+}
+
+export interface DocumentComment {
+  id: string;
+  author: string;
+  content: string;
+  reviewTokenId: string;
+  createdAt: Date | null;
+}
+
+function mapReviewToken(d: { id: string; data: () => Record<string, unknown> }): ReviewToken {
+  const data = d.data();
+  return {
+    id: d.id,
+    contactId: (data.contactId as string) || "",
+    contactName: (data.contactName as string) || "",
+    companyName: (data.companyName as string) || "",
+    contactEmail: (data.contactEmail as string) || "",
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toDate() : null,
+    createdBy: (data.createdBy as string) || "",
+    status: (data.status as ReviewToken["status"]) || "active",
+  };
+}
+
+export async function createReviewToken(data: {
+  contactId: string;
+  contactName: string;
+  companyName: string;
+  contactEmail: string;
+  createdBy: string;
+}): Promise<string> {
+  const tokenId = crypto.randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 14);
+
+  const { setDoc } = await import("firebase/firestore");
+  await setDoc(doc(db, "reviewTokens", tokenId), {
+    contactId: data.contactId,
+    contactName: data.contactName,
+    companyName: data.companyName,
+    contactEmail: data.contactEmail,
+    createdBy: data.createdBy,
+    status: "active",
+    createdAt: serverTimestamp(),
+    expiresAt: Timestamp.fromDate(expiresAt),
+  });
+
+  return tokenId;
+}
+
+export async function getReviewToken(tokenId: string): Promise<ReviewToken | null> {
+  const { getDoc } = await import("firebase/firestore");
+  const snap = await getDoc(doc(db, "reviewTokens", tokenId));
+  if (!snap.exists()) return null;
+
+  const token = mapReviewToken({ id: snap.id, data: () => snap.data() as Record<string, unknown> });
+
+  // Check expiry
+  if (token.expiresAt && token.expiresAt < new Date()) return null;
+  if (token.status !== "active") return null;
+
+  return token;
+}
+
+export async function completeReviewToken(tokenId: string) {
+  return updateDoc(doc(db, "reviewTokens", tokenId), {
+    status: "completed",
+  });
+}
+
+export async function addDocumentComment(
+  contactId: string,
+  docId: string,
+  data: { author: string; content: string; reviewTokenId: string }
+) {
+  return addDoc(
+    collection(db, "contacts", contactId, "documents", docId, "comments"),
+    {
+      ...data,
+      createdAt: serverTimestamp(),
+    }
+  );
+}
+
+export async function getDocumentComments(
+  contactId: string,
+  docId: string
+): Promise<DocumentComment[]> {
+  const q = query(
+    collection(db, "contacts", contactId, "documents", docId, "comments"),
+    orderBy("createdAt", "asc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      author: (data.author as string) || "",
+      content: (data.content as string) || "",
+      reviewTokenId: (data.reviewTokenId as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     };
   });

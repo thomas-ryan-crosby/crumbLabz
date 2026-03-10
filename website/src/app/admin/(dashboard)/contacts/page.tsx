@@ -20,10 +20,13 @@ import {
   TEAM_MEMBERS,
   addProject,
   getProjectsForContact,
+  createReviewToken,
+  getDocumentComments,
   type Contact,
   type Activity,
   type ClientDocument,
   type DocumentRevision,
+  type DocumentComment,
   type Project,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
@@ -483,6 +486,7 @@ function ContactDetail({
           contactId={contact.id}
           actorName={actorName}
           contactName={contact.name}
+          contactEmail={contact.email}
           companyName={contact.company}
           documents={documents}
           loadingDocs={loadingDocs}
@@ -665,6 +669,7 @@ function DocumentsPanel({
   contactId,
   actorName,
   contactName,
+  contactEmail,
   companyName,
   documents,
   loadingDocs,
@@ -677,6 +682,7 @@ function DocumentsPanel({
   contactId: string;
   actorName: string;
   contactName: string;
+  contactEmail: string;
   companyName: string;
   documents: ClientDocument[];
   loadingDocs: boolean;
@@ -702,6 +708,9 @@ function DocumentsPanel({
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [sendingReview, setSendingReview] = useState(false);
+  const [sendReviewError, setSendReviewError] = useState<string | null>(null);
+  const [reviewSent, setReviewSent] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -760,6 +769,50 @@ function DocumentsPanel({
     productDocs.some((d) => d.type === "problem_definition" && d.status === "approved") &&
     productDocs.some((d) => d.type === "solution_one_pager" && d.status === "approved") &&
     productDocs.some((d) => d.type === "development_plan" && d.status === "approved");
+
+  const handleSendForReview = async () => {
+    setSendingReview(true);
+    setSendReviewError(null);
+    try {
+      // Create review token
+      const tokenId = await createReviewToken({
+        contactId,
+        contactName,
+        companyName,
+        contactEmail,
+        createdBy: actorName,
+      });
+
+      const baseUrl = window.location.origin;
+      const reviewUrl = `${baseUrl}/review/${tokenId}`;
+
+      // Send email
+      const res = await fetch("/api/email/send-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to send email");
+      }
+
+      // Update all three doc statuses to "review"
+      for (const d of productDocs) {
+        if (d.status === "draft" || d.status === "revision_requested") {
+          await onDocStatusChange(d.id, "review");
+        }
+      }
+
+      setReviewSent(true);
+      await onDocumentsChanged();
+    } catch (err) {
+      setSendReviewError(err instanceof Error ? err.message : "Failed to send review");
+    } finally {
+      setSendingReview(false);
+    }
+  };
 
   const handleCreateProject = async () => {
     if (!projectName.trim()) return;
@@ -1258,6 +1311,46 @@ function DocumentsPanel({
           </div>
         )}
 
+        {/* Send for Review */}
+        {allThreeExist && !generating && (
+          <div className="mb-3">
+            {reviewSent ? (
+              <div className="px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                <p className="text-sm text-blue-700 font-medium">Documents sent to {contactEmail} for review.</p>
+              </div>
+            ) : (
+              <button
+                onClick={handleSendForReview}
+                disabled={sendingReview}
+                className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+              >
+                {sendingReview ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                    Send to Client for Review
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
+        {sendReviewError && (
+          <div className="mb-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-sm text-red-600">{sendReviewError}</p>
+          </div>
+        )}
+
         {/* Projects */}
         {projects.length > 0 && (
           <div className="mb-3 space-y-2">
@@ -1398,9 +1491,11 @@ function DocCard({ doc, onClick }: { doc: ClientDocument; onClick: () => void })
               ? "bg-blue-500/10 text-blue-600"
               : doc.status === "review"
                 ? "bg-accent/10 text-accent"
-                : "bg-charcoal/10 text-charcoal"
+                : doc.status === "revision_requested"
+                  ? "bg-amber-500/10 text-amber-700"
+                  : "bg-charcoal/10 text-charcoal"
         }`}>
-          {doc.status}
+          {doc.status === "revision_requested" ? "revision requested" : doc.status}
         </span>
       </div>
       <p className="text-xs text-muted">
