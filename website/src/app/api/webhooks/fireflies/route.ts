@@ -79,13 +79,14 @@ export async function POST(request: Request) {
 
     // 4. If we matched a contact, store the raw transcript and generate docs
     if (contactId) {
-      // Store raw transcript
+      // Store raw transcript — auto-assign to discovery phase
       await addClientDocument(contactId, {
         title: `Meeting Transcript — ${transcript.title}`,
         type: "meeting_transcript",
         content: formattedTranscript,
         status: "approved",
         generatedBy: "ai",
+        phase: "discovery",
       });
 
       // Generate Problem Definition

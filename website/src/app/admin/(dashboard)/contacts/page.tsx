@@ -29,6 +29,9 @@ import {
   getOrCreatePortalToken,
   addProductUpdate,
   getProductUpdates,
+  addChangeLogEntry,
+  getChangeLogEntries,
+  addChangeRequest,
   type Contact,
   type Activity,
   type ClientDocument,
@@ -37,6 +40,7 @@ import {
   type Project,
   type ChangeRequest,
   type ProductUpdate,
+  type ChangeLogEntry,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
@@ -736,6 +740,14 @@ function DocumentsPanel({
   const [monthlyInput, setMonthlyInput] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
   const [sendingInvoice, setSendingInvoice] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<"discovery" | "initial_definition" | "maintenance">("discovery");
+  const [changeLogEntries, setChangeLogEntries] = useState<ChangeLogEntry[]>([]);
+  const [showNewChangeLog, setShowNewChangeLog] = useState(false);
+  const [newChangeLogTitle, setNewChangeLogTitle] = useState("");
+  const [newChangeLogDescription, setNewChangeLogDescription] = useState("");
+  const [newChangeLogVersion, setNewChangeLogVersion] = useState("");
+  const [newChangeLogCategory, setNewChangeLogCategory] = useState<ChangeLogEntry["category"]>("improvement");
+  const [publishingChangeLog, setPublishingChangeLog] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -770,6 +782,9 @@ function DocumentsPanel({
   // Filter documents by active project context
   const contextDocs = documents.filter((d) => (d.projectId || "") === activeProjectId);
   const meetingDocs = contextDocs.filter((d) => d.type === "meeting_transcript");
+  const discoveryMeetings = meetingDocs.filter((d) => d.phase === "discovery" || !d.phase);
+  const definitionMeetings = meetingDocs.filter((d) => d.phase === "initial_definition");
+  const maintenanceMeetings = meetingDocs.filter((d) => d.phase === "maintenance");
   const productDocs = contextDocs.filter((d) =>
     ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
@@ -800,6 +815,7 @@ function DocumentsPanel({
         status: "approved",
         generatedBy: "manual",
         projectId: activeProjectId,
+        phase: uploadPhase,
       });
       setUploadTitle("");
       setUploadContent("");
@@ -918,7 +934,7 @@ function DocumentsPanel({
     let fileUrl = "";
 
     if (type === "problem_definition") {
-      const transcript = meetingDocs[0];
+      const transcript = discoveryMeetings[0];
       if (!transcript) return;
       sourceContent = transcript.content;
       fileUrl = transcript.fileUrl;
@@ -1119,11 +1135,12 @@ function DocumentsPanel({
   const [selectedChangeRequestIds, setSelectedChangeRequestIds] = useState<string[]>([]);
   const [publishingUpdate, setPublishingUpdate] = useState(false);
 
-  // Load change requests and product updates when project changes
+  // Load change requests, product updates, and change log when project changes
   useEffect(() => {
     if (activeProjectId && activeProjectId !== "__unassigned__") {
       getChangeRequests(contactId, activeProjectId).then(setChangeRequests);
       getProductUpdates(contactId, activeProjectId).then(setProductUpdates);
+      getChangeLogEntries(contactId, activeProjectId).then(setChangeLogEntries);
     }
   }, [contactId, activeProjectId, documents]);
 
@@ -1215,6 +1232,57 @@ function DocumentsPanel({
     } finally {
       setPublishingUpdate(false);
     }
+  };
+
+  const handlePublishChangeLog = async () => {
+    if (!newChangeLogTitle.trim() || !newChangeLogDescription.trim()) return;
+    setPublishingChangeLog(true);
+    try {
+      await addChangeLogEntry(contactId, {
+        projectId: activeProjectId,
+        title: newChangeLogTitle.trim(),
+        description: newChangeLogDescription.trim(),
+        version: newChangeLogVersion.trim(),
+        category: newChangeLogCategory,
+        relatedChangeRequestIds: selectedChangeRequestIds,
+        createdBy: actorName,
+        createdByRole: "admin",
+      });
+      // Mark addressed change requests as resolved
+      for (const crId of selectedChangeRequestIds) {
+        await updateChangeRequest(contactId, crId, { status: "resolved" });
+      }
+      const [updatedCRs, updatedCLs] = await Promise.all([
+        getChangeRequests(contactId, activeProjectId),
+        getChangeLogEntries(contactId, activeProjectId),
+      ]);
+      setChangeRequests(updatedCRs);
+      setChangeLogEntries(updatedCLs);
+      setNewChangeLogTitle("");
+      setNewChangeLogDescription("");
+      setNewChangeLogVersion("");
+      setNewChangeLogCategory("improvement");
+      setSelectedChangeRequestIds([]);
+      setShowNewChangeLog(false);
+    } finally {
+      setPublishingChangeLog(false);
+    }
+  };
+
+  const handleCreateFeatureFromMinutes = (doc: ClientDocument) => {
+    // Pre-populate a change request from meeting minutes content
+    const title = `Follow-up from: ${doc.title}`;
+    const description = doc.content.slice(0, 500) + (doc.content.length > 500 ? "..." : "");
+    addChangeRequest(contactId, activeProjectId, {
+      title,
+      description,
+      priority: "medium",
+      author: actorName,
+      source: "meeting_minutes",
+      sourceDocumentId: doc.id,
+    }).then(() => {
+      getChangeRequests(contactId, activeProjectId).then(setChangeRequests);
+    });
   };
 
   const handleSavePaymentConfig = async () => {
@@ -1797,19 +1865,139 @@ function DocumentsPanel({
         </div>
       )}
 
-      {/* Meeting Documents */}
-      {activeProjectId && activeProjectId !== "__unassigned__" ? <><div>
+      {/* ===== BILLING (top) ===== */}
+      {activeProjectId && activeProjectId !== "__unassigned__" ? <>{activeProject && (
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Billing</h3>
+
+          {/* Payment status badge */}
+          {activeProject.paymentStatus !== "unpaid" && (
+            <div className={`mb-3 px-4 py-3 rounded-lg flex items-center gap-2 ${
+              activeProject.paymentStatus === "active" ? "bg-emerald-500/10 border border-emerald-500/20" :
+              activeProject.paymentStatus === "retainer_paid" ? "bg-blue-500/10 border border-blue-500/20" :
+              activeProject.paymentStatus === "past_due" ? "bg-red-500/10 border border-red-500/20" :
+              "bg-neutral border border-border"
+            }`}>
+              <span className={`text-xs font-bold uppercase ${
+                activeProject.paymentStatus === "active" ? "text-emerald-700" :
+                activeProject.paymentStatus === "retainer_paid" ? "text-blue-700" :
+                activeProject.paymentStatus === "past_due" ? "text-red-700" :
+                "text-muted"
+              }`}>
+                {activeProject.paymentStatus === "retainer_paid" ? "Retainer Paid" :
+                 activeProject.paymentStatus === "active" ? "Subscription Active" :
+                 activeProject.paymentStatus === "past_due" ? "Past Due" :
+                 "Cancelled"}
+              </span>
+              {activeProject.retainerAmount > 0 && (
+                <span className="text-xs text-muted">
+                  · ${activeProject.retainerAmount.toLocaleString()} retainer + ${activeProject.monthlyRate.toLocaleString()}/mo
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Config / Send Invoice */}
+          {activeProject.paymentStatus === "unpaid" && (
+            <div className="space-y-3">
+              {activeProject.retainerAmount > 0 && activeProject.monthlyRate > 0 && !showPaymentConfig ? (
+                <div className="bg-neutral rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium">
+                        ${activeProject.retainerAmount.toLocaleString()} retainer + ${activeProject.monthlyRate.toLocaleString()}/mo
+                      </p>
+                      <p className="text-xs text-muted">Payment not yet initiated</p>
+                    </div>
+                    <button
+                      onClick={() => { setShowPaymentConfig(true); setRetainerInput(activeProject.retainerAmount.toString()); setMonthlyInput(activeProject.monthlyRate.toString()); }}
+                      className="text-xs text-muted hover:text-charcoal transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleSendInvoice}
+                    disabled={sendingInvoice}
+                    className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {sendingInvoice ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Creating Checkout...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                        </svg>
+                        Generate Payment Link
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-neutral rounded-lg p-4 space-y-3">
+                  <p className="text-xs font-medium text-muted">Set the retainer and monthly rate for this project.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-muted block mb-1">Retainer ($)</label>
+                      <input
+                        type="number"
+                        value={retainerInput || (showPaymentConfig ? "" : "")}
+                        onChange={(e) => setRetainerInput(e.target.value)}
+                        placeholder="e.g. 2500"
+                        className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-muted block mb-1">Monthly Rate ($)</label>
+                      <input
+                        type="number"
+                        value={monthlyInput || (showPaymentConfig ? "" : "")}
+                        onChange={(e) => setMonthlyInput(e.target.value)}
+                        placeholder="e.g. 500"
+                        className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSavePaymentConfig}
+                      disabled={savingPayment || !retainerInput || !monthlyInput}
+                      className="text-sm font-medium px-4 py-2 rounded-lg bg-charcoal text-white hover:bg-charcoal-light disabled:opacity-40 transition-colors"
+                    >
+                      {savingPayment ? "Saving..." : "Save"}
+                    </button>
+                    {showPaymentConfig && (
+                      <button
+                        onClick={() => setShowPaymentConfig(false)}
+                        className="text-sm text-muted hover:text-charcoal transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== DISCOVERY ===== */}
+      <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Meeting Documents</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Discovery</h3>
           <button
-            onClick={() => setShowUpload(!showUpload)}
+            onClick={() => { setShowUpload(!showUpload); setUploadPhase("discovery"); }}
             className="text-xs font-medium px-3 py-1.5 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
           >
-            {showUpload ? "Cancel" : "+ Add Transcript"}
+            {showUpload && uploadPhase === "discovery" ? "Cancel" : "+ Add Transcript"}
           </button>
         </div>
 
-        {showUpload && (
+        {showUpload && uploadPhase === "discovery" && (
           <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
             <input
               type="text"
@@ -1818,8 +2006,6 @@ function DocumentsPanel({
               onChange={(e) => setUploadTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
             />
-
-            {/* File upload */}
             <label className={`flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed text-sm cursor-pointer transition-colors ${
               uploadFile ? "border-accent bg-accent/5 text-accent" : "border-border text-muted hover:border-accent hover:text-accent"
             }`}>
@@ -1827,73 +2013,37 @@ function DocumentsPanel({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
               </svg>
               {uploadFile ? uploadFile.name : "Upload a file (PDF, DOC, etc.)"}
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.txt"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setUploadFile(file);
-                    if (!uploadTitle.trim()) {
-                      setUploadTitle(file.name.replace(/\.[^.]+$/, ""));
-                    }
-                  }
-                }}
-              />
+              <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setUploadFile(file); if (!uploadTitle.trim()) setUploadTitle(file.name.replace(/\.[^.]+$/, "")); } }} />
             </label>
-            {uploadFile && (
-              <button
-                onClick={() => setUploadFile(null)}
-                className="text-xs text-muted hover:text-red-600 transition-colors"
-              >
-                Remove file
-              </button>
-            )}
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted">and/or add notes</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            <textarea
-              placeholder="Paste meeting transcript or notes (optional if uploading a file)..."
-              value={uploadContent}
-              onChange={(e) => setUploadContent(e.target.value)}
-              rows={6}
-              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors resize-y"
-            />
-            <button
-              onClick={handleUploadDocument}
-              disabled={uploading || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)}
-              className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
+            {uploadFile && <button onClick={() => setUploadFile(null)} className="text-xs text-muted hover:text-red-600 transition-colors">Remove file</button>}
+            <div className="flex items-center gap-2"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted">and/or add notes</span><div className="flex-1 h-px bg-border" /></div>
+            <textarea placeholder="Paste meeting transcript or notes..." value={uploadContent} onChange={(e) => setUploadContent(e.target.value)} rows={6} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors resize-y" />
+            <button onClick={handleUploadDocument} disabled={uploading || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
               {uploading ? "Uploading..." : "Save Document"}
             </button>
           </div>
         )}
 
-        {meetingDocs.length === 0 && !showUpload ? (
-          <p className="text-muted text-xs">No meeting documents yet. Add a transcript to get started.</p>
+        {discoveryMeetings.length === 0 && !(showUpload && uploadPhase === "discovery") ? (
+          <p className="text-muted text-xs">No discovery documents yet. Add a transcript to get started.</p>
         ) : (
           <div className="space-y-2">
-            {meetingDocs.map((d) => (
+            {discoveryMeetings.map((d) => (
               <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
             ))}
           </div>
         )}
       </div>
 
-      {/* Project Documents */}
+      {/* ===== INITIAL DEFINITION ===== */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Project Documents</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Initial Definition</h3>
 
         {/* Generate buttons */}
         <div className="flex gap-2 flex-wrap mb-3">
           <button
             onClick={() => handleGenerate("problem_definition")}
-            disabled={meetingDocs.length === 0 || generating !== null}
+            disabled={discoveryMeetings.length === 0 || generating !== null}
             className="text-xs font-medium px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
           >
             {generating === "problem_definition" ? (
@@ -2022,8 +2172,8 @@ function DocumentsPanel({
           </div>
         )}
 
-        {meetingDocs.length === 0 && productDocs.length === 0 && (
-          <p className="text-muted text-xs">Add a meeting transcript first, then generate product documents from it.</p>
+        {discoveryMeetings.length === 0 && productDocs.length === 0 && (
+          <p className="text-muted text-xs">Add a discovery transcript first, then generate definition documents from it.</p>
         )}
 
         {productDocs.length > 0 && (
@@ -2033,9 +2183,37 @@ function DocumentsPanel({
             ))}
           </div>
         )}
+
+        {/* Definition-phase meeting minutes */}
+        {definitionMeetings.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-xs font-bold text-charcoal mb-2">Meeting Minutes</h4>
+            <div className="space-y-2">
+              {definitionMeetings.map((d) => (
+                <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+              ))}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={() => { setShowUpload(true); setUploadPhase("initial_definition"); }}
+          className="text-xs text-muted hover:text-accent transition-colors mt-2"
+        >
+          + Add meeting minutes to this phase
+        </button>
+        {showUpload && uploadPhase === "initial_definition" && (
+          <div className="bg-neutral rounded-lg p-4 mt-2 space-y-3">
+            <input type="text" placeholder="Meeting title..." value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50" />
+            <textarea placeholder="Paste transcript or notes..." value={uploadContent} onChange={(e) => setUploadContent(e.target.value)} rows={4} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y" />
+            <div className="flex gap-2">
+              <button onClick={handleUploadDocument} disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{uploading ? "Uploading..." : "Save"}</button>
+              <button onClick={() => setShowUpload(false)} className="text-sm text-muted hover:text-charcoal transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Solution Assets */}
+      {/* ===== SOLUTION ASSETS ===== */}
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Solution Assets</h3>
 
@@ -2175,136 +2353,57 @@ function DocumentsPanel({
         )}
       </div>
 
-      {/* Billing */}
-      {activeProject && (
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Billing</h3>
+      {/* ===== MAINTENANCE & CONTINUOUS DEVELOPMENT (sub-section of Solution Assets) ===== */}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Maintenance &amp; Continuous Development</h3>
+        <div className="space-y-4">
 
-          {/* Payment status badge */}
-          {activeProject.paymentStatus !== "unpaid" && (
-            <div className={`mb-3 px-4 py-3 rounded-lg flex items-center gap-2 ${
-              activeProject.paymentStatus === "active" ? "bg-emerald-500/10 border border-emerald-500/20" :
-              activeProject.paymentStatus === "retainer_paid" ? "bg-blue-500/10 border border-blue-500/20" :
-              activeProject.paymentStatus === "past_due" ? "bg-red-500/10 border border-red-500/20" :
-              "bg-neutral border border-border"
-            }`}>
-              <span className={`text-xs font-bold uppercase ${
-                activeProject.paymentStatus === "active" ? "text-emerald-700" :
-                activeProject.paymentStatus === "retainer_paid" ? "text-blue-700" :
-                activeProject.paymentStatus === "past_due" ? "text-red-700" :
-                "text-muted"
-              }`}>
-                {activeProject.paymentStatus === "retainer_paid" ? "Retainer Paid" :
-                 activeProject.paymentStatus === "active" ? "Subscription Active" :
-                 activeProject.paymentStatus === "past_due" ? "Past Due" :
-                 "Cancelled"}
-              </span>
-              {activeProject.retainerAmount > 0 && (
-                <span className="text-xs text-muted">
-                  · ${activeProject.retainerAmount.toLocaleString()} retainer + ${activeProject.monthlyRate.toLocaleString()}/mo
-                </span>
-              )}
+          {/* Maintenance Meeting Minutes */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-bold text-charcoal">Meeting Minutes</h4>
+              <button
+                onClick={() => { setShowUpload(true); setUploadPhase("maintenance"); }}
+                className="text-xs text-muted hover:text-accent transition-colors"
+              >
+                + Add Minutes
+              </button>
             </div>
-          )}
-
-          {/* Config / Send Invoice */}
-          {activeProject.paymentStatus === "unpaid" && (
-            <div className="space-y-3">
-              {activeProject.retainerAmount > 0 && activeProject.monthlyRate > 0 && !showPaymentConfig ? (
-                <div className="bg-neutral rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-medium">
-                        ${activeProject.retainerAmount.toLocaleString()} retainer + ${activeProject.monthlyRate.toLocaleString()}/mo
-                      </p>
-                      <p className="text-xs text-muted">Payment not yet initiated</p>
-                    </div>
+            {showUpload && uploadPhase === "maintenance" && (
+              <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+                <input type="text" placeholder="Meeting title..." value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                <textarea placeholder="Paste transcript or notes..." value={uploadContent} onChange={(e) => setUploadContent(e.target.value)} rows={4} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y" />
+                <div className="flex gap-2">
+                  <button onClick={handleUploadDocument} disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{uploading ? "Uploading..." : "Save"}</button>
+                  <button onClick={() => setShowUpload(false)} className="text-sm text-muted hover:text-charcoal transition-colors">Cancel</button>
+                </div>
+              </div>
+            )}
+            {maintenanceMeetings.length === 0 ? (
+              <p className="text-muted text-xs">No maintenance meeting minutes yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {maintenanceMeetings.map((d) => (
+                  <div key={d.id} className="flex items-center gap-2">
+                    <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} /></div>
                     <button
-                      onClick={() => { setShowPaymentConfig(true); setRetainerInput(activeProject.retainerAmount.toString()); setMonthlyInput(activeProject.monthlyRate.toString()); }}
-                      className="text-xs text-muted hover:text-charcoal transition-colors"
+                      onClick={() => handleCreateFeatureFromMinutes(d)}
+                      title="Create feature request from this meeting"
+                      className="text-xs text-accent hover:text-accent-hover shrink-0 px-2 py-1"
                     >
-                      Edit
+                      + Request
                     </button>
                   </div>
-                  <button
-                    onClick={handleSendInvoice}
-                    disabled={sendingInvoice}
-                    className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {sendingInvoice ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Creating Checkout...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
-                        </svg>
-                        Generate Payment Link
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-neutral rounded-lg p-4 space-y-3">
-                  <p className="text-xs font-medium text-muted">Set the retainer and monthly rate for this project.</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-muted block mb-1">Retainer ($)</label>
-                      <input
-                        type="number"
-                        value={retainerInput || (showPaymentConfig ? "" : "")}
-                        onChange={(e) => setRetainerInput(e.target.value)}
-                        placeholder="e.g. 2500"
-                        className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold uppercase text-muted block mb-1">Monthly Rate ($)</label>
-                      <input
-                        type="number"
-                        value={monthlyInput || (showPaymentConfig ? "" : "")}
-                        onChange={(e) => setMonthlyInput(e.target.value)}
-                        placeholder="e.g. 500"
-                        className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSavePaymentConfig}
-                      disabled={savingPayment || !retainerInput || !monthlyInput}
-                      className="text-sm font-medium px-4 py-2 rounded-lg bg-charcoal text-white hover:bg-charcoal-light disabled:opacity-40 transition-colors"
-                    >
-                      {savingPayment ? "Saving..." : "Save"}
-                    </button>
-                    {showPaymentConfig && (
-                      <button
-                        onClick={() => setShowPaymentConfig(false)}
-                        className="text-sm text-muted hover:text-charcoal transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                ))}
+              </div>
+            )}
+          </div>
 
-      {/* Maintenance & Continuous Development */}
-      {activeProject?.repoUrl && (
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Maintenance & Continuous Development</h3>
-
-          {/* Change Request Log */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold text-charcoal">Client Requests</h4>
+          {/* Feature Requests / Change Requests */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-xs font-bold text-charcoal mb-2">Feature Requests</h4>
             {changeRequests.length === 0 ? (
-              <p className="text-muted text-xs">No change requests yet. Clients can submit requests when reviewing solution assets.</p>
+              <p className="text-muted text-xs">No requests yet. Clients can submit from the portal or you can create from meeting minutes.</p>
             ) : (
               <div className="space-y-2">
                 {changeRequests.map((cr) => (
@@ -2312,6 +2411,9 @@ function DocumentsPanel({
                     <div className="flex items-center justify-between mb-1">
                       <h5 className="text-sm font-medium">{cr.title}</h5>
                       <div className="flex items-center gap-2">
+                        {cr.source && cr.source !== "review" && (
+                          <span className="text-[10px] text-muted capitalize">{cr.source.replace("_", " ")}</span>
+                        )}
                         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                           cr.priority === "high" ? "bg-red-500/10 text-red-700"
                             : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
@@ -2335,113 +2437,143 @@ function DocumentsPanel({
                       </div>
                     </div>
                     <p className="text-xs text-muted">{cr.description}</p>
+                    <p className="text-[10px] text-muted mt-1">{cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Change Log */}
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-xs font-bold text-charcoal">Change Log</h4>
+              <button
+                onClick={() => setShowNewChangeLog(!showNewChangeLog)}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+              >
+                {showNewChangeLog ? "Cancel" : "+ Add Entry"}
+              </button>
+            </div>
+
+            {showNewChangeLog && (
+              <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+                <input
+                  type="text"
+                  placeholder="Title (e.g. v1.1 — Dashboard Improvements)"
+                  value={newChangeLogTitle}
+                  onChange={(e) => setNewChangeLogTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-muted block mb-1">Version</label>
+                    <input
+                      type="text"
+                      value={newChangeLogVersion}
+                      onChange={(e) => setNewChangeLogVersion(e.target.value)}
+                      placeholder="e.g. v1.1"
+                      className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-muted block mb-1">Category</label>
+                    <select
+                      value={newChangeLogCategory}
+                      onChange={(e) => setNewChangeLogCategory(e.target.value as ChangeLogEntry["category"])}
+                      className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 cursor-pointer"
+                    >
+                      <option value="feature">Feature</option>
+                      <option value="improvement">Improvement</option>
+                      <option value="bugfix">Bug Fix</option>
+                      <option value="maintenance">Maintenance</option>
+                    </select>
+                  </div>
+                </div>
+                <textarea
+                  placeholder="Describe what changed..."
+                  value={newChangeLogDescription}
+                  onChange={(e) => setNewChangeLogDescription(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+                />
+
+                {/* Link change requests */}
+                {changeRequests.filter((cr) => cr.status !== "resolved" && cr.status !== "closed").length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted mb-2">Addressed requests:</p>
+                    <div className="space-y-1.5">
+                      {changeRequests.filter((cr) => cr.status !== "resolved" && cr.status !== "closed").map((cr) => (
+                        <label key={cr.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedChangeRequestIds.includes(cr.id)}
+                            onChange={(e) => setSelectedChangeRequestIds(e.target.checked ? [...selectedChangeRequestIds, cr.id] : selectedChangeRequestIds.filter((id) => id !== cr.id))}
+                            className="rounded border-border"
+                          />
+                          <span>{cr.title}</span>
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${cr.priority === "high" ? "bg-red-500/10 text-red-700" : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700" : "bg-blue-500/10 text-blue-700"}`}>{cr.priority}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={handlePublishChangeLog}
+                  disabled={publishingChangeLog || !newChangeLogTitle.trim() || !newChangeLogDescription.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {publishingChangeLog ? "Publishing..." : "Publish Entry"}
+                </button>
+              </div>
+            )}
+
+            {changeLogEntries.length === 0 && productUpdates.length === 0 && !showNewChangeLog ? (
+              <p className="text-muted text-xs">No change log entries yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {/* Legacy product updates */}
+                {productUpdates.map((pu) => (
+                  <div key={pu.id} className="bg-neutral rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-sm font-bold">{pu.title}</h5>
+                      <span className="text-[10px] text-muted">{pu.createdAt?.toLocaleDateString() || "—"}</span>
+                    </div>
+                    <p className="text-xs text-charcoal/80 leading-relaxed whitespace-pre-wrap">{pu.summary}</p>
+                    {pu.changeRequestIds.length > 0 && (
+                      <p className="text-[10px] text-muted mt-2">Addressed {pu.changeRequestIds.length} request{pu.changeRequestIds.length > 1 ? "s" : ""}</p>
+                    )}
+                    <p className="text-[10px] text-muted mt-1">Published by {pu.createdBy}</p>
+                  </div>
+                ))}
+                {/* New change log entries */}
+                {changeLogEntries.map((entry) => (
+                  <div key={entry.id} className="bg-neutral rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h5 className="text-sm font-bold">{entry.title}</h5>
+                        {entry.version && <span className="text-[10px] font-mono bg-white px-1.5 py-0.5 rounded border border-border">{entry.version}</span>}
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          entry.category === "feature" ? "bg-violet-500/10 text-violet-700" :
+                          entry.category === "bugfix" ? "bg-red-500/10 text-red-700" :
+                          entry.category === "maintenance" ? "bg-neutral text-muted" :
+                          "bg-blue-500/10 text-blue-700"
+                        }`}>{entry.category}</span>
+                      </div>
+                      <span className="text-[10px] text-muted">{entry.createdAt?.toLocaleDateString() || "—"}</span>
+                    </div>
+                    <p className="text-xs text-charcoal/80 leading-relaxed whitespace-pre-wrap">{entry.description}</p>
                     <p className="text-[10px] text-muted mt-1">
-                      {cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}
+                      {entry.createdByRole === "client" ? `${entry.createdBy} (Client)` : `Published by ${entry.createdBy}`}
                     </p>
                   </div>
                 ))}
               </div>
             )}
-
-            {/* Product Updates */}
-            <div className="border-t border-border pt-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-charcoal">Product Updates</h4>
-                <button
-                  onClick={() => setShowNewUpdate(!showNewUpdate)}
-                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors"
-                >
-                  {showNewUpdate ? "Cancel" : "+ Push Update"}
-                </button>
-              </div>
-
-              {showNewUpdate && (
-                <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Update title (e.g. v1.1 — Dashboard Improvements)"
-                    value={newUpdateTitle}
-                    onChange={(e) => setNewUpdateTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                  />
-                  <textarea
-                    placeholder="Summary of what changed since the last version..."
-                    value={newUpdateSummary}
-                    onChange={(e) => setNewUpdateSummary(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
-                  />
-
-                  {/* Link change requests to this update */}
-                  {changeRequests.filter((cr) => cr.status !== "resolved" && cr.status !== "closed").length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted mb-2">Addressed change requests:</p>
-                      <div className="space-y-1.5">
-                        {changeRequests
-                          .filter((cr) => cr.status !== "resolved" && cr.status !== "closed")
-                          .map((cr) => (
-                            <label key={cr.id} className="flex items-center gap-2 text-xs cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={selectedChangeRequestIds.includes(cr.id)}
-                                onChange={(e) => {
-                                  setSelectedChangeRequestIds(
-                                    e.target.checked
-                                      ? [...selectedChangeRequestIds, cr.id]
-                                      : selectedChangeRequestIds.filter((id) => id !== cr.id)
-                                  );
-                                }}
-                                className="rounded border-border"
-                              />
-                              <span>{cr.title}</span>
-                              <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                                cr.priority === "high" ? "bg-red-500/10 text-red-700"
-                                  : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
-                                    : "bg-blue-500/10 text-blue-700"
-                              }`}>{cr.priority}</span>
-                            </label>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handlePublishUpdate}
-                    disabled={publishingUpdate || !newUpdateTitle.trim() || !newUpdateSummary.trim()}
-                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                  >
-                    {publishingUpdate ? "Publishing..." : "Publish Update"}
-                  </button>
-                </div>
-              )}
-
-              {productUpdates.length === 0 && !showNewUpdate ? (
-                <p className="text-muted text-xs">No product updates yet. Push an update after implementing changes.</p>
-              ) : (
-                <div className="space-y-3">
-                  {productUpdates.map((pu) => (
-                    <div key={pu.id} className="bg-neutral rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="text-sm font-bold">{pu.title}</h5>
-                        <span className="text-[10px] text-muted">{pu.createdAt?.toLocaleDateString() || "—"}</span>
-                      </div>
-                      <p className="text-xs text-charcoal/80 leading-relaxed whitespace-pre-wrap">{pu.summary}</p>
-                      {pu.changeRequestIds.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-border">
-                          <p className="text-[10px] text-muted">
-                            Addressed {pu.changeRequestIds.length} change request{pu.changeRequestIds.length > 1 ? "s" : ""}
-                          </p>
-                        </div>
-                      )}
-                      <p className="text-[10px] text-muted mt-1">Published by {pu.createdBy}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Other Documents */}
       {otherDocs.length > 0 && (

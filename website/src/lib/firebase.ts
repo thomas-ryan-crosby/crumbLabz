@@ -290,6 +290,7 @@ export interface ClientDocument {
   projectId: string;
   adminNotes: string;
   generatedFromCommit: string;
+  phase: "discovery" | "initial_definition" | "maintenance" | "";
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -316,6 +317,7 @@ export async function addClientDocument(
     generatedBy?: ClientDocument["generatedBy"];
     projectId?: string;
     generatedFromCommit?: string;
+    phase?: ClientDocument["phase"];
   }
 ) {
   return addDoc(collection(db, "contacts", contactId, "documents"), {
@@ -328,6 +330,7 @@ export async function addClientDocument(
     generatedBy: data.generatedBy || "manual",
     projectId: data.projectId || "",
     generatedFromCommit: data.generatedFromCommit || "",
+    phase: data.phase || "",
     version: 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -366,6 +369,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
       projectId: (data.projectId as string) || "",
       adminNotes: (data.adminNotes as string) || "",
       generatedFromCommit: (data.generatedFromCommit as string) || "",
+      phase: (data.phase as ClientDocument["phase"]) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
@@ -375,7 +379,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
 export async function updateClientDocument(
   contactId: string,
   documentId: string,
-  fields: { content?: string; status?: string; title?: string; adminNotes?: string; generatedFromCommit?: string }
+  fields: { content?: string; status?: string; title?: string; adminNotes?: string; generatedFromCommit?: string; phase?: ClientDocument["phase"] }
 ) {
   return updateDoc(doc(db, "contacts", contactId, "documents", documentId), {
     ...fields,
@@ -465,6 +469,8 @@ export interface ChangeRequest {
   status: "open" | "in_progress" | "resolved" | "closed";
   author: string;
   reviewTokenId: string;
+  source: "review" | "meeting_minutes" | "client_portal" | "admin";
+  sourceDocumentId: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -589,11 +595,19 @@ export async function addChangeRequest(
     description: string;
     priority: ChangeRequest["priority"];
     author: string;
-    reviewTokenId: string;
+    reviewTokenId?: string;
+    source?: ChangeRequest["source"];
+    sourceDocumentId?: string;
   }
 ) {
   return addDoc(collection(db, "contacts", contactId, "changeRequests"), {
-    ...data,
+    title: data.title,
+    description: data.description,
+    priority: data.priority,
+    author: data.author,
+    reviewTokenId: data.reviewTokenId || "",
+    source: data.source || "review",
+    sourceDocumentId: data.sourceDocumentId || "",
     projectId,
     status: "open",
     createdAt: serverTimestamp(),
@@ -617,6 +631,8 @@ export async function getChangeRequests(
       status: (data.status as ChangeRequest["status"]) || "open",
       author: (data.author as string) || "",
       reviewTokenId: (data.reviewTokenId as string) || "",
+      source: (data.source as ChangeRequest["source"]) || "review",
+      sourceDocumentId: (data.sourceDocumentId as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
@@ -836,6 +852,87 @@ export async function getProductUpdates(
       const q = query(ref, orderBy("createdAt", "desc"));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(mapDoc).filter((pu) => pu.projectId === projectId);
+    }
+  }
+
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(mapDoc);
+}
+
+// --- Change Log ---
+
+export interface ChangeLogEntry {
+  id: string;
+  contactId: string;
+  projectId: string;
+  title: string;
+  description: string;
+  version: string;
+  category: "feature" | "improvement" | "bugfix" | "maintenance";
+  relatedChangeRequestIds: string[];
+  createdBy: string;
+  createdByRole: "client" | "admin";
+  createdAt: Date | null;
+}
+
+export async function addChangeLogEntry(
+  contactId: string,
+  data: {
+    projectId: string;
+    title: string;
+    description: string;
+    version?: string;
+    category?: ChangeLogEntry["category"];
+    relatedChangeRequestIds?: string[];
+    createdBy: string;
+    createdByRole: ChangeLogEntry["createdByRole"];
+  }
+) {
+  return addDoc(collection(db, "contacts", contactId, "changeLog"), {
+    projectId: data.projectId,
+    title: data.title,
+    description: data.description,
+    version: data.version || "",
+    category: data.category || "improvement",
+    relatedChangeRequestIds: data.relatedChangeRequestIds || [],
+    createdBy: data.createdBy,
+    createdByRole: data.createdByRole,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function getChangeLogEntries(
+  contactId: string,
+  projectId?: string
+): Promise<ChangeLogEntry[]> {
+  const ref = collection(db, "contacts", contactId, "changeLog");
+  const mapDoc = (d: QueryDocumentSnapshot) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      contactId,
+      projectId: (data.projectId as string) || "",
+      title: (data.title as string) || "",
+      description: (data.description as string) || "",
+      version: (data.version as string) || "",
+      category: (data.category as ChangeLogEntry["category"]) || "improvement",
+      relatedChangeRequestIds: (data.relatedChangeRequestIds as string[]) || [],
+      createdBy: (data.createdBy as string) || "",
+      createdByRole: (data.createdByRole as ChangeLogEntry["createdByRole"]) || "admin",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    };
+  };
+
+  if (projectId) {
+    try {
+      const q = query(ref, where("projectId", "==", projectId), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc);
+    } catch {
+      const q = query(ref, orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc).filter((e) => e.projectId === projectId);
     }
   }
 
