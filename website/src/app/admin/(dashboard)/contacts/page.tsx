@@ -1469,23 +1469,23 @@ function DocumentsPanel({
             value={adminNotes}
             onChange={(e) => setAdminNotes(e.target.value)}
           />
-          {adminNotes !== adminNotesOriginal && (
-            <div className="flex justify-end mt-2">
+          <div className="flex justify-end mt-2 gap-3">
+            {adminNotes !== adminNotesOriginal && (
               <button
                 onClick={() => { setAdminNotes(adminNotesOriginal); }}
-                className="text-xs text-muted hover:text-charcoal mr-3"
+                className="text-xs text-muted hover:text-charcoal"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleSaveAdminNotes}
-                disabled={savingNotes}
-                className="text-xs font-medium px-4 py-1.5 rounded-full bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-50"
-              >
-                {savingNotes ? "Saving..." : "Save Notes"}
-              </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={handleSaveAdminNotes}
+              disabled={savingNotes || adminNotes === adminNotesOriginal}
+              className="text-xs font-medium px-4 py-1.5 rounded-full bg-accent text-white hover:bg-accent/90 transition-colors disabled:opacity-50"
+            >
+              {savingNotes ? "Saving..." : "Save Notes"}
+            </button>
+          </div>
         </div>
       </div>
     );
