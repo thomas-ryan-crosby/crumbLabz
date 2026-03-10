@@ -838,15 +838,14 @@ function DocumentsPanel({
       });
 
       const baseUrl = window.location.origin;
-      const reviewUrl = `${baseUrl}/review/${tokenId}`;
       const portalTokenId = await getOrCreatePortalToken(contactId);
       const portalUrl = `${baseUrl}/portal/${portalTokenId}`;
 
-      // Send email
+      // Send email — links to client portal
       const res = await fetch("/api/email/send-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl, portalUrl }),
+        body: JSON.stringify({ contactName, contactEmail, companyName, portalUrl }),
       });
 
       if (!res.ok) {
@@ -1152,14 +1151,13 @@ function DocumentsPanel({
       });
 
       const baseUrl = window.location.origin;
-      const reviewUrl = `${baseUrl}/review/${tokenId}`;
       const portalTokenId = await getOrCreatePortalToken(contactId);
       const portalUrl = `${baseUrl}/portal/${portalTokenId}`;
 
       const res = await fetch("/api/email/send-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl, reviewType: "solution_assets", portalUrl }),
+        body: JSON.stringify({ contactName, contactEmail, companyName, reviewType: "solution_assets", portalUrl }),
       });
 
       if (!res.ok) {

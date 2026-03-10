@@ -12,11 +12,11 @@ const BOOKING_URL =
 
 export async function POST(request: Request) {
   try {
-    const { contactName, contactEmail, companyName, reviewUrl, reviewType, portalUrl } = await request.json();
+    const { contactName, contactEmail, companyName, reviewType, portalUrl } = await request.json();
 
-    if (!contactName || !contactEmail || !reviewUrl) {
+    if (!contactName || !contactEmail || !portalUrl) {
       return NextResponse.json(
-        { error: "contactName, contactEmail, and reviewUrl are required" },
+        { error: "contactName, contactEmail, and portalUrl are required" },
         { status: 400 }
       );
     }
@@ -79,18 +79,7 @@ export async function POST(request: Request) {
       </p>
       `;
 
-    const buttonText = isSolutionReview ? "Review Your Solution" : "Review Your Documents";
-
-    const portalSection = portalUrl ? `
-      <div style="border-top:1px solid #e0e0e0;margin-top:24px;padding-top:20px;text-align:center;">
-        <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:0 0 12px;">
-          You can always access your full project history, documents, and maintenance log in your Client Portal.
-        </p>
-        <a href="${portalUrl}" style="color:#e87a2e;font-size:13px;font-weight:600;text-decoration:none;">
-          Open Client Portal &rarr;
-        </a>
-      </div>
-    ` : "";
+    const buttonText = isSolutionReview ? "Open Your Client Portal" : "Open Your Client Portal";
 
     const resend = getResend();
     const { error } = await resend.emails.send({
@@ -116,13 +105,13 @@ export async function POST(request: Request) {
       ${body}
 
       <div style="text-align:center;margin:24px 0;">
-        <a href="${reviewUrl}" style="display:inline-block;background:#e87a2e;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:8px;">
+        <a href="${portalUrl}" style="display:inline-block;background:#e87a2e;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:8px;">
           ${buttonText}
         </a>
       </div>
 
       <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:24px 0 0;text-align:center;">
-        This link expires in 14 days. If you have questions, just reply to this email.
+        Your portal link never expires — you can access it anytime. If you have questions, just reply to this email.
       </p>
 
       <div style="text-align:center;margin-top:16px;">
@@ -133,8 +122,6 @@ export async function POST(request: Request) {
           Book a Meeting &rarr;
         </a>
       </div>
-
-      ${portalSection}
     </div>
 
     <!-- Footer -->

@@ -219,6 +219,12 @@ export default function PortalPage() {
         {/* Project Documents Tab */}
         {activeTab === "documents" && (
           <div className="space-y-4">
+            <div className="bg-white border border-[#e0e0e0] rounded-xl p-5 mb-2">
+              <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Project Documents</h2>
+              <p className="text-sm text-[#6b6b6b] leading-relaxed">
+                These are the core documents that define your project — the problem we&apos;re solving, our proposed approach, and the development roadmap. Review each document and approve it or leave feedback so we can move forward.
+              </p>
+            </div>
             {problemDocs.length === 0 ? (
               <p className="text-[#6b6b6b] text-sm">No project documents available yet.</p>
             ) : (
@@ -244,6 +250,12 @@ export default function PortalPage() {
         {/* Solution Tab */}
         {activeTab === "solution" && (
           <div className="space-y-4">
+            <div className="bg-white border border-[#e0e0e0] rounded-xl p-5 mb-2">
+              <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Your Solution</h2>
+              <p className="text-sm text-[#6b6b6b] leading-relaxed">
+                Everything about the tool we built for you — a technical overview of how it works and a step-by-step getting started guide. This is a living solution that improves over time based on your feedback.
+              </p>
+            </div>
             {activeProject?.repoUrl && (
               <div className="flex items-center gap-2 bg-white border border-[#e0e0e0] rounded-xl px-5 py-3">
                 <svg className="w-5 h-5 text-[#2d2d2d]" viewBox="0 0 16 16" fill="currentColor">
@@ -273,6 +285,13 @@ export default function PortalPage() {
         {/* Maintenance Tab */}
         {activeTab === "maintenance" && (
           <div className="space-y-8">
+            <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
+              <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Maintenance &amp; Continuous Development</h2>
+              <p className="text-sm text-[#6b6b6b] leading-relaxed">
+                Track every improvement we make to your solution. Submit change requests for anything you&apos;d like adjusted, and follow along as we implement updates. We&apos;re your ongoing development partner — this is where that partnership lives.
+              </p>
+            </div>
+
             {/* Product Updates */}
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wide text-[#6b6b6b] mb-4">Product Updates</h2>

@@ -13,6 +13,7 @@ import {
   where,
   serverTimestamp,
   Timestamp,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import {
   getAuth,
@@ -604,21 +605,7 @@ export async function getChangeRequests(
   contactId: string,
   projectId?: string
 ): Promise<ChangeRequest[]> {
-  let q;
-  if (projectId) {
-    q = query(
-      collection(db, "contacts", contactId, "changeRequests"),
-      where("projectId", "==", projectId),
-      orderBy("createdAt", "desc")
-    );
-  } else {
-    q = query(
-      collection(db, "contacts", contactId, "changeRequests"),
-      orderBy("createdAt", "desc")
-    );
-  }
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
+  const mapDoc = (d: QueryDocumentSnapshot) => {
     const data = d.data();
     return {
       id: d.id,
@@ -633,7 +620,34 @@ export async function getChangeRequests(
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
-  });
+  };
+
+  if (projectId) {
+    try {
+      const q = query(
+        collection(db, "contacts", contactId, "changeRequests"),
+        where("projectId", "==", projectId),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc);
+    } catch {
+      // Composite index may not exist yet — fall back to client-side filter
+      const q = query(
+        collection(db, "contacts", contactId, "changeRequests"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc).filter((cr) => cr.projectId === projectId);
+    }
+  }
+
+  const q = query(
+    collection(db, "contacts", contactId, "changeRequests"),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(mapDoc);
 }
 
 export async function updateChangeRequest(
@@ -798,11 +812,7 @@ export async function getProductUpdates(
   projectId?: string
 ): Promise<ProductUpdate[]> {
   const ref = collection(db, "contacts", contactId, "productUpdates");
-  const q = projectId
-    ? query(ref, where("projectId", "==", projectId), orderBy("createdAt", "desc"))
-    : query(ref, orderBy("createdAt", "desc"));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => {
+  const mapDoc = (d: QueryDocumentSnapshot) => {
     const data = d.data();
     return {
       id: d.id,
@@ -814,7 +824,24 @@ export async function getProductUpdates(
       createdBy: (data.createdBy as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     };
-  });
+  };
+
+  if (projectId) {
+    try {
+      const q = query(ref, where("projectId", "==", projectId), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc);
+    } catch {
+      // Composite index may not exist yet — fall back to client-side filter
+      const q = query(ref, orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(mapDoc).filter((pu) => pu.projectId === projectId);
+    }
+  }
+
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(mapDoc);
 }
 
 // --- Portal tokens ---
