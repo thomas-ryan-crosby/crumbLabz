@@ -892,18 +892,6 @@ function DocumentsPanel({
     }
   };
 
-  const [assigningDocs, setAssigningDocs] = useState(false);
-  const handleAssignDocsToProject = async () => {
-    if (!activeProjectId || unassignedDocs.length === 0) return;
-    setAssigningDocs(true);
-    try {
-      await tagDocumentsWithProject(contactId, activeProjectId, unassignedDocs.map((d) => d.id));
-      await onDocumentsChanged();
-    } finally {
-      setAssigningDocs(false);
-    }
-  };
-
   const handleGenerate = async (type: "problem_definition" | "solution_one_pager" | "development_plan") => {
     let sourceContent = "";
     let fileUrl = "";
@@ -1370,35 +1358,38 @@ function DocumentsPanel({
       {/* Unassigned Assets view */}
       {activeProjectId === "__unassigned__" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted">These documents are not assigned to any project. Select a project to assign them.</p>
-          </div>
-          {projects.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              {projects.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={async () => {
-                    setAssigningDocs(true);
-                    try {
-                      await tagDocumentsWithProject(contactId, p.id, unassignedDocs.map((d) => d.id));
-                      await onDocumentsChanged();
-                      setActiveProjectId(p.id);
-                    } finally {
-                      setAssigningDocs(false);
-                    }
-                  }}
-                  disabled={assigningDocs}
-                  className="text-xs font-medium px-3 py-2 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-60 transition-colors"
-                >
-                  {assigningDocs ? "Assigning..." : `Assign all to ${p.name}`}
-                </button>
-              ))}
-            </div>
-          )}
+          <p className="text-sm text-muted">Assign each document to a project using the dropdown.</p>
           <div className="space-y-2">
             {unassignedDocs.map((d) => (
-              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+              <div key={d.id} className="flex items-center gap-3 bg-neutral rounded-lg p-3">
+                <button
+                  onClick={() => setViewingDoc(d)}
+                  className="flex-1 text-left min-w-0"
+                >
+                  <p className="font-medium text-sm truncate">{d.title}</p>
+                  <p className="text-xs text-muted">{d.type.replace(/_/g, " ")} · {d.createdAt?.toLocaleDateString() || "—"}</p>
+                </button>
+                <select
+                  defaultValue=""
+                  onChange={async (e) => {
+                    const projectId = e.target.value;
+                    if (!projectId) return;
+                    e.target.disabled = true;
+                    try {
+                      await tagDocumentsWithProject(contactId, projectId, [d.id]);
+                      await onDocumentsChanged();
+                    } finally {
+                      e.target.disabled = false;
+                    }
+                  }}
+                  className="text-xs border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 cursor-pointer"
+                >
+                  <option value="" disabled>Assign to...</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             ))}
           </div>
         </div>
