@@ -3,6 +3,7 @@ import {
   getFirestore,
   collection,
   addDoc,
+  getDoc,
   getDocs,
   doc,
   updateDoc,
@@ -749,6 +750,93 @@ export async function updateProject(
     ...fields,
     updatedAt: serverTimestamp(),
   });
+}
+
+// --- Product Updates ---
+
+export interface ProductUpdate {
+  id: string;
+  contactId: string;
+  projectId: string;
+  title: string;
+  summary: string;
+  changeRequestIds: string[];
+  createdBy: string;
+  createdAt: Date | null;
+}
+
+export async function addProductUpdate(
+  contactId: string,
+  data: {
+    projectId: string;
+    title: string;
+    summary: string;
+    changeRequestIds: string[];
+    createdBy: string;
+  }
+) {
+  return addDoc(collection(db, "contacts", contactId, "productUpdates"), {
+    projectId: data.projectId,
+    title: data.title,
+    summary: data.summary,
+    changeRequestIds: data.changeRequestIds,
+    createdBy: data.createdBy,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function getProductUpdates(
+  contactId: string,
+  projectId?: string
+): Promise<ProductUpdate[]> {
+  const ref = collection(db, "contacts", contactId, "productUpdates");
+  const q = projectId
+    ? query(ref, where("projectId", "==", projectId), orderBy("createdAt", "desc"))
+    : query(ref, orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      contactId,
+      projectId: (data.projectId as string) || "",
+      title: (data.title as string) || "",
+      summary: (data.summary as string) || "",
+      changeRequestIds: (data.changeRequestIds as string[]) || [],
+      createdBy: (data.createdBy as string) || "",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    };
+  });
+}
+
+// --- Portal tokens ---
+
+export async function getOrCreatePortalToken(contactId: string): Promise<string> {
+  // Check for existing portal token
+  const q = query(
+    collection(db, "portalTokens"),
+    where("contactId", "==", contactId),
+    where("status", "==", "active")
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.docs.length > 0) {
+    return snapshot.docs[0].id;
+  }
+  // Create new one
+  const docRef = await addDoc(collection(db, "portalTokens"), {
+    contactId,
+    status: "active",
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export async function getPortalToken(tokenId: string): Promise<{ contactId: string } | null> {
+  const d = await getDoc(doc(db, "portalTokens", tokenId));
+  if (!d.exists()) return null;
+  const data = d.data();
+  if (data.status !== "active") return null;
+  return { contactId: data.contactId as string };
 }
 
 export { auth, db, onAuthStateChanged, type User };

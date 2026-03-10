@@ -9,7 +9,7 @@ function getResend() {
 
 export async function POST(request: Request) {
   try {
-    const { contactName, contactEmail, companyName, reviewUrl, reviewType } = await request.json();
+    const { contactName, contactEmail, companyName, reviewUrl, reviewType, portalUrl } = await request.json();
 
     if (!contactName || !contactEmail || !reviewUrl) {
       return NextResponse.json(
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const isSolutionReview = reviewType === "solution_assets";
 
     const subject = isSolutionReview
-      ? `${companyName || "Your"} solution is ready — review & provide feedback`
+      ? `${companyName || "Your"} solution — first version ready for your feedback`
       : `${companyName || "Your"} project documents are ready for review`;
 
     const body = isSolutionReview
@@ -31,11 +31,15 @@ export async function POST(request: Request) {
         Hi ${firstName},
       </p>
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 16px;">
-        Your solution for <strong>${companyName || "your project"}</strong> is ready for review. We've prepared documentation that covers what was built and how to use it.
+        The first version of your solution for <strong>${companyName || "your project"}</strong> is ready for you to review. We want to be upfront — this is a <strong>Version 1</strong>. It may not be perfect, and it may not cover everything you need yet. That's by design.
+      </p>
+
+      <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        Our goal is to get a working tool in your hands as quickly as possible so you can start using it and tell us what needs to change. <strong>This is an iterative process</strong> — we'll continue refining and improving the solution until it fully meets your needs.
       </p>
 
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 8px;">
-        <strong>What you'll find:</strong>
+        <strong>What we've prepared:</strong>
       </p>
       <ol style="color:#2d2d2d;font-size:15px;line-height:1.8;margin:0 0 24px;padding-left:20px;">
         <li><strong>Solution Overview</strong> — what was built, the technology behind it, and how it all fits together</li>
@@ -43,11 +47,11 @@ export async function POST(request: Request) {
       </ol>
 
       <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 16px;">
-        After reviewing, you can submit <strong>change requests</strong> for anything you'd like improved, added, or adjusted. This is an <strong>iterative process</strong> — we'll continue working with you until the solution fully meets your needs.
+        After reviewing, you can submit <strong>change requests</strong> for anything you'd like improved, added, or adjusted. Think of these as your wish list — no request is too small. Each one helps us make the tool better for you.
       </p>
 
       <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 24px;">
-        Think of change requests as your wish list — no request is too small. Each one helps us make the tool better for you.
+        We'll track every request, implement changes, and push updates so you can see progress in real time. This isn't a one-and-done handoff — <strong>we're your ongoing development partner</strong>.
       </p>
       `
       : `
@@ -73,6 +77,17 @@ export async function POST(request: Request) {
       `;
 
     const buttonText = isSolutionReview ? "Review Your Solution" : "Review Your Documents";
+
+    const portalSection = portalUrl ? `
+      <div style="border-top:1px solid #e0e0e0;margin-top:24px;padding-top:20px;text-align:center;">
+        <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:0 0 12px;">
+          You can always access your full project history, documents, and maintenance log in your Client Portal.
+        </p>
+        <a href="${portalUrl}" style="color:#e87a2e;font-size:13px;font-weight:600;text-decoration:none;">
+          Open Client Portal &rarr;
+        </a>
+      </div>
+    ` : "";
 
     const resend = getResend();
     const { error } = await resend.emails.send({
@@ -106,6 +121,8 @@ export async function POST(request: Request) {
       <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:24px 0 0;text-align:center;">
         This link expires in 14 days. If you have questions, just reply to this email.
       </p>
+
+      ${portalSection}
     </div>
 
     <!-- Footer -->

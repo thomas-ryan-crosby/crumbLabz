@@ -26,6 +26,9 @@ import {
   tagDocumentsWithProject,
   getChangeRequests,
   updateChangeRequest,
+  getOrCreatePortalToken,
+  addProductUpdate,
+  getProductUpdates,
   type Contact,
   type Activity,
   type ClientDocument,
@@ -33,6 +36,7 @@ import {
   type DocumentComment,
   type Project,
   type ChangeRequest,
+  type ProductUpdate,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
@@ -830,12 +834,14 @@ function DocumentsPanel({
 
       const baseUrl = window.location.origin;
       const reviewUrl = `${baseUrl}/review/${tokenId}`;
+      const portalTokenId = await getOrCreatePortalToken(contactId);
+      const portalUrl = `${baseUrl}/portal/${portalTokenId}`;
 
       // Send email
       const res = await fetch("/api/email/send-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl }),
+        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl, portalUrl }),
       });
 
       if (!res.ok) {
@@ -1101,10 +1107,19 @@ function DocumentsPanel({
   const [solutionReviewSent, setSolutionReviewSent] = useState(false);
   const [sendingSolutionReview, setSendingSolutionReview] = useState(false);
 
-  // Load change requests when project changes
+  // Product updates state
+  const [productUpdates, setProductUpdates] = useState<ProductUpdate[]>([]);
+  const [showNewUpdate, setShowNewUpdate] = useState(false);
+  const [newUpdateTitle, setNewUpdateTitle] = useState("");
+  const [newUpdateSummary, setNewUpdateSummary] = useState("");
+  const [selectedChangeRequestIds, setSelectedChangeRequestIds] = useState<string[]>([]);
+  const [publishingUpdate, setPublishingUpdate] = useState(false);
+
+  // Load change requests and product updates when project changes
   useEffect(() => {
     if (activeProjectId && activeProjectId !== "__unassigned__") {
       getChangeRequests(contactId, activeProjectId).then(setChangeRequests);
+      getProductUpdates(contactId, activeProjectId).then(setProductUpdates);
     }
   }, [contactId, activeProjectId, documents]);
 
@@ -1133,11 +1148,13 @@ function DocumentsPanel({
 
       const baseUrl = window.location.origin;
       const reviewUrl = `${baseUrl}/review/${tokenId}`;
+      const portalTokenId = await getOrCreatePortalToken(contactId);
+      const portalUrl = `${baseUrl}/portal/${portalTokenId}`;
 
       const res = await fetch("/api/email/send-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl, reviewType: "solution_assets" }),
+        body: JSON.stringify({ contactName, contactEmail, companyName, reviewUrl, reviewType: "solution_assets", portalUrl }),
       });
 
       if (!res.ok) {
@@ -1165,6 +1182,36 @@ function DocumentsPanel({
     await updateChangeRequest(contactId, requestId, { status });
     const updated = await getChangeRequests(contactId, activeProjectId);
     setChangeRequests(updated);
+  };
+
+  const handlePublishUpdate = async () => {
+    if (!newUpdateTitle.trim() || !newUpdateSummary.trim()) return;
+    setPublishingUpdate(true);
+    try {
+      await addProductUpdate(contactId, {
+        projectId: activeProjectId,
+        title: newUpdateTitle.trim(),
+        summary: newUpdateSummary.trim(),
+        changeRequestIds: selectedChangeRequestIds,
+        createdBy: actorName,
+      });
+      // Mark addressed change requests as resolved
+      for (const crId of selectedChangeRequestIds) {
+        await updateChangeRequest(contactId, crId, { status: "resolved" });
+      }
+      const [updatedCRs, updatedPUs] = await Promise.all([
+        getChangeRequests(contactId, activeProjectId),
+        getProductUpdates(contactId, activeProjectId),
+      ]);
+      setChangeRequests(updatedCRs);
+      setProductUpdates(updatedPUs);
+      setNewUpdateTitle("");
+      setNewUpdateSummary("");
+      setSelectedChangeRequestIds([]);
+      setShowNewUpdate(false);
+    } finally {
+      setPublishingUpdate(false);
+    }
   };
 
   // Load revisions when viewing a product document
@@ -2065,52 +2112,159 @@ function DocumentsPanel({
               </div>
             )}
 
-            {/* Change Requests */}
-            {changeRequests.length > 0 && (
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wide text-muted mb-2 mt-4">Change Requests</h4>
-                <div className="space-y-2">
-                  {changeRequests.map((cr) => (
-                    <div key={cr.id} className="bg-neutral rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <h5 className="text-sm font-medium">{cr.title}</h5>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                            cr.priority === "high" ? "bg-red-500/10 text-red-700"
-                              : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
-                                : "bg-blue-500/10 text-blue-700"
-                          }`}>{cr.priority}</span>
-                          <select
-                            value={cr.status}
-                            onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
-                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
-                              cr.status === "open" ? "bg-blue-500/10 text-blue-700"
-                                : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
-                                  : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
-                                    : "bg-neutral text-muted"
-                            }`}
-                          >
-                            <option value="open">Open</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="closed">Closed</option>
-                          </select>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted">{cr.description}</p>
-                      <p className="text-[10px] text-muted mt-1">
-                        {cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         ) : (
           <p className="text-muted text-xs">Create a GitHub repository first to generate solution assets.</p>
         )}
       </div>
+
+      {/* Maintenance & Continuous Development */}
+      {activeProject?.repoUrl && (
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Maintenance & Continuous Development</h3>
+
+          {/* Change Request Log */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-charcoal">Client Requests</h4>
+            {changeRequests.length === 0 ? (
+              <p className="text-muted text-xs">No change requests yet. Clients can submit requests when reviewing solution assets.</p>
+            ) : (
+              <div className="space-y-2">
+                {changeRequests.map((cr) => (
+                  <div key={cr.id} className="bg-neutral rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <h5 className="text-sm font-medium">{cr.title}</h5>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          cr.priority === "high" ? "bg-red-500/10 text-red-700"
+                            : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
+                              : "bg-blue-500/10 text-blue-700"
+                        }`}>{cr.priority}</span>
+                        <select
+                          value={cr.status}
+                          onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
+                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
+                            cr.status === "open" ? "bg-blue-500/10 text-blue-700"
+                              : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
+                                : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
+                                  : "bg-neutral text-muted"
+                          }`}
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="resolved">Resolved</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted">{cr.description}</p>
+                    <p className="text-[10px] text-muted mt-1">
+                      {cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Product Updates */}
+            <div className="border-t border-border pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold text-charcoal">Product Updates</h4>
+                <button
+                  onClick={() => setShowNewUpdate(!showNewUpdate)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+                >
+                  {showNewUpdate ? "Cancel" : "+ Push Update"}
+                </button>
+              </div>
+
+              {showNewUpdate && (
+                <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Update title (e.g. v1.1 — Dashboard Improvements)"
+                    value={newUpdateTitle}
+                    onChange={(e) => setNewUpdateTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                  />
+                  <textarea
+                    placeholder="Summary of what changed since the last version..."
+                    value={newUpdateSummary}
+                    onChange={(e) => setNewUpdateSummary(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+                  />
+
+                  {/* Link change requests to this update */}
+                  {changeRequests.filter((cr) => cr.status !== "resolved" && cr.status !== "closed").length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-muted mb-2">Addressed change requests:</p>
+                      <div className="space-y-1.5">
+                        {changeRequests
+                          .filter((cr) => cr.status !== "resolved" && cr.status !== "closed")
+                          .map((cr) => (
+                            <label key={cr.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedChangeRequestIds.includes(cr.id)}
+                                onChange={(e) => {
+                                  setSelectedChangeRequestIds(
+                                    e.target.checked
+                                      ? [...selectedChangeRequestIds, cr.id]
+                                      : selectedChangeRequestIds.filter((id) => id !== cr.id)
+                                  );
+                                }}
+                                className="rounded border-border"
+                              />
+                              <span>{cr.title}</span>
+                              <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                                cr.priority === "high" ? "bg-red-500/10 text-red-700"
+                                  : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
+                                    : "bg-blue-500/10 text-blue-700"
+                              }`}>{cr.priority}</span>
+                            </label>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handlePublishUpdate}
+                    disabled={publishingUpdate || !newUpdateTitle.trim() || !newUpdateSummary.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  >
+                    {publishingUpdate ? "Publishing..." : "Publish Update"}
+                  </button>
+                </div>
+              )}
+
+              {productUpdates.length === 0 && !showNewUpdate ? (
+                <p className="text-muted text-xs">No product updates yet. Push an update after implementing changes.</p>
+              ) : (
+                <div className="space-y-3">
+                  {productUpdates.map((pu) => (
+                    <div key={pu.id} className="bg-neutral rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="text-sm font-bold">{pu.title}</h5>
+                        <span className="text-[10px] text-muted">{pu.createdAt?.toLocaleDateString() || "—"}</span>
+                      </div>
+                      <p className="text-xs text-charcoal/80 leading-relaxed whitespace-pre-wrap">{pu.summary}</p>
+                      {pu.changeRequestIds.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-border">
+                          <p className="text-[10px] text-muted">
+                            Addressed {pu.changeRequestIds.length} change request{pu.changeRequestIds.length > 1 ? "s" : ""}
+                          </p>
+                        </div>
+                      )}
+                      <p className="text-[10px] text-muted mt-1">Published by {pu.createdBy}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Other Documents */}
       {otherDocs.length > 0 && (
