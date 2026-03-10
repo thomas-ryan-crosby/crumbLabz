@@ -3,6 +3,7 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ImageRun,
   Header,
   Footer,
   PageNumber,
@@ -14,6 +15,8 @@ import {
   TabStopType,
 } from "docx";
 import { marked, type Token, type Tokens } from "marked";
+import path from "path";
+import fs from "fs";
 
 const CHARCOAL = "2d2d2d";
 const ACCENT = "e87a2e";
@@ -281,6 +284,70 @@ export async function generateDocx(
   const tokens = stripBrandingTokens(marked.lexer(markdown));
   const bodyParagraphs = tokenToParagraphs(tokens);
 
+  // Load logo for header
+  const logoPath = path.join(process.cwd(), "public", "images", "CrumbLabz_LogoFull.png");
+  const headerChildren: Paragraph[] = [];
+
+  if (fs.existsSync(logoPath)) {
+    const logoBuffer = fs.readFileSync(logoPath);
+    headerChildren.push(
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [
+          new ImageRun({
+            data: logoBuffer,
+            transformation: { width: 160, height: 40 },
+            type: "png",
+          }),
+        ],
+      })
+    );
+  } else {
+    headerChildren.push(
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [
+          new TextRun({
+            text: "CrumbLabz",
+            bold: true,
+            color: CHARCOAL,
+            font: "Calibri",
+            size: 28,
+          }),
+        ],
+      })
+    );
+  }
+
+  headerChildren.push(
+    new Paragraph({
+      spacing: { after: 100 },
+      border: {
+        bottom: {
+          style: BorderStyle.SINGLE,
+          size: 6,
+          color: ACCENT,
+          space: 8,
+        },
+      },
+      tabStops: [
+        {
+          type: TabStopType.RIGHT,
+          position: TabStopPosition.MAX,
+        },
+      ],
+      children: [
+        new TextRun({
+          text: "Custom Software Solutions",
+          italics: true,
+          color: MUTED,
+          font: "Calibri",
+          size: 16,
+        }),
+      ],
+    })
+  );
+
   const doc = new Document({
     title,
     creator: "CrumbLabz",
@@ -298,46 +365,7 @@ export async function generateDocx(
         },
         headers: {
           default: new Header({
-            children: [
-              new Paragraph({
-                spacing: { after: 40 },
-                children: [
-                  new TextRun({
-                    text: "CrumbLabz",
-                    bold: true,
-                    color: CHARCOAL,
-                    font: "Calibri",
-                    size: 24,
-                  }),
-                  new TextRun({
-                    text: "  |  Custom Software Solutions",
-                    color: CHARCOAL,
-                    font: "Calibri",
-                    size: 24,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                spacing: { after: 100 },
-                border: {
-                  bottom: {
-                    style: BorderStyle.SINGLE,
-                    size: 6,
-                    color: ACCENT,
-                    space: 8,
-                  },
-                },
-                children: [
-                  new TextRun({
-                    text: "Turning Business Headaches Into Working Tools",
-                    italics: true,
-                    color: ACCENT,
-                    font: "Calibri",
-                    size: 18,
-                  }),
-                ],
-              }),
-            ],
+            children: headerChildren,
           }),
         },
         footers: {

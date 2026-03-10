@@ -1,14 +1,24 @@
 import PDFDocument from "pdfkit";
 import { marked, type Token, type Tokens } from "marked";
+import path from "path";
+import fs from "fs";
 
 const CHARCOAL = "#2d2d2d";
 const ACCENT = "#e87a2e";
-const MUTED = "#888888";
-const WHITE = "#ffffff";
+const MUTED = "#999999";
+const LIGHT_GRAY = "#f5f5f5";
+const BORDER_GRAY = "#e0e0e0";
 
-const PAGE_MARGIN = 60;
-const HEADER_HEIGHT = 70;
-const FOOTER_HEIGHT = 40;
+const PAGE_MARGIN_X = 72; // 1 inch
+const PAGE_MARGIN_TOP = 54;
+const HEADER_ZONE = 80; // space reserved for header
+const FOOTER_ZONE = 50;
+const BODY_FONT_SIZE = 11;
+const LINE_HEIGHT = 1.4;
+
+function getLogoPath(filename: string): string {
+  return path.join(process.cwd(), "public", "images", filename);
+}
 
 function stripBrandingTokens(tokens: Token[]): Token[] {
   const filtered: Token[] = [];
@@ -17,19 +27,13 @@ function stripBrandingTokens(tokens: Token[]): Token[] {
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
 
-    // Skip branded blockquote header (first blockquote containing "CrumbLabz")
     if (i === 0 && t.type === "blockquote") {
       const raw = (t as Tokens.Blockquote).raw || "";
       if (raw.includes("CrumbLabz")) continue;
     }
 
-    // Skip trailing footer (hr + italic lines at end)
     if (skipFooter) continue;
-    if (
-      t.type === "hr" &&
-      i >= tokens.length - 3
-    ) {
-      // Check if remaining tokens look like the branded footer
+    if (t.type === "hr" && i >= tokens.length - 3) {
       const remaining = tokens.slice(i + 1);
       const isFooter = remaining.every(
         (r) => r.type === "paragraph" || r.type === "space"
@@ -48,8 +52,9 @@ function stripBrandingTokens(tokens: Token[]): Token[] {
 
 function getInlineText(token: Token): string {
   if ("text" in token && typeof token.text === "string") {
-    // Strip markdown inline formatting for plain text
-    return token.text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1");
+    return token.text
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1");
   }
   return "";
 }
@@ -60,17 +65,18 @@ export async function generatePdf(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
-      size: "A4",
+      size: "LETTER",
       margins: {
-        top: PAGE_MARGIN + HEADER_HEIGHT,
-        bottom: PAGE_MARGIN + FOOTER_HEIGHT,
-        left: PAGE_MARGIN,
-        right: PAGE_MARGIN,
+        top: PAGE_MARGIN_TOP + HEADER_ZONE,
+        bottom: FOOTER_ZONE + 30,
+        left: PAGE_MARGIN_X,
+        right: PAGE_MARGIN_X,
       },
       bufferPages: true,
       info: {
         Title: title,
         Author: "CrumbLabz",
+        Creator: "CrumbLabz Document Generator",
       },
     });
 
@@ -80,15 +86,15 @@ export async function generatePdf(
     doc.on("error", reject);
 
     const tokens = stripBrandingTokens(marked.lexer(markdown));
-    const pageWidth = doc.page.width - PAGE_MARGIN * 2;
+    const contentWidth = doc.page.width - PAGE_MARGIN_X * 2;
 
     // Render body content
     for (const token of tokens) {
-      ensureSpace(doc, 40);
-      renderToken(doc, token, pageWidth);
+      ensureSpace(doc, 30);
+      renderToken(doc, token, contentWidth);
     }
 
-    // Add headers and footers to all pages
+    // Add headers and footers to all buffered pages
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
@@ -102,33 +108,50 @@ export async function generatePdf(
 
 function drawHeader(doc: PDFKit.PDFDocument) {
   const pageWidth = doc.page.width;
+  const logoFullPath = getLogoPath("CrumbLabz_LogoFull.png");
 
-  // Charcoal background bar
   doc.save();
-  doc.rect(0, 0, pageWidth, HEADER_HEIGHT + 20).fill(CHARCOAL);
 
-  // Company name
+  // White background for header area
+  doc.rect(0, 0, pageWidth, PAGE_MARGIN_TOP + HEADER_ZONE - 10).fill("#ffffff");
+
+  // Logo image
+  if (fs.existsSync(logoFullPath)) {
+    doc.image(logoFullPath, PAGE_MARGIN_X, PAGE_MARGIN_TOP + 6, {
+      height: 32,
+    });
+  } else {
+    // Fallback text if logo not found
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .fillColor(CHARCOAL)
+      .text("CrumbLabz", PAGE_MARGIN_X, PAGE_MARGIN_TOP + 10);
+  }
+
+  // Tagline on the right
   doc
-    .font("Helvetica-Bold")
-    .fontSize(14)
-    .fillColor(WHITE)
-    .text("CrumbLabz", PAGE_MARGIN, 22, { continued: true })
     .font("Helvetica")
-    .fontSize(14)
-    .fillColor(WHITE)
-    .text("  |  Custom Software Solutions", { continued: false });
+    .fontSize(8.5)
+    .fillColor(MUTED)
+    .text(
+      "Custom Software Solutions",
+      PAGE_MARGIN_X,
+      PAGE_MARGIN_TOP + 18,
+      {
+        width: pageWidth - PAGE_MARGIN_X * 2,
+        align: "right",
+      }
+    );
 
-  // Tagline
+  // Orange accent line under header
+  const lineY = PAGE_MARGIN_TOP + HEADER_ZONE - 16;
   doc
-    .font("Helvetica-Oblique")
-    .fontSize(9)
-    .fillColor(ACCENT)
-    .text("Turning Business Headaches Into Working Tools", PAGE_MARGIN, 44);
-
-  // Orange accent line
-  doc
-    .rect(0, HEADER_HEIGHT + 20, pageWidth, 3)
-    .fill(ACCENT);
+    .moveTo(PAGE_MARGIN_X, lineY)
+    .lineTo(pageWidth - PAGE_MARGIN_X, lineY)
+    .strokeColor(ACCENT)
+    .lineWidth(2)
+    .stroke();
 
   doc.restore();
 }
@@ -139,37 +162,44 @@ function drawFooter(
   totalPages: number
 ) {
   const pageWidth = doc.page.width;
-  const y = doc.page.height - FOOTER_HEIGHT - 20;
+  const y = doc.page.height - FOOTER_ZONE - 10;
 
   doc.save();
 
-  // Thin rule
+  // Thin separator line
   doc
-    .moveTo(PAGE_MARGIN, y)
-    .lineTo(pageWidth - PAGE_MARGIN, y)
-    .strokeColor(MUTED)
+    .moveTo(PAGE_MARGIN_X, y)
+    .lineTo(pageWidth - PAGE_MARGIN_X, y)
+    .strokeColor(BORDER_GRAY)
     .lineWidth(0.5)
     .stroke();
 
+  // Cookie icon in footer
+  const cookiePath = getLogoPath("CrumbLabz_Cookie.png");
+  if (fs.existsSync(cookiePath)) {
+    doc.image(cookiePath, PAGE_MARGIN_X, y + 6, { height: 14 });
+  }
+
   // Footer text
+  const textX = fs.existsSync(cookiePath) ? PAGE_MARGIN_X + 20 : PAGE_MARGIN_X;
   doc
-    .font("Helvetica-Oblique")
-    .fontSize(7)
+    .font("Helvetica")
+    .fontSize(7.5)
     .fillColor(MUTED)
     .text(
-      "Prepared by CrumbLabz | crumblabz.com  •  This document is confidential and intended for the named client only.",
-      PAGE_MARGIN,
-      y + 8,
-      { width: pageWidth - PAGE_MARGIN * 2, align: "left" }
+      "Prepared by CrumbLabz  |  crumblabz.com  |  Confidential",
+      textX,
+      y + 10,
+      { width: pageWidth - PAGE_MARGIN_X * 2 - 60, align: "left" }
     );
 
   // Page number
   doc
     .font("Helvetica")
-    .fontSize(7)
+    .fontSize(7.5)
     .fillColor(MUTED)
-    .text(`${pageNum} / ${totalPages}`, PAGE_MARGIN, y + 8, {
-      width: pageWidth - PAGE_MARGIN * 2,
+    .text(`Page ${pageNum} of ${totalPages}`, PAGE_MARGIN_X, y + 10, {
+      width: pageWidth - PAGE_MARGIN_X * 2,
       align: "right",
     });
 
@@ -177,8 +207,7 @@ function drawFooter(
 }
 
 function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
-  const bottomLimit =
-    doc.page.height - PAGE_MARGIN - FOOTER_HEIGHT - 10;
+  const bottomLimit = doc.page.height - FOOTER_ZONE - 30;
   if (doc.y + needed > bottomLimit) {
     doc.addPage();
   }
@@ -187,115 +216,226 @@ function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
 function renderToken(
   doc: PDFKit.PDFDocument,
   token: Token,
-  pageWidth: number
+  contentWidth: number
 ) {
   switch (token.type) {
     case "heading": {
       const t = token as Tokens.Heading;
-      const sizes: Record<number, number> = { 1: 20, 2: 16, 3: 13 };
+      const sizes: Record<number, number> = { 1: 22, 2: 17, 3: 14 };
       const fontSize = sizes[t.depth] || 12;
-      doc.moveDown(t.depth === 1 ? 0.8 : 0.5);
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(fontSize)
-        .fillColor(CHARCOAL)
-        .text(getInlineText(t), { width: pageWidth });
-      doc.moveDown(0.3);
+
+      if (t.depth === 1) {
+        doc.moveDown(1.0);
+      } else if (t.depth === 2) {
+        doc.moveDown(0.8);
+      } else {
+        doc.moveDown(0.6);
+      }
+
+      const headingText = getInlineText(t);
+
+      if (t.depth === 1) {
+        // H1: Large bold charcoal with orange underline
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(fontSize)
+          .fillColor(CHARCOAL)
+          .text(headingText, { width: contentWidth, lineGap: 4 });
+        const underY = doc.y + 4;
+        doc
+          .moveTo(PAGE_MARGIN_X, underY)
+          .lineTo(PAGE_MARGIN_X + contentWidth, underY)
+          .strokeColor(ACCENT)
+          .lineWidth(1.5)
+          .stroke();
+        doc.y = underY + 10;
+      } else if (t.depth === 2) {
+        // H2: Bold charcoal with light gray underline
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(fontSize)
+          .fillColor(CHARCOAL)
+          .text(headingText, { width: contentWidth, lineGap: 3 });
+        const underY = doc.y + 3;
+        doc
+          .moveTo(PAGE_MARGIN_X, underY)
+          .lineTo(PAGE_MARGIN_X + contentWidth, underY)
+          .strokeColor(BORDER_GRAY)
+          .lineWidth(0.75)
+          .stroke();
+        doc.y = underY + 8;
+      } else {
+        // H3: Bold with accent color
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(fontSize)
+          .fillColor(ACCENT)
+          .text(headingText, { width: contentWidth, lineGap: 2 });
+        doc.moveDown(0.3);
+      }
       break;
     }
 
     case "paragraph": {
       const t = token as Tokens.Paragraph;
-      renderInlineTokens(doc, t.tokens || [], pageWidth);
-      doc.moveDown(0.5);
+      renderInlineTokens(doc, t.tokens || [], contentWidth);
+      doc.moveDown(0.6);
       break;
     }
 
     case "list": {
       const t = token as Tokens.List;
       for (let i = 0; i < t.items.length; i++) {
-        ensureSpace(doc, 18);
+        ensureSpace(doc, 20);
         const item = t.items[i];
-        const bullet = t.ordered ? `${i + 1}.` : "•";
+        const bullet = t.ordered ? `${i + 1}.` : "\u2022";
+        const indent = 20;
+        const bulletWidth = t.ordered ? 18 : 12;
+
+        // Draw bullet/number
         doc
           .font("Helvetica")
-          .fontSize(10)
-          .fillColor(CHARCOAL);
+          .fontSize(BODY_FONT_SIZE)
+          .fillColor(t.ordered ? CHARCOAL : ACCENT)
+          .text(bullet, PAGE_MARGIN_X + indent, doc.y, {
+            width: bulletWidth,
+            continued: false,
+          });
 
-        const x = doc.x;
-        doc.text(`${bullet}  `, x + 15, doc.y, {
-          continued: true,
-          width: pageWidth - 15,
-        });
-        // Render item inline tokens
+        // Move up to align item text with bullet
+        doc.y = doc.y - doc.currentLineHeight(true);
+
+        // Render item content
+        const textX = PAGE_MARGIN_X + indent + bulletWidth + 4;
+        const textWidth = contentWidth - indent - bulletWidth - 4;
+        const savedX = doc.x;
+        doc.x = textX;
+
         if (item.tokens && item.tokens.length > 0) {
+          let rendered = false;
           for (const sub of item.tokens) {
-            if (sub.type === "text" || sub.type === "paragraph") {
-              const inlineTokens = (sub as Tokens.Paragraph).tokens || [];
-              if (inlineTokens.length > 0) {
-                renderInlineTokens(doc, inlineTokens, pageWidth - 30, true);
-              } else {
-                doc.text(getInlineText(sub), { width: pageWidth - 30 });
-              }
+            if (
+              sub.type === "paragraph" &&
+              (sub as Tokens.Paragraph).tokens
+            ) {
+              renderInlineTokens(
+                doc,
+                (sub as Tokens.Paragraph).tokens,
+                textWidth
+              );
+              rendered = true;
+            } else if (sub.type === "text") {
+              doc
+                .font("Helvetica")
+                .fontSize(BODY_FONT_SIZE)
+                .fillColor(CHARCOAL)
+                .text(getInlineText(sub), {
+                  width: textWidth,
+                  lineGap: BODY_FONT_SIZE * (LINE_HEIGHT - 1),
+                });
+              rendered = true;
             }
           }
+          if (!rendered) {
+            doc
+              .font("Helvetica")
+              .fontSize(BODY_FONT_SIZE)
+              .fillColor(CHARCOAL)
+              .text(getInlineText(item), {
+                width: textWidth,
+                lineGap: BODY_FONT_SIZE * (LINE_HEIGHT - 1),
+              });
+          }
         } else {
-          doc.text(getInlineText(item), { width: pageWidth - 30 });
+          doc
+            .font("Helvetica")
+            .fontSize(BODY_FONT_SIZE)
+            .fillColor(CHARCOAL)
+            .text(getInlineText(item), {
+              width: textWidth,
+              lineGap: BODY_FONT_SIZE * (LINE_HEIGHT - 1),
+            });
         }
-        doc.moveDown(0.15);
+
+        doc.x = savedX;
+        doc.moveDown(0.25);
       }
-      doc.moveDown(0.3);
+      doc.moveDown(0.4);
       break;
     }
 
     case "blockquote": {
       const t = token as Tokens.Blockquote;
-      const x = doc.x;
       const startY = doc.y;
 
-      // Render blockquote content indented
-      doc.x = x + 20;
+      // Light gray background
+      const savedX = doc.x;
+      doc.x = PAGE_MARGIN_X + 16;
+
+      // Render content first to measure height
       for (const sub of t.tokens || []) {
-        renderToken(doc, sub, pageWidth - 25);
+        renderToken(doc, sub, contentWidth - 24);
       }
       const endY = doc.y;
 
-      // Draw left accent bar
+      // Draw background and accent bar
       doc
-        .rect(x + 5, startY, 3, endY - startY)
+        .rect(
+          PAGE_MARGIN_X + 4,
+          startY - 4,
+          contentWidth - 4,
+          endY - startY + 8
+        )
+        .fill(LIGHT_GRAY);
+
+      // Orange left bar
+      doc
+        .rect(PAGE_MARGIN_X + 4, startY - 4, 3, endY - startY + 8)
         .fill(ACCENT);
 
-      doc.x = x;
-      doc.moveDown(0.3);
+      // Re-render content on top of background
+      doc.y = startY;
+      doc.x = PAGE_MARGIN_X + 16;
+      for (const sub of t.tokens || []) {
+        renderToken(doc, sub, contentWidth - 24);
+      }
+
+      doc.x = savedX;
+      doc.moveDown(0.4);
       break;
     }
 
     case "hr": {
-      doc.moveDown(0.5);
+      doc.moveDown(0.6);
+      const centerX = PAGE_MARGIN_X + contentWidth / 2;
+      // Three dots separator
       doc
-        .moveTo(doc.x, doc.y)
-        .lineTo(doc.x + pageWidth, doc.y)
-        .strokeColor(MUTED)
-        .lineWidth(0.5)
-        .stroke();
-      doc.moveDown(0.5);
+        .fontSize(12)
+        .fillColor(MUTED)
+        .text("\u2022    \u2022    \u2022", PAGE_MARGIN_X, doc.y, {
+          width: contentWidth,
+          align: "center",
+        });
+      doc.moveDown(0.6);
       break;
     }
 
     case "space": {
-      doc.moveDown(0.3);
+      doc.moveDown(0.4);
       break;
     }
 
     default:
-      // For any unhandled token with text, render as plain paragraph
       if ("text" in token) {
         doc
           .font("Helvetica")
-          .fontSize(10)
+          .fontSize(BODY_FONT_SIZE)
           .fillColor(CHARCOAL)
-          .text(getInlineText(token), { width: pageWidth });
-        doc.moveDown(0.3);
+          .text(getInlineText(token), {
+            width: contentWidth,
+            lineGap: BODY_FONT_SIZE * (LINE_HEIGHT - 1),
+          });
+        doc.moveDown(0.4);
       }
       break;
   }
@@ -312,40 +452,51 @@ function renderInlineTokens(
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     const isLast = i === tokens.length - 1 && !continuing;
+    const lineGap = BODY_FONT_SIZE * (LINE_HEIGHT - 1);
 
     if (t.type === "strong") {
       doc
         .font("Helvetica-Bold")
-        .fontSize(10)
+        .fontSize(BODY_FONT_SIZE)
         .fillColor(CHARCOAL)
         .text((t as Tokens.Strong).text, {
           width,
           continued: !isLast,
+          lineGap,
         });
     } else if (t.type === "em") {
       doc
         .font("Helvetica-Oblique")
-        .fontSize(10)
+        .fontSize(BODY_FONT_SIZE)
         .fillColor(CHARCOAL)
         .text((t as Tokens.Em).text, {
           width,
           continued: !isLast,
+          lineGap,
+        });
+    } else if (t.type === "codespan") {
+      doc
+        .font("Courier")
+        .fontSize(BODY_FONT_SIZE - 1)
+        .fillColor(CHARCOAL)
+        .text((t as Tokens.Codespan).text, {
+          width,
+          continued: !isLast,
+          lineGap,
         });
     } else {
       const text =
         t.type === "text"
           ? (t as Tokens.Text).text
-          : t.type === "codespan"
-            ? (t as Tokens.Codespan).text
-            : "raw" in t
-              ? String((t as { raw: string }).raw)
-              : "";
+          : "raw" in t
+            ? String((t as { raw: string }).raw)
+            : "";
       if (text) {
         doc
           .font("Helvetica")
-          .fontSize(10)
+          .fontSize(BODY_FONT_SIZE)
           .fillColor(CHARCOAL)
-          .text(text, { width, continued: !isLast });
+          .text(text, { width, continued: !isLast, lineGap });
       }
     }
   }
