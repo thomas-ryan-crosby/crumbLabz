@@ -11,7 +11,7 @@ const BORDER_GRAY = "#e0e0e0";
 
 const PAGE_MARGIN_X = 72; // 1 inch
 const PAGE_MARGIN_TOP = 54;
-const HEADER_ZONE = 80; // space reserved for header
+const HEADER_ZONE = 80;
 const FOOTER_ZONE = 50;
 const BODY_FONT_SIZE = 11;
 const LINE_HEIGHT = 1.4;
@@ -112,35 +112,37 @@ function drawHeader(doc: PDFKit.PDFDocument) {
 
   doc.save();
 
-  // White background for header area
+  // White background to cover any content that may have bled into the header zone
   doc.rect(0, 0, pageWidth, PAGE_MARGIN_TOP + HEADER_ZONE - 10).fill("#ffffff");
 
-  // Logo image
+  // Logo image — sized prominently
   if (fs.existsSync(logoFullPath)) {
-    doc.image(logoFullPath, PAGE_MARGIN_X, PAGE_MARGIN_TOP + 6, {
-      height: 32,
+    doc.image(logoFullPath, PAGE_MARGIN_X, PAGE_MARGIN_TOP + 2, {
+      height: 48,
     });
   } else {
-    // Fallback text if logo not found
     doc
       .font("Helvetica-Bold")
-      .fontSize(18)
+      .fontSize(20)
       .fillColor(CHARCOAL)
-      .text("CrumbLabz", PAGE_MARGIN_X, PAGE_MARGIN_TOP + 10);
+      .text("CrumbLabz", PAGE_MARGIN_X, PAGE_MARGIN_TOP + 10, {
+        lineBreak: false,
+      });
   }
 
-  // Tagline on the right
+  // Tagline on the right — positioned absolutely, no line break
   doc
     .font("Helvetica")
-    .fontSize(8.5)
+    .fontSize(9)
     .fillColor(MUTED)
     .text(
       "Custom Software Solutions",
-      PAGE_MARGIN_X,
-      PAGE_MARGIN_TOP + 18,
+      0,
+      PAGE_MARGIN_TOP + 22,
       {
-        width: pageWidth - PAGE_MARGIN_X * 2,
+        width: pageWidth - PAGE_MARGIN_X,
         align: "right",
+        lineBreak: false,
       }
     );
 
@@ -176,12 +178,13 @@ function drawFooter(
 
   // Cookie icon in footer
   const cookiePath = getLogoPath("CrumbLabz_Cookie.png");
-  if (fs.existsSync(cookiePath)) {
-    doc.image(cookiePath, PAGE_MARGIN_X, y + 6, { height: 14 });
+  const hasCookie = fs.existsSync(cookiePath);
+  if (hasCookie) {
+    doc.image(cookiePath, PAGE_MARGIN_X, y + 5, { height: 16 });
   }
 
-  // Footer text
-  const textX = fs.existsSync(cookiePath) ? PAGE_MARGIN_X + 20 : PAGE_MARGIN_X;
+  // Footer text — use lineBreak: false to prevent cursor advancement / extra pages
+  const textX = hasCookie ? PAGE_MARGIN_X + 22 : PAGE_MARGIN_X;
   doc
     .font("Helvetica")
     .fontSize(7.5)
@@ -190,18 +193,24 @@ function drawFooter(
       "Prepared by CrumbLabz  |  crumblabz.com  |  Confidential",
       textX,
       y + 10,
-      { width: pageWidth - PAGE_MARGIN_X * 2 - 60, align: "left" }
+      { lineBreak: false }
     );
 
-  // Page number
+  // Page number — right-aligned, no line break
   doc
     .font("Helvetica")
     .fontSize(7.5)
     .fillColor(MUTED)
-    .text(`Page ${pageNum} of ${totalPages}`, PAGE_MARGIN_X, y + 10, {
-      width: pageWidth - PAGE_MARGIN_X * 2,
-      align: "right",
-    });
+    .text(
+      `Page ${pageNum} of ${totalPages}`,
+      0,
+      y + 10,
+      {
+        width: pageWidth - PAGE_MARGIN_X,
+        align: "right",
+        lineBreak: false,
+      }
+    );
 
   doc.restore();
 }
@@ -235,7 +244,6 @@ function renderToken(
       const headingText = getInlineText(t);
 
       if (t.depth === 1) {
-        // H1: Large bold charcoal with orange underline
         doc
           .font("Helvetica-Bold")
           .fontSize(fontSize)
@@ -250,7 +258,6 @@ function renderToken(
           .stroke();
         doc.y = underY + 10;
       } else if (t.depth === 2) {
-        // H2: Bold charcoal with light gray underline
         doc
           .font("Helvetica-Bold")
           .fontSize(fontSize)
@@ -265,7 +272,6 @@ function renderToken(
           .stroke();
         doc.y = underY + 8;
       } else {
-        // H3: Bold with accent color
         doc
           .font("Helvetica-Bold")
           .fontSize(fontSize)
@@ -368,7 +374,6 @@ function renderToken(
       const t = token as Tokens.Blockquote;
       const startY = doc.y;
 
-      // Light gray background
       const savedX = doc.x;
       doc.x = PAGE_MARGIN_X + 16;
 
@@ -407,8 +412,6 @@ function renderToken(
 
     case "hr": {
       doc.moveDown(0.6);
-      const centerX = PAGE_MARGIN_X + contentWidth / 2;
-      // Three dots separator
       doc
         .fontSize(12)
         .fillColor(MUTED)
