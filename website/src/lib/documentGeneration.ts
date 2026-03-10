@@ -466,6 +466,8 @@ const FEATURE_SPECIFICATION_PROMPT = `You are a business analyst and technical l
 
 You are given a collection of inputs — which may include meeting minutes, client-submitted feature requests, and/or internal team notes. Your job is to produce a **Feature Specification Document** that defines what needs to be built or changed.
 
+IMPORTANT INPUT PRIORITY: **Feature Requests are the primary source of truth.** They are deliberately written by clients or CrumbLabz professionals and represent specific, intentional asks. **Meeting Minutes are supplementary context only** — they are auto-captured transcripts from Fireflies and may contain generalizations, off-topic discussion, or inaccuracies. Use meeting minutes to fill in background context and details, but always defer to Feature Requests for the actual scope and intent of the change. If meeting minutes contradict a Feature Request, follow the Feature Request.
+
 IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
 
 > **CrumbLabz** | Custom Software Solutions
@@ -521,13 +523,19 @@ Write clearly for a business audience that may review this document, while inclu
 export async function generateFeatureSpecification(
   inputs: { type: "meeting_minutes" | "feature_request" | "notes"; title: string; content: string }[]
 ): Promise<string> {
-  const formattedInputs = inputs
+  // Sort: feature requests first (primary), then notes, then meeting minutes (supplementary)
+  const sorted = [...inputs].sort((a, b) => {
+    const order = { feature_request: 0, notes: 1, meeting_minutes: 2 };
+    return order[a.type] - order[b.type];
+  });
+
+  const formattedInputs = sorted
     .map((input, i) => {
       const label =
         input.type === "meeting_minutes"
-          ? "Meeting Minutes"
+          ? "Meeting Minutes (supplementary context)"
           : input.type === "feature_request"
-            ? "Feature Request"
+            ? "Feature Request (primary)"
             : "Notes";
       return `## Input ${i + 1}: ${label} — ${input.title}\n\n${input.content}`;
     })
