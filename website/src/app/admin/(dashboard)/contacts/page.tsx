@@ -33,6 +33,7 @@ import {
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function ContactsPage() {
   const { user } = useAuth();
@@ -1245,7 +1246,7 @@ function DocumentsPanel({
 
         {displayContent && (
           <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
-            <ReactMarkdown>{displayContent}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
           </div>
         )}
 

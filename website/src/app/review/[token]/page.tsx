@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   getReviewToken,
   getClientDocuments,
@@ -228,7 +229,7 @@ export default function ReviewPage() {
 
             {/* Document content */}
             <div className="px-6 py-6 prose prose-sm max-w-none text-[#2d2d2d]">
-              <ReactMarkdown>{activeDoc.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.content}</ReactMarkdown>
             </div>
 
             {/* Comments section */}
