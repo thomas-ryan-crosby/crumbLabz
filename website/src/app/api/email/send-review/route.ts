@@ -7,6 +7,9 @@ function getResend() {
   return new Resend(key);
 }
 
+const BOOKING_URL =
+  process.env.NEXT_PUBLIC_BOOKING_URL || "https://cal.com/crumblabz/discovery";
+
 export async function POST(request: Request) {
   try {
     const { contactName, contactEmail, companyName, reviewUrl, reviewType, portalUrl } = await request.json();
@@ -121,6 +124,15 @@ export async function POST(request: Request) {
       <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:24px 0 0;text-align:center;">
         This link expires in 14 days. If you have questions, just reply to this email.
       </p>
+
+      <div style="text-align:center;margin-top:16px;">
+        <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:0 0 8px;">
+          Prefer to talk it through? Schedule a call with us.
+        </p>
+        <a href="${BOOKING_URL}" style="color:#e87a2e;font-size:13px;font-weight:600;text-decoration:none;">
+          Book a Meeting &rarr;
+        </a>
+      </div>
 
       ${portalSection}
     </div>
