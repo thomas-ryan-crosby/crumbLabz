@@ -13,6 +13,7 @@ import {
   addClientDocument,
   uploadDocumentFile,
   updateClientDocument,
+  deleteClientDocument,
   saveRevisionAndUpdate,
   getDocumentRevisions,
   getCurrentTeamMember,
@@ -1318,6 +1319,21 @@ function DocumentsPanel({
     });
   };
 
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const handleDeleteDocument = async (doc: ClientDocument) => {
+    if (!confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
+    setDeletingDocId(doc.id);
+    try {
+      await deleteClientDocument(contactId, doc.id);
+      if (viewingDoc?.id === doc.id) {
+        setViewingDoc(null);
+      }
+      await onDocumentsChanged();
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
+
   const handleSavePaymentConfig = async () => {
     if (!activeProject) return;
     setSavingPayment(true);
@@ -1498,6 +1514,14 @@ function DocumentsPanel({
                 {s}
               </button>
             ))}
+            <button
+              onClick={() => handleDeleteDocument(viewingDoc)}
+              disabled={deletingDocId === viewingDoc.id}
+              title="Delete document"
+              className="text-xs font-medium px-3 py-1.5 rounded-full border border-red-300 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+            >
+              {deletingDocId === viewingDoc.id ? "Deleting..." : "Delete"}
+            </button>
           </div>
         </div>
 
@@ -2067,7 +2091,17 @@ function DocumentsPanel({
         ) : (
           <div className="space-y-2">
             {discoveryMeetings.map((d) => (
-              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+              <div key={d.id} className="flex items-center gap-2">
+                <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} /></div>
+                <button
+                  onClick={() => handleDeleteDocument(d)}
+                  disabled={deletingDocId === d.id}
+                  title="Delete document"
+                  className="text-xs text-red-500 hover:text-red-700 shrink-0 px-2 py-1"
+                >
+                  {deletingDocId === d.id ? "..." : "×"}
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -2228,7 +2262,17 @@ function DocumentsPanel({
             <h4 className="text-xs font-bold text-charcoal mb-2">Meeting Minutes</h4>
             <div className="space-y-2">
               {definitionMeetings.map((d) => (
-                <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+                <div key={d.id} className="flex items-center gap-2">
+                  <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} /></div>
+                  <button
+                    onClick={() => handleDeleteDocument(d)}
+                    disabled={deletingDocId === d.id}
+                    title="Delete document"
+                    className="text-xs text-red-500 hover:text-red-700 shrink-0 px-2 py-1"
+                  >
+                    {deletingDocId === d.id ? "..." : "×"}
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -2462,6 +2506,14 @@ function DocumentsPanel({
                       className="text-xs text-accent hover:text-accent-hover shrink-0 px-2 py-1"
                     >
                       + Request
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDocument(d)}
+                      disabled={deletingDocId === d.id}
+                      title="Delete document"
+                      className="text-xs text-red-500 hover:text-red-700 shrink-0 px-2 py-1"
+                    >
+                      {deletingDocId === d.id ? "..." : "×"}
                     </button>
                   </div>
                 ))}

@@ -387,6 +387,10 @@ export async function updateClientDocument(
   });
 }
 
+export async function deleteClientDocument(contactId: string, documentId: string) {
+  return deleteDoc(doc(db, "contacts", contactId, "documents", documentId));
+}
+
 // --- Document revisions ---
 
 export async function saveRevisionAndUpdate(
