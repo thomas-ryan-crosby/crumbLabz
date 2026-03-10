@@ -177,13 +177,19 @@ function drawFooter(
   // Footer text — render as single string to avoid continued+link NaN bug on switched pages
   const textX = PAGE_MARGIN_X + 22;
   const footerTextY = y + 10;
+  const prefix = "Prepared by CrumbLabz  |  ";
+  const linkText = "crumblabz.com";
+  const suffix = "  |  Confidential";
+  doc.font("Helvetica").fontSize(7.5);
+  const prefixWidth = doc.widthOfString(prefix);
+  const linkWidth = doc.widthOfString(linkText);
   doc
-    .font("Helvetica")
-    .fontSize(7.5)
     .fillColor(MUTED)
-    .text("Prepared by CrumbLabz  |  crumblabz.com  |  Confidential", textX, footerTextY, {
+    .text(prefix + linkText + suffix, textX, footerTextY, {
       lineBreak: false,
     });
+  // Add clickable link rectangle over "crumblabz.com"
+  doc.link(textX + prefixWidth, footerTextY, linkWidth, 10, "https://crumblabz.com");
 
   // Page number — right-aligned, no line break
   doc
