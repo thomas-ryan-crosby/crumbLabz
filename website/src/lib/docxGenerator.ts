@@ -15,8 +15,7 @@ import {
   TabStopType,
 } from "docx";
 import { marked, type Token, type Tokens } from "marked";
-import path from "path";
-import fs from "fs";
+import { getLogoFullBuffer } from "@/assets/logos";
 
 const CHARCOAL = "2d2d2d";
 const ACCENT = "e87a2e";
@@ -284,40 +283,22 @@ export async function generateDocx(
   const tokens = stripBrandingTokens(marked.lexer(markdown));
   const bodyParagraphs = tokenToParagraphs(tokens);
 
-  // Load logo for header
-  const logoPath = path.join(process.cwd(), "public", "images", "CrumbLabz_LogoFull.png");
+  // Load logo for header (embedded buffer, works in serverless)
+  const logoBuffer = getLogoFullBuffer();
   const headerChildren: Paragraph[] = [];
 
-  if (fs.existsSync(logoPath)) {
-    const logoBuffer = fs.readFileSync(logoPath);
-    headerChildren.push(
-      new Paragraph({
-        spacing: { after: 40 },
-        children: [
-          new ImageRun({
-            data: logoBuffer,
-            transformation: { width: 220, height: 55 },
-            type: "png",
-          }),
-        ],
-      })
-    );
-  } else {
-    headerChildren.push(
-      new Paragraph({
-        spacing: { after: 40 },
-        children: [
-          new TextRun({
-            text: "CrumbLabz",
-            bold: true,
-            color: CHARCOAL,
-            font: "Calibri",
-            size: 28,
-          }),
-        ],
-      })
-    );
-  }
+  headerChildren.push(
+    new Paragraph({
+      spacing: { after: 40 },
+      children: [
+        new ImageRun({
+          data: logoBuffer,
+          transformation: { width: 220, height: 55 },
+          type: "png",
+        }),
+      ],
+    })
+  );
 
   headerChildren.push(
     new Paragraph({

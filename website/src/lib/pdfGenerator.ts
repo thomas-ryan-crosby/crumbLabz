@@ -1,7 +1,6 @@
 import PDFDocument from "pdfkit";
 import { marked, type Token, type Tokens } from "marked";
-import path from "path";
-import fs from "fs";
+import { getLogoFullBuffer, getLogoCookieBuffer } from "@/assets/logos";
 
 const CHARCOAL = "#2d2d2d";
 const ACCENT = "#e87a2e";
@@ -16,9 +15,9 @@ const FOOTER_ZONE = 50;
 const BODY_FONT_SIZE = 11;
 const LINE_HEIGHT = 1.4;
 
-function getLogoPath(filename: string): string {
-  return path.join(process.cwd(), "public", "images", filename);
-}
+// Pre-load logo buffers (embedded base64, works in serverless)
+const logoFullBuffer = getLogoFullBuffer();
+const logoCookieBuffer = getLogoCookieBuffer();
 
 function stripBrandingTokens(tokens: Token[]): Token[] {
   const filtered: Token[] = [];
@@ -119,27 +118,16 @@ export async function generatePdf(
 
 function drawHeader(doc: PDFKit.PDFDocument) {
   const pageWidth = doc.page.width;
-  const logoFullPath = getLogoPath("CrumbLabz_LogoFull.png");
 
   doc.save();
 
   // White background to cover any content that may have bled into the header zone
   doc.rect(0, 0, pageWidth, PAGE_MARGIN_TOP + HEADER_ZONE - 10).fill("#ffffff");
 
-  // Logo image — large and prominent
-  if (fs.existsSync(logoFullPath)) {
-    doc.image(logoFullPath, PAGE_MARGIN_X, PAGE_MARGIN_TOP - 2, {
-      height: 56,
-    });
-  } else {
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(20)
-      .fillColor(CHARCOAL)
-      .text("CrumbLabz", PAGE_MARGIN_X, PAGE_MARGIN_TOP + 10, {
-        lineBreak: false,
-      });
-  }
+  // Logo image — large and prominent (embedded buffer, works in serverless)
+  doc.image(logoFullBuffer, PAGE_MARGIN_X, PAGE_MARGIN_TOP - 2, {
+    height: 56,
+  });
 
   // Tagline on the right — positioned absolutely, no line break
   doc
@@ -187,15 +175,11 @@ function drawFooter(
     .lineWidth(0.5)
     .stroke();
 
-  // Cookie icon in footer
-  const cookiePath = getLogoPath("CrumbLabz_Cookie.png");
-  const hasCookie = fs.existsSync(cookiePath);
-  if (hasCookie) {
-    doc.image(cookiePath, PAGE_MARGIN_X, y + 5, { height: 16 });
-  }
+  // Cookie icon in footer (embedded buffer)
+  doc.image(logoCookieBuffer, PAGE_MARGIN_X, y + 5, { height: 16 });
 
   // Footer text with clickable website link
-  const textX = hasCookie ? PAGE_MARGIN_X + 22 : PAGE_MARGIN_X;
+  const textX = PAGE_MARGIN_X + 22;
   const footerTextY = y + 10;
   doc
     .font("Helvetica")
