@@ -752,6 +752,11 @@ function DocumentsPanel({
   const [newChangeLogVersion, setNewChangeLogVersion] = useState("");
   const [newChangeLogCategory, setNewChangeLogCategory] = useState<ChangeLogEntry["category"]>("improvement");
   const [publishingChangeLog, setPublishingChangeLog] = useState(false);
+  const [showCreateFeatureDoc, setShowCreateFeatureDoc] = useState(false);
+  const [selectedMinuteIds, setSelectedMinuteIds] = useState<string[]>([]);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+  const [featureDocNotes, setFeatureDocNotes] = useState("");
+  const [generatingFeatureDoc, setGeneratingFeatureDoc] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -793,8 +798,9 @@ function DocumentsPanel({
     ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
   const solutionDocs = contextDocs.filter((d) => ["solution_overview", "getting_started"].includes(d.type));
+  const featureDocs = contextDocs.filter((d) => d.type === "feature_specification");
   const otherDocs = contextDocs.filter(
-    (d) => !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan", "solution_overview", "getting_started"].includes(d.type)
+    (d) => !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan", "solution_overview", "getting_started", "feature_specification"].includes(d.type)
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
@@ -1339,6 +1345,65 @@ function DocumentsPanel({
       await onDocumentsChanged();
     } finally {
       setDeletingDocId(null);
+    }
+  };
+
+  const handleGenerateFeatureDoc = async () => {
+    if (selectedMinuteIds.length === 0 && selectedRequestIds.length === 0 && !featureDocNotes.trim()) return;
+    setGeneratingFeatureDoc(true);
+    try {
+      // Build inputs array from selected assets
+      const inputs: { type: "meeting_minutes" | "feature_request" | "notes"; title: string; content: string }[] = [];
+
+      for (const id of selectedMinuteIds) {
+        const doc = maintenanceMeetings.find((d) => d.id === id);
+        if (doc) inputs.push({ type: "meeting_minutes", title: doc.title, content: doc.content });
+      }
+      for (const id of selectedRequestIds) {
+        const cr = changeRequests.find((r) => r.id === id);
+        if (cr) inputs.push({ type: "feature_request", title: cr.title, content: `${cr.title}\n\nPriority: ${cr.priority}\n\n${cr.description}` });
+      }
+      if (featureDocNotes.trim()) {
+        inputs.push({ type: "notes", title: "Additional Context", content: featureDocNotes.trim() });
+      }
+
+      const res = await fetch("/api/generate-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "feature_specification", inputs }),
+      });
+
+      if (!res.ok) throw new Error("Failed to generate feature specification");
+      const { content } = await res.json();
+
+      // Save as a new document
+      const docRef = await addClientDocument(contactId, {
+        title: "Feature Specification",
+        type: "feature_specification",
+        content,
+        status: "draft",
+        generatedBy: "ai",
+        projectId: activeProjectId,
+        phase: "maintenance",
+      });
+
+      // Link selected change requests to this doc and mark in_progress
+      for (const id of selectedRequestIds) {
+        await updateChangeRequest(contactId, id, { status: "in_progress" });
+      }
+
+      // Reset form
+      setShowCreateFeatureDoc(false);
+      setSelectedMinuteIds([]);
+      setSelectedRequestIds([]);
+      setFeatureDocNotes("");
+      await onDocumentsChanged();
+      const updatedCRs = await getChangeRequests(contactId, activeProjectId);
+      setChangeRequests(updatedCRs);
+    } catch (err) {
+      console.error("Feature doc generation error:", err);
+    } finally {
+      setGeneratingFeatureDoc(false);
     }
   };
 
@@ -2503,7 +2568,85 @@ function DocumentsPanel({
 
           {/* Feature Requests / Change Requests */}
           <div className="border-t border-border pt-4">
-            <h4 className="text-xs font-bold text-charcoal mb-2">Feature Requests</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-bold text-charcoal">Feature Backlog</h4>
+              <button
+                onClick={() => setShowCreateFeatureDoc(!showCreateFeatureDoc)}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 transition-colors"
+              >
+                {showCreateFeatureDoc ? "Cancel" : "Create Feature Doc"}
+              </button>
+            </div>
+
+            {/* Create Feature Doc — multi-select inputs */}
+            {showCreateFeatureDoc && (
+              <div className="bg-violet-50 border border-violet-200 rounded-lg p-4 mb-3 space-y-3">
+                <p className="text-xs text-violet-700 font-medium">Select meeting minutes and/or feature requests to include as inputs for the AI-generated feature specification.</p>
+
+                {/* Meeting Minutes selection */}
+                {maintenanceMeetings.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted mb-1.5">Meeting Minutes</p>
+                    <div className="space-y-1.5">
+                      {maintenanceMeetings.map((d) => (
+                        <label key={d.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedMinuteIds.includes(d.id)}
+                            onChange={(e) => setSelectedMinuteIds(e.target.checked ? [...selectedMinuteIds, d.id] : selectedMinuteIds.filter((id) => id !== d.id))}
+                            className="rounded border-border"
+                          />
+                          <span>{d.title}</span>
+                          <span className="text-[10px] text-muted">{d.createdAt?.toLocaleDateString() || ""}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Feature Request selection */}
+                {changeRequests.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted mb-1.5">Feature Requests</p>
+                    <div className="space-y-1.5">
+                      {changeRequests.map((cr) => (
+                        <label key={cr.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedRequestIds.includes(cr.id)}
+                            onChange={(e) => setSelectedRequestIds(e.target.checked ? [...selectedRequestIds, cr.id] : selectedRequestIds.filter((id) => id !== cr.id))}
+                            className="rounded border-border"
+                          />
+                          <span>{cr.title}</span>
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${cr.priority === "high" ? "bg-red-500/10 text-red-700" : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700" : "bg-blue-500/10 text-blue-700"}`}>{cr.priority}</span>
+                          {cr.source && cr.source !== "review" && <span className="text-[10px] text-muted capitalize">{cr.source.replace("_", " ")}</span>}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional notes */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-muted mb-1.5">Additional Context (optional)</p>
+                  <textarea
+                    value={featureDocNotes}
+                    onChange={(e) => setFeatureDocNotes(e.target.value)}
+                    placeholder="Add any extra context, requirements, or notes for the feature spec..."
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg border border-violet-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50 resize-y"
+                  />
+                </div>
+
+                <button
+                  onClick={handleGenerateFeatureDoc}
+                  disabled={generatingFeatureDoc || (selectedMinuteIds.length === 0 && selectedRequestIds.length === 0 && !featureDocNotes.trim())}
+                  className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {generatingFeatureDoc ? "Generating with AI..." : "Generate Feature Specification"}
+                </button>
+              </div>
+            )}
             {changeRequests.length === 0 ? (
               <p className="text-muted text-xs">No requests yet. Clients can submit from the portal or you can create from meeting minutes.</p>
             ) : (
@@ -2552,6 +2695,18 @@ function DocumentsPanel({
               </div>
             )}
           </div>
+
+          {/* Feature Documents */}
+          {featureDocs.length > 0 && (
+            <div className="border-t border-border pt-4">
+              <h4 className="text-xs font-bold text-charcoal mb-2">Feature Documents</h4>
+              <div className="space-y-2">
+                {featureDocs.map((d) => (
+                  <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Change Log */}
           <div className="border-t border-border pt-4">

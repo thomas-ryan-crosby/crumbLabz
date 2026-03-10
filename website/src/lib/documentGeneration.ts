@@ -462,6 +462,93 @@ export async function generateGettingStarted(
   return textBlock?.text || "";
 }
 
+const FEATURE_SPECIFICATION_PROMPT = `You are a business analyst and technical lead at CrumbLabz, a company that builds and maintains custom software tools for businesses.
+
+You are given a collection of inputs — which may include meeting minutes, client-submitted feature requests, and/or internal team notes. Your job is to produce a **Feature Specification Document** that defines what needs to be built or changed.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Then include these sections:
+
+# Feature Specification — [Short Feature Name]
+
+## Request Summary
+- One-paragraph summary of what is being requested and why
+- Who requested it and through what channel (meeting, portal, etc.)
+
+## Problem Context
+- What pain point or gap does this address?
+- How does the current system handle this (or fail to)?
+- Who is affected?
+
+## Proposed Changes
+- Detailed description of what the feature should do
+- User-facing behavior (what the user sees and interacts with)
+- Include specific UI elements, workflows, or screens if discussed
+
+## Acceptance Criteria
+- Numbered list of specific, testable criteria that define "done"
+- Each criterion should be verifiable (e.g., "User can export data as CSV from the dashboard")
+- Include edge cases if discussed
+
+## Technical Approach
+- High-level implementation approach (not full architecture — just enough for a developer to start)
+- Key components, APIs, or database changes needed
+- Integration points with existing functionality
+- Any dependencies or prerequisites
+
+## Estimated Scope
+- Small / Medium / Large classification
+- Brief rationale for the estimate
+
+## Out of Scope
+- Anything explicitly excluded or deferred to a later iteration
+
+End the document with this footer:
+
+---
+
+*Prepared by CrumbLabz | crumblabz.com*
+*This document is confidential and intended for the named client only.*
+
+Write clearly for a business audience that may review this document, while including enough technical detail for a developer to implement from it. The document should serve as both a client-facing approval artifact AND a developer-facing implementation guide. Be specific and actionable.`;
+
+export async function generateFeatureSpecification(
+  inputs: { type: "meeting_minutes" | "feature_request" | "notes"; title: string; content: string }[]
+): Promise<string> {
+  const formattedInputs = inputs
+    .map((input, i) => {
+      const label =
+        input.type === "meeting_minutes"
+          ? "Meeting Minutes"
+          : input.type === "feature_request"
+            ? "Feature Request"
+            : "Notes";
+      return `## Input ${i + 1}: ${label} — ${input.title}\n\n${input.content}`;
+    })
+    .join("\n\n---\n\n");
+
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4000,
+    system: FEATURE_SPECIFICATION_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Here are the inputs to base the feature specification on:\n\n${formattedInputs}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.text || "";
+}
+
 const CLAUDE_MD_PROMPT = `You are a senior developer at CrumbLabz, a company that builds custom software tools for businesses.
 
 You have been given three project documents: a Problem Definition, a Solution One-Pager, and a Development Plan. Your job is to synthesize these into a CLAUDE.md file — a concise, developer-facing project context file that gives an AI coding assistant everything it needs to understand and build this project.

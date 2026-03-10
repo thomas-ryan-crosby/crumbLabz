@@ -7,6 +7,7 @@ import {
   generateDevelopmentPlan,
   generateSolutionOverview,
   generateGettingStarted,
+  generateFeatureSpecification,
 } from "@/lib/documentGeneration";
 
 // Key files to read from repo for solution overview generation
@@ -136,7 +137,18 @@ async function fetchRepoContents(owner: string, repo: string) {
 
 export async function POST(request: Request) {
   try {
-    const { type, sourceContent, fileUrl, repoOwner, repoName, projectName } = await request.json();
+    const { type, sourceContent, fileUrl, repoOwner, repoName, projectName, inputs } = await request.json();
+
+    if (type === "feature_specification") {
+      if (!inputs || !Array.isArray(inputs) || inputs.length === 0) {
+        return NextResponse.json(
+          { error: "inputs array is required for feature_specification" },
+          { status: 400 }
+        );
+      }
+      const content = await generateFeatureSpecification(inputs);
+      return NextResponse.json({ content });
+    }
 
     if (type === "solution_overview") {
       if (!repoOwner || !repoName) {

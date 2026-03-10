@@ -209,6 +209,8 @@ export default function PortalPage() {
   const solutionDocs = projectDocs.filter((d) =>
     ["solution_overview", "getting_started"].includes(d.type)
   );
+  // Feature specifications
+  const featureDocs = projectDocs.filter((d) => d.type === "feature_specification");
   // Maintenance meetings
   const maintenanceMeetings = projectDocs.filter(
     (d) => d.type === "meeting_transcript" && d.phase === "maintenance"
@@ -531,6 +533,35 @@ export default function PortalPage() {
                         <div className="flex items-center justify-between">
                           <h4 className="text-sm font-medium text-[#2d2d2d]">{d.title}</h4>
                           <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Feature Documents */}
+              {featureDocs.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b] mb-3">Feature Documents</h3>
+                  <p className="text-xs text-[#6b6b6b] mb-3">Feature specifications created from your feedback and meetings. Review and approve each document before we begin implementation.</p>
+                  <div className="space-y-3">
+                    {featureDocs.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => setViewingDoc(d)}
+                        className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-4 hover:border-[#e87a2e] transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-[#2d2d2d]">{d.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              d.status === "approved" ? "bg-green-100 text-green-700"
+                                : d.status === "review" ? "bg-orange-100 text-orange-700"
+                                  : "bg-gray-100 text-gray-600"
+                            }`}>{d.status === "review" ? "Awaiting Review" : d.status}</span>
+                            <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                          </div>
                         </div>
                       </button>
                     ))}

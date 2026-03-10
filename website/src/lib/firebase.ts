@@ -280,7 +280,7 @@ export async function signOut() {
 export interface ClientDocument {
   id: string;
   title: string;
-  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "solution_overview" | "getting_started" | "other";
+  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "solution_overview" | "getting_started" | "feature_specification" | "other";
   content: string;
   fileUrl: string;
   fileName: string;
@@ -475,6 +475,7 @@ export interface ChangeRequest {
   reviewTokenId: string;
   source: "review" | "meeting_minutes" | "client_portal" | "admin";
   sourceDocumentId: string;
+  linkedDocumentId: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -637,6 +638,7 @@ export async function getChangeRequests(
       reviewTokenId: (data.reviewTokenId as string) || "",
       source: (data.source as ChangeRequest["source"]) || "review",
       sourceDocumentId: (data.sourceDocumentId as string) || "",
+      linkedDocumentId: (data.linkedDocumentId as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
