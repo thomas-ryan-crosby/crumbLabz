@@ -766,7 +766,7 @@ function DocumentsPanel({
   );
   const solutionDocs = contextDocs.filter((d) => ["solution_overview", "getting_started"].includes(d.type));
   const otherDocs = contextDocs.filter(
-    (d) => !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan", "solution_overview"].includes(d.type)
+    (d) => !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan", "solution_overview", "getting_started"].includes(d.type)
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
