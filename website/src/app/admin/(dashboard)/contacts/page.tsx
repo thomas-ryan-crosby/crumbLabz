@@ -757,6 +757,11 @@ function DocumentsPanel({
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [featureDocNotes, setFeatureDocNotes] = useState("");
   const [generatingFeatureDoc, setGeneratingFeatureDoc] = useState(false);
+  const [showAddRequest, setShowAddRequest] = useState(false);
+  const [newRequestTitle, setNewRequestTitle] = useState("");
+  const [newRequestDescription, setNewRequestDescription] = useState("");
+  const [newRequestPriority, setNewRequestPriority] = useState<ChangeRequest["priority"]>("medium");
+  const [submittingRequest, setSubmittingRequest] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -1317,20 +1322,26 @@ function DocumentsPanel({
     }
   };
 
-  const handleCreateFeatureFromMinutes = (doc: ClientDocument) => {
-    // Pre-populate a change request from meeting minutes content
-    const title = `Follow-up from: ${doc.title}`;
-    const description = doc.content.slice(0, 500) + (doc.content.length > 500 ? "..." : "");
-    addChangeRequest(contactId, activeProjectId, {
-      title,
-      description,
-      priority: "medium",
-      author: actorName,
-      source: "meeting_minutes",
-      sourceDocumentId: doc.id,
-    }).then(() => {
-      getChangeRequests(contactId, activeProjectId).then(setChangeRequests);
-    });
+  const handleAddRequest = async () => {
+    if (!newRequestTitle.trim()) return;
+    setSubmittingRequest(true);
+    try {
+      await addChangeRequest(contactId, activeProjectId, {
+        title: newRequestTitle.trim(),
+        description: newRequestDescription.trim(),
+        priority: newRequestPriority,
+        author: actorName,
+        source: "admin",
+      });
+      const updated = await getChangeRequests(contactId, activeProjectId);
+      setChangeRequests(updated);
+      setNewRequestTitle("");
+      setNewRequestDescription("");
+      setNewRequestPriority("medium");
+      setShowAddRequest(false);
+    } finally {
+      setSubmittingRequest(false);
+    }
   };
 
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
@@ -2551,16 +2562,7 @@ function DocumentsPanel({
             ) : (
               <div className="space-y-2">
                 {maintenanceMeetings.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2">
-                    <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} /></div>
-                    <button
-                      onClick={() => handleCreateFeatureFromMinutes(d)}
-                      title="Create feature request from this meeting"
-                      className="text-xs text-accent hover:text-accent-hover shrink-0 px-2 py-1"
-                    >
-                      + Request
-                    </button>
-                  </div>
+                  <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
                 ))}
               </div>
             )}
@@ -2568,9 +2570,60 @@ function DocumentsPanel({
 
           {/* Feature Requests — ticket-style items from clients or CrumbLabz */}
           <div className="border-t border-border pt-4">
-            <h4 className="text-xs font-bold text-charcoal mb-2">Feature Requests</h4>
-            {changeRequests.length === 0 ? (
-              <p className="text-muted text-xs">No requests yet. Clients can submit from the portal or you can create from meeting minutes.</p>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-bold text-charcoal">Feature Requests</h4>
+              <button
+                onClick={() => setShowAddRequest(!showAddRequest)}
+                className="text-xs text-muted hover:text-accent transition-colors"
+              >
+                {showAddRequest ? "Cancel" : "+ Add Request"}
+              </button>
+            </div>
+
+            {showAddRequest && (
+              <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+                <input
+                  type="text"
+                  placeholder="Request title..."
+                  value={newRequestTitle}
+                  onChange={(e) => setNewRequestTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <textarea
+                  placeholder="Describe the request..."
+                  value={newRequestDescription}
+                  onChange={(e) => setNewRequestDescription(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase text-muted">Priority:</span>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setNewRequestPriority(p)}
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors ${
+                        newRequestPriority === p
+                          ? p === "high" ? "bg-red-500/20 text-red-700" : p === "medium" ? "bg-amber-500/20 text-amber-700" : "bg-blue-500/20 text-blue-700"
+                          : "bg-neutral text-muted hover:bg-border"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleAddRequest}
+                  disabled={submittingRequest || !newRequestTitle.trim()}
+                  className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {submittingRequest ? "Submitting..." : "Submit Request"}
+                </button>
+              </div>
+            )}
+
+            {changeRequests.length === 0 && !showAddRequest ? (
+              <p className="text-muted text-xs">No requests yet. Clients can submit from the portal, or add one above.</p>
             ) : (
               <div className="space-y-2">
                 {changeRequests.map((cr) => (
