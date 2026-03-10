@@ -95,16 +95,20 @@ export async function generatePdf(
     }
 
     // Add headers and footers to all buffered pages.
-    // CRITICAL: save/restore doc.x and doc.y around every switchToPage + draw
-    // because doc.text() and doc.image() advance the cursor, which can trigger
-    // pdfkit's auto-pagination and create empty ghost pages.
+    // CRITICAL: We must prevent pdfkit from auto-paginating during header/footer
+    // rendering. doc.text() internally checks if doc.y > page.maxY() and calls
+    // addPage() — which creates ghost pages. Fix: temporarily set bottom margin
+    // to 0 so maxY() returns the full page height, then restore everything after.
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
       const savedX = doc.x;
       const savedY = doc.y;
+      const savedBottomMargin = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0; // Disable auto-pagination
       drawHeader(doc);
       drawFooter(doc, i + 1, pages.count);
+      doc.page.margins.bottom = savedBottomMargin;
       doc.x = savedX;
       doc.y = savedY;
     }
