@@ -49,6 +49,7 @@ export default function ReviewPage() {
       const docs = await getClientDocuments(t.contactId);
       const productDocs = docs
         .filter((d) => DOC_ORDER.includes(d.type as typeof DOC_ORDER[number]))
+        .filter((d) => (d.projectId || "") === (t.projectId || ""))
         .sort((a, b) => DOC_ORDER.indexOf(a.type as typeof DOC_ORDER[number]) - DOC_ORDER.indexOf(b.type as typeof DOC_ORDER[number]));
       setDocuments(productDocs);
 

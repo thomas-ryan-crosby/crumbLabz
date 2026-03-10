@@ -285,6 +285,7 @@ export interface ClientDocument {
   status: "draft" | "review" | "approved" | "revision_requested" | "sent";
   generatedBy: "ai" | "manual";
   version: number;
+  projectId: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -309,6 +310,7 @@ export async function addClientDocument(
     fileName?: string;
     status?: ClientDocument["status"];
     generatedBy?: ClientDocument["generatedBy"];
+    projectId?: string;
   }
 ) {
   return addDoc(collection(db, "contacts", contactId, "documents"), {
@@ -319,6 +321,7 @@ export async function addClientDocument(
     fileName: data.fileName || "",
     status: data.status || "draft",
     generatedBy: data.generatedBy || "manual",
+    projectId: data.projectId || "",
     version: 1,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -354,6 +357,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
       status: data.status || "draft",
       generatedBy: data.generatedBy || "manual",
       version: (data.version as number) || 1,
+      projectId: (data.projectId as string) || "",
       createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
@@ -435,6 +439,7 @@ export interface ReviewToken {
   contactName: string;
   companyName: string;
   contactEmail: string;
+  projectId: string;
   createdAt: Date | null;
   expiresAt: Date | null;
   createdBy: string;
@@ -457,6 +462,7 @@ function mapReviewToken(d: { id: string; data: () => Record<string, unknown> }):
     contactName: (data.contactName as string) || "",
     companyName: (data.companyName as string) || "",
     contactEmail: (data.contactEmail as string) || "",
+    projectId: (data.projectId as string) || "",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     expiresAt: data.expiresAt instanceof Timestamp ? data.expiresAt.toDate() : null,
     createdBy: (data.createdBy as string) || "",
@@ -470,6 +476,7 @@ export async function createReviewToken(data: {
   companyName: string;
   contactEmail: string;
   createdBy: string;
+  projectId?: string;
 }): Promise<string> {
   const tokenId = crypto.randomUUID();
   const expiresAt = new Date();
@@ -482,6 +489,7 @@ export async function createReviewToken(data: {
     companyName: data.companyName,
     contactEmail: data.contactEmail,
     createdBy: data.createdBy,
+    projectId: data.projectId || "",
     status: "active",
     createdAt: serverTimestamp(),
     expiresAt: Timestamp.fromDate(expiresAt),
@@ -625,6 +633,19 @@ export async function getProjectsForContact(contactId: string): Promise<Project[
       updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     };
   });
+}
+
+export async function tagDocumentsWithProject(
+  contactId: string,
+  projectId: string,
+  documentIds: string[]
+) {
+  for (const docId of documentIds) {
+    await updateDoc(doc(db, "contacts", contactId, "documents", docId), {
+      projectId,
+      updatedAt: serverTimestamp(),
+    });
+  }
 }
 
 export async function updateProject(

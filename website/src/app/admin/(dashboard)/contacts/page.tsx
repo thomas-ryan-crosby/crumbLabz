@@ -22,6 +22,7 @@ import {
   getProjectsForContact,
   createReviewToken,
   getDocumentComments,
+  tagDocumentsWithProject,
   type Contact,
   type Activity,
   type ClientDocument,
@@ -711,22 +712,34 @@ function DocumentsPanel({
   const [sendingReview, setSendingReview] = useState(false);
   const [sendReviewError, setSendReviewError] = useState<string | null>(null);
   const [reviewSent, setReviewSent] = useState(false);
+  const [comments, setComments] = useState<DocumentComment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [activeProjectId, setActiveProjectId] = useState<string>("");
 
   useEffect(() => {
     setLoadingProjects(true);
     getProjectsForContact(contactId).then((p) => {
       setProjects(p);
       setLoadingProjects(false);
+      // Default to the first project if any exist, otherwise pre-project
+      if (p.length > 0) {
+        setActiveProjectId(p[0].id);
+      } else {
+        setActiveProjectId("");
+      }
     });
   }, [contactId]);
 
-  const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
-  const productDocs = documents.filter((d) =>
+  // Filter documents by active project context
+  const contextDocs = documents.filter((d) => (d.projectId || "") === activeProjectId);
+  const meetingDocs = contextDocs.filter((d) => d.type === "meeting_transcript");
+  const productDocs = contextDocs.filter((d) =>
     ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
-  const otherDocs = documents.filter(
+  const otherDocs = contextDocs.filter(
     (d) => d.type === "other" && !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
+  const activeProject = projects.find((p) => p.id === activeProjectId) || null;
 
   const handleUploadDocument = async () => {
     if (!uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)) return;
@@ -747,6 +760,7 @@ function DocumentsPanel({
         fileName,
         status: "approved",
         generatedBy: "manual",
+        projectId: activeProjectId,
       });
       setUploadTitle("");
       setUploadContent("");
@@ -781,6 +795,7 @@ function DocumentsPanel({
         companyName,
         contactEmail,
         createdBy: actorName,
+        projectId: activeProjectId,
       });
 
       const baseUrl = window.location.origin;
@@ -845,7 +860,7 @@ function DocumentsPanel({
       const { repoUrl, repoName } = await res.json();
 
       // Store project in Firestore
-      await addProject(contactId, {
+      const projectRef = await addProject(contactId, {
         contactName,
         companyName,
         name: projectName.trim(),
@@ -853,11 +868,23 @@ function DocumentsPanel({
         repoUrl,
       });
 
-      // Refresh projects list
+      // Tag all current-context docs with the new project ID
+      const docsToTag = [...meetingDocs, ...productDocs].filter((d) => !d.projectId);
+      if (docsToTag.length > 0) {
+        await tagDocumentsWithProject(
+          contactId,
+          projectRef.id,
+          docsToTag.map((d) => d.id)
+        );
+      }
+
+      // Refresh projects list and switch to new project
       const updated = await getProjectsForContact(contactId);
       setProjects(updated);
+      setActiveProjectId(projectRef.id);
       setProjectName("");
       setShowProjectForm(false);
+      await onDocumentsChanged();
       await onProjectCreated();
     } catch (err) {
       setCreateProjectError(err instanceof Error ? err.message : "Failed to create project");
@@ -929,6 +956,7 @@ function DocumentsPanel({
           content: data.content,
           status: "draft",
           generatedBy: "ai",
+          projectId: activeProjectId,
         });
       }
       await onDocumentsChanged();
@@ -953,6 +981,19 @@ function DocumentsPanel({
       setRevisions([]);
       setViewingRevision(null);
       setShowRevisions(false);
+    }
+  }, [viewingDoc?.id, contactId]);
+
+  // Load comments when viewing a product document
+  useEffect(() => {
+    if (viewingDoc && ["problem_definition", "solution_one_pager", "development_plan"].includes(viewingDoc.type)) {
+      setLoadingComments(true);
+      getDocumentComments(contactId, viewingDoc.id).then((data) => {
+        setComments(data);
+        setLoadingComments(false);
+      });
+    } else {
+      setComments([]);
     }
   }, [viewingDoc?.id, contactId]);
 
@@ -1151,6 +1192,42 @@ function DocumentsPanel({
             <ReactMarkdown>{displayContent}</ReactMarkdown>
           </div>
         )}
+
+        {/* Client Comments */}
+        {isProductDoc && (
+          <div className="mt-6">
+            <h4 className="text-sm font-bold uppercase tracking-wide text-muted mb-3 flex items-center gap-2">
+              Client Feedback
+              {comments.length > 0 && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700">
+                  {comments.length}
+                </span>
+              )}
+            </h4>
+            {loadingComments ? (
+              <p className="text-muted text-sm">Loading comments...</p>
+            ) : comments.length === 0 ? (
+              <p className="text-muted text-xs">No client feedback yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {comments.map((c) => (
+                  <div
+                    key={c.id}
+                    className="bg-amber-500/5 border border-amber-500/15 rounded-lg p-4"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-sm font-medium text-charcoal">{c.author}</p>
+                      <p className="text-xs text-muted">
+                        {c.createdAt?.toLocaleString() || "—"}
+                      </p>
+                    </div>
+                    <p className="text-sm text-charcoal/80 leading-relaxed">{c.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -1159,8 +1236,84 @@ function DocumentsPanel({
     return <div className="px-6 py-6"><p className="text-muted text-sm">Loading documents...</p></div>;
   }
 
+  // Check if there are untagged docs (pre-project)
+  const hasPreProjectDocs = documents.some((d) => !d.projectId);
+
   return (
     <div className="px-6 py-6 max-w-3xl space-y-8">
+      {/* Project Tabs */}
+      {(projects.length > 0 || hasPreProjectDocs) && (
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Projects</h3>
+          <div className="flex gap-1.5 flex-wrap">
+            {hasPreProjectDocs && (
+              <button
+                onClick={() => { setActiveProjectId(""); setShowUpload(false); setReviewSent(false); }}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                  activeProjectId === ""
+                    ? "bg-charcoal text-white"
+                    : "bg-neutral text-muted hover:bg-border"
+                }`}
+              >
+                Pre-Project
+              </button>
+            )}
+            {projects.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { setActiveProjectId(p.id); setShowUpload(false); setReviewSent(false); }}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
+                  activeProjectId === p.id
+                    ? "bg-charcoal text-white"
+                    : "bg-neutral text-muted hover:bg-border"
+                }`}
+              >
+                {p.name}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                  activeProjectId === p.id
+                    ? "bg-white/20"
+                    : p.status === "active" ? "bg-emerald-500/15 text-emerald-700"
+                    : p.status === "completed" ? "bg-green-500/15 text-green-700"
+                    : "bg-amber-500/15 text-amber-700"
+                }`}>
+                  {p.status}
+                </span>
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                setActiveProjectId("");
+                setShowUpload(false);
+                setReviewSent(false);
+              }}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors border-2 border-dashed ${
+                !hasPreProjectDocs && activeProjectId === ""
+                  ? "border-accent text-accent bg-accent/5"
+                  : "border-border text-muted hover:border-accent hover:text-accent"
+              }`}
+            >
+              + New Project Cycle
+            </button>
+          </div>
+          {/* Active project GitHub link */}
+          {activeProject && (
+            <div className="mt-2 flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+              </svg>
+              <a
+                href={activeProject.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+              >
+                {activeProject.repoUrl.replace("https://github.com/", "")}
+              </a>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Meeting Documents */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -1351,38 +1504,8 @@ function DocumentsPanel({
           </div>
         )}
 
-        {/* Projects */}
-        {projects.length > 0 && (
-          <div className="mb-3 space-y-2">
-            {projects.map((p) => (
-              <div key={p.id} className="px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
-                <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-emerald-700">{p.name}</p>
-                  <a
-                    href={p.repoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors truncate block"
-                  >
-                    {p.repoUrl.replace("https://github.com/", "")}
-                  </a>
-                </div>
-                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                  p.status === "active" ? "bg-emerald-500/20 text-emerald-700"
-                    : p.status === "completed" ? "bg-green-500/20 text-green-700"
-                    : "bg-amber-500/20 text-amber-700"
-                }`}>
-                  {p.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {allThreeExist && !generating && (
+        {/* Create Project Repository (only in pre-project context) */}
+        {allThreeExist && !generating && !activeProject && (
           <div className="mb-3">
             {!allThreeApproved && (
               <p className="text-xs text-amber-600 mb-2">Approve all three documents to create a project repository.</p>
