@@ -1251,7 +1251,6 @@ function DocumentsPanel({
     <div className="px-6 py-6 max-w-3xl space-y-8">
       {/* Project Tabs */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Projects</h3>
         <div className="flex gap-1.5 flex-wrap items-center">
           {projects.map((p) => (
             <button
@@ -1277,6 +1276,8 @@ function DocumentsPanel({
               )}
             </button>
           ))}
+
+          {/* + New Project */}
           {showNewProjectInput ? (
             <div className="flex items-center gap-1.5">
               <input
@@ -1311,7 +1312,30 @@ function DocumentsPanel({
               + New Project
             </button>
           )}
+
+          {/* Unassigned Assets tab */}
+          {unassignedDocs.length > 0 && (
+            <button
+              onClick={() => { setActiveProjectId("__unassigned__"); setShowUpload(false); setReviewSent(false); setShowNewProjectInput(false); }}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
+                activeProjectId === "__unassigned__"
+                  ? "bg-amber-600 text-white"
+                  : "bg-amber-500/10 text-amber-700 hover:bg-amber-500/20"
+              }`}
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+              Unassigned Assets
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                activeProjectId === "__unassigned__" ? "bg-white/20" : "bg-amber-500/20"
+              }`}>
+                {unassignedDocs.length}
+              </span>
+            </button>
+          )}
         </div>
+
         {/* Active project GitHub link */}
         {activeProject?.repoUrl && (
           <div className="mt-2 flex items-center gap-2">
@@ -1330,8 +1354,8 @@ function DocumentsPanel({
         )}
       </div>
 
-      {/* No project selected - prompt */}
-      {!activeProjectId && projects.length === 0 && !showNewProjectInput && (
+      {/* No projects yet - prompt */}
+      {projects.length === 0 && !showNewProjectInput && unassignedDocs.length === 0 && (
         <div className="text-center py-8">
           <p className="text-muted text-sm mb-3">Create a project to get started with this contact.</p>
           <button
@@ -1343,33 +1367,45 @@ function DocumentsPanel({
         </div>
       )}
 
-      {/* Unassigned Documents */}
-      {activeProjectId && unassignedDocs.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 mb-1">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-amber-700">
-              {unassignedDocs.length} Unassigned Document{unassignedDocs.length !== 1 ? "s" : ""}
-            </h3>
-            <button
-              onClick={handleAssignDocsToProject}
-              disabled={assigningDocs}
-              className="text-xs font-medium px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60 transition-colors"
-            >
-              {assigningDocs ? "Assigning..." : `Assign to ${activeProject?.name || "this project"}`}
-            </button>
+      {/* Unassigned Assets view */}
+      {activeProjectId === "__unassigned__" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted">These documents are not assigned to any project. Select a project to assign them.</p>
           </div>
-          <div className="space-y-1">
+          {projects.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {projects.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={async () => {
+                    setAssigningDocs(true);
+                    try {
+                      await tagDocumentsWithProject(contactId, p.id, unassignedDocs.map((d) => d.id));
+                      await onDocumentsChanged();
+                      setActiveProjectId(p.id);
+                    } finally {
+                      setAssigningDocs(false);
+                    }
+                  }}
+                  disabled={assigningDocs}
+                  className="text-xs font-medium px-3 py-2 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-60 transition-colors"
+                >
+                  {assigningDocs ? "Assigning..." : `Assign all to ${p.name}`}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="space-y-2">
             {unassignedDocs.map((d) => (
-              <p key={d.id} className="text-xs text-amber-800">
-                {d.title} <span className="text-amber-600">· {d.type.replace(/_/g, " ")}</span>
-              </p>
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
             ))}
           </div>
         </div>
       )}
 
       {/* Meeting Documents */}
-      {activeProjectId ? <><div>
+      {activeProjectId && activeProjectId !== "__unassigned__" ? <><div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Meeting Documents</h3>
           <button
