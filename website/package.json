@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@octokit/rest": "^22.0.1",
     "docx": "^9.6.0",
     "firebase": "^11.1.0",
     "marked": "^17.0.4",

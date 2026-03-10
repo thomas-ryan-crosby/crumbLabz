@@ -105,6 +105,7 @@ export interface Contact {
   stage: string;
   assignee: string;
   notes: string;
+  githubRepoUrl: string;
   createdAt: Date | null;
   updatedAt: Date | null;
   deletedAt: Date | null;
@@ -122,6 +123,7 @@ function mapContact(d: { id: string; data: () => Record<string, unknown> }): Con
     stage: (data.stage as string) || (data.status as string) || "new_lead",
     assignee: (data.assignee as string) || "",
     notes: (data.notes as string) || "",
+    githubRepoUrl: (data.githubRepoUrl as string) || "",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     deletedAt: data.deletedAt instanceof Timestamp ? data.deletedAt.toDate() : null,
@@ -189,7 +191,7 @@ export async function permanentlyDeleteContact(id: string) {
 
 export async function updateContact(
   id: string,
-  fields: { stage?: string; assignee?: string; notes?: string },
+  fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string },
   actorName?: string
 ) {
   const updates: Record<string, unknown> = {

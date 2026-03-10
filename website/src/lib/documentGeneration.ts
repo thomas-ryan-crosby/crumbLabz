@@ -275,3 +275,61 @@ export async function generateSolutionOnePager(
   const textBlock = response.content.find((b) => b.type === "text");
   return textBlock?.text || "";
 }
+
+const CLAUDE_MD_PROMPT = `You are a senior developer at CrumbLabz, a company that builds custom software tools for businesses.
+
+You have been given three project documents: a Problem Definition, a Solution One-Pager, and a Development Plan. Your job is to synthesize these into a CLAUDE.md file — a concise, developer-facing project context file that gives an AI coding assistant everything it needs to understand and build this project.
+
+Output a clean markdown file with these sections:
+
+# Project Overview
+- One-paragraph summary of what this project is and who it's for
+- The core problem being solved
+
+# Tech Stack
+- Frontend, backend, database, and hosting decisions from the Development Plan
+- Third-party services and APIs required
+- Key dependencies and frameworks
+
+# Architecture
+- High-level system design (components and how they connect)
+- Data model overview (key entities and relationships)
+
+# MVP Scope
+- Prioritized feature list (Must Have / Nice to Have)
+- What is explicitly OUT of scope for MVP
+
+# Development Phases
+- Phase breakdown with deliverables for each
+- Key milestones
+
+# Constraints & Requirements
+- Security, compliance, or integration requirements
+- Business rules that must be respected
+- Performance expectations
+
+# Success Criteria
+- Measurable outcomes that define a successful build
+
+Keep it concise and actionable. This is NOT a client-facing document — it's a technical reference for the development team and AI coding tools. Use bullet points, not prose. No branding or boilerplate.`;
+
+export async function generateClaudeMd(
+  problemDefinition: string,
+  solutionOnePager: string,
+  developmentPlan: string
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 4000,
+    system: CLAUDE_MD_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Here are the three project documents:\n\n## Problem Definition\n\n${problemDefinition}\n\n## Solution One-Pager\n\n${solutionOnePager}\n\n## Development Plan\n\n${developmentPlan}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.text || "";
+}

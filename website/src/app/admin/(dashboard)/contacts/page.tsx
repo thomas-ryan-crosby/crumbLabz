@@ -288,7 +288,7 @@ function ContactDetail({
   onClose: () => void;
   onUpdate: (
     id: string,
-    fields: { stage?: string; assignee?: string; notes?: string }
+    fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string }
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<void>;
@@ -339,6 +339,12 @@ function ContactDetail({
     const updated = await getActivities(contact.id);
     setActivities(updated);
     setSaving(false);
+  };
+
+  const handleProjectCreated = async (repoUrl: string) => {
+    await onUpdate(contact.id, { stage: "development", githubRepoUrl: repoUrl });
+    const updated = await getActivities(contact.id);
+    setActivities(updated);
   };
 
   const handleDocStatusChange = async (
@@ -473,6 +479,8 @@ function ContactDetail({
         <DocumentsPanel
           contactId={contact.id}
           actorName={actorName}
+          companyName={contact.company}
+          githubRepoUrl={contact.githubRepoUrl}
           documents={documents}
           loadingDocs={loadingDocs}
           viewingDoc={viewingDoc}
@@ -482,6 +490,7 @@ function ContactDetail({
             const updated = await getClientDocuments(contact.id);
             setDocuments(updated);
           }}
+          onProjectCreated={handleProjectCreated}
         />
       )}
 
@@ -516,6 +525,13 @@ function ContactDetail({
                 : "—"
             }
           />
+          {contact.githubRepoUrl && (
+            <InfoField
+              label="GitHub Repository"
+              value={contact.githubRepoUrl.replace("https://github.com/", "")}
+              href={contact.githubRepoUrl}
+            />
+          )}
         </div>
 
         {/* Assignee */}
@@ -652,21 +668,27 @@ function ContactDetail({
 function DocumentsPanel({
   contactId,
   actorName,
+  companyName,
+  githubRepoUrl,
   documents,
   loadingDocs,
   viewingDoc,
   setViewingDoc,
   onDocStatusChange,
   onDocumentsChanged,
+  onProjectCreated,
 }: {
   contactId: string;
   actorName: string;
+  companyName: string;
+  githubRepoUrl: string;
   documents: ClientDocument[];
   loadingDocs: boolean;
   viewingDoc: ClientDocument | null;
   setViewingDoc: (doc: ClientDocument | null) => void;
   onDocStatusChange: (docId: string, status: string) => Promise<void>;
   onDocumentsChanged: () => Promise<void>;
+  onProjectCreated: (repoUrl: string) => Promise<void>;
 }) {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -678,6 +700,8 @@ function DocumentsPanel({
   const [loadingRevisions, setLoadingRevisions] = useState(false);
   const [viewingRevision, setViewingRevision] = useState<DocumentRevision | null>(null);
   const [showRevisions, setShowRevisions] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [createProjectError, setCreateProjectError] = useState<string | null>(null);
 
   const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
   const productDocs = documents.filter((d) =>
@@ -718,6 +742,46 @@ function DocumentsPanel({
   };
 
   const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const allThreeApproved =
+    productDocs.some((d) => d.type === "problem_definition" && d.status === "approved") &&
+    productDocs.some((d) => d.type === "solution_one_pager" && d.status === "approved") &&
+    productDocs.some((d) => d.type === "development_plan" && d.status === "approved");
+
+  const handleCreateProject = async () => {
+    setCreatingProject(true);
+    setCreateProjectError(null);
+    try {
+      const problemDef = productDocs.find((d) => d.type === "problem_definition")!;
+      const solutionOnePager = productDocs.find((d) => d.type === "solution_one_pager")!;
+      const devPlan = productDocs.find((d) => d.type === "development_plan")!;
+
+      const res = await fetch("/api/projects/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName,
+          documents: {
+            problemDefinition: problemDef.content,
+            solutionOnePager: solutionOnePager.content,
+            developmentPlan: devPlan.content,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create project");
+      }
+
+      const { repoUrl } = await res.json();
+      await onProjectCreated(repoUrl);
+    } catch (err) {
+      setCreateProjectError(err instanceof Error ? err.message : "Failed to create project");
+    } finally {
+      setCreatingProject(false);
+    }
+  };
 
   const handleGenerate = async (type: "problem_definition" | "solution_one_pager" | "development_plan") => {
     let sourceContent = "";
@@ -1164,6 +1228,54 @@ function DocumentsPanel({
           </div>
         )}
 
+        {/* GitHub Project Repository */}
+        {githubRepoUrl ? (
+          <div className="mb-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
+            <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-emerald-700">Project Repository</p>
+              <a
+                href={githubRepoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors truncate block"
+              >
+                {githubRepoUrl.replace("https://github.com/", "")}
+              </a>
+            </div>
+          </div>
+        ) : allThreeApproved && !generating && (
+          <div className="mb-3">
+            <button
+              onClick={handleCreateProject}
+              disabled={creatingProject}
+              className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+            >
+              {creatingProject ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating Project Repository...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                  </svg>
+                  Create Project Repository
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {createProjectError && (
+          <div className="mb-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <p className="text-sm text-red-600">{createProjectError}</p>
+          </div>
+        )}
+
         {meetingDocs.length === 0 && productDocs.length === 0 && (
           <p className="text-muted text-xs">Add a meeting transcript first, then generate product documents from it.</p>
         )}
@@ -1238,6 +1350,8 @@ function InfoField({
       {href ? (
         <a
           href={href}
+          target={href.startsWith("http") ? "_blank" : undefined}
+          rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
           className="text-sm font-medium text-accent hover:text-accent-hover transition-colors"
         >
           {value}
