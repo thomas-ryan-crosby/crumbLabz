@@ -757,6 +757,7 @@ function DocumentsPanel({
   const otherDocs = contextDocs.filter(
     (d) => d.type === "other" && !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
+  const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
 
   const handleUploadDocument = async () => {
@@ -888,6 +889,18 @@ function DocumentsPanel({
       setCreateProjectError(err instanceof Error ? err.message : "Failed to create repository");
     } finally {
       setCreatingProject(false);
+    }
+  };
+
+  const [assigningDocs, setAssigningDocs] = useState(false);
+  const handleAssignDocsToProject = async () => {
+    if (!activeProjectId || unassignedDocs.length === 0) return;
+    setAssigningDocs(true);
+    try {
+      await tagDocumentsWithProject(contactId, activeProjectId, unassignedDocs.map((d) => d.id));
+      await onDocumentsChanged();
+    } finally {
+      setAssigningDocs(false);
     }
   };
 
@@ -1327,6 +1340,31 @@ function DocumentsPanel({
           >
             Create First Project
           </button>
+        </div>
+      )}
+
+      {/* Unassigned Documents */}
+      {activeProjectId && unassignedDocs.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 mb-1">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold text-amber-700">
+              {unassignedDocs.length} Unassigned Document{unassignedDocs.length !== 1 ? "s" : ""}
+            </h3>
+            <button
+              onClick={handleAssignDocsToProject}
+              disabled={assigningDocs}
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-60 transition-colors"
+            >
+              {assigningDocs ? "Assigning..." : `Assign to ${activeProject?.name || "this project"}`}
+            </button>
+          </div>
+          <div className="space-y-1">
+            {unassignedDocs.map((d) => (
+              <p key={d.id} className="text-xs text-amber-800">
+                {d.title} <span className="text-amber-600">· {d.type.replace(/_/g, " ")}</span>
+              </p>
+            ))}
+          </div>
         </div>
       )}
 
