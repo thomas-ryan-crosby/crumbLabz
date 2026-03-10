@@ -276,6 +276,93 @@ export async function generateSolutionOnePager(
   return textBlock?.text || "";
 }
 
+const SOLUTION_OVERVIEW_PROMPT = `You are a technical writer at CrumbLabz, a company that builds custom software tools for businesses.
+
+You have been given the contents of a GitHub repository — including file tree structure and key file contents. Your job is to produce a **Solution Overview** — an intuitive, client-facing technical document that explains what was built, how it works, and how to use it.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Then write in clean markdown format:
+
+# Solution Overview — [Project Name]
+
+## What We Built
+- Plain-language summary of the solution (2-3 sentences)
+- Who it's for and what problem it solves
+
+## How It Works
+- High-level walkthrough of the user experience
+- Key screens or workflows described step by step
+- Include what happens behind the scenes in simple terms
+
+## Technology Stack
+- Frontend framework and UI libraries
+- Backend / API layer
+- Database and data storage
+- Hosting and deployment
+- Third-party services and integrations
+- For each technology, include a brief explanation of WHY it was chosen and what it does
+
+## Key Features
+- Feature-by-feature breakdown with descriptions
+- How each feature benefits the user
+- Any configuration or customization options
+
+## Getting Started
+- How to access the application (URL, login, etc.)
+- First-time setup or onboarding steps
+- Key things to know before using the tool
+
+## Architecture Overview
+- Simple diagram description of how components connect
+- Data flow: how information moves through the system
+- Integration points with external services
+
+## API & Integrations
+- List of external APIs or services used
+- What each integration does
+- Any credentials or access requirements
+
+## Maintenance & Support
+- How the solution is hosted and monitored
+- Update and deployment process
+- How to get support or request changes
+
+End the document with this footer:
+
+---
+
+*Prepared by CrumbLabz | crumblabz.com*
+*This document is confidential and intended for the named client only.*
+
+Write for a non-technical business audience. Make it feel like a product manual, not source code documentation. The reader should finish this document understanding exactly what they have, how to use it, and what technologies power it — without needing to read code. Be specific about the actual technologies found in the repository.`;
+
+export async function generateSolutionOverview(
+  repoTree: string,
+  fileContents: string,
+  projectName: string
+): Promise<string> {
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 6000,
+    system: SOLUTION_OVERVIEW_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Project name: ${projectName}\n\n## Repository File Tree\n\n${repoTree}\n\n## Key File Contents\n\n${fileContents}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  return textBlock?.text || "";
+}
+
 const CLAUDE_MD_PROMPT = `You are a senior developer at CrumbLabz, a company that builds custom software tools for businesses.
 
 You have been given three project documents: a Problem Definition, a Solution One-Pager, and a Development Plan. Your job is to synthesize these into a CLAUDE.md file — a concise, developer-facing project context file that gives an AI coding assistant everything it needs to understand and build this project.

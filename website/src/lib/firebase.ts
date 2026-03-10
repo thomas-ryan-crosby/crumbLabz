@@ -278,7 +278,7 @@ export async function signOut() {
 export interface ClientDocument {
   id: string;
   title: string;
-  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "other";
+  type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "solution_overview" | "other";
   content: string;
   fileUrl: string;
   fileName: string;

@@ -754,8 +754,9 @@ function DocumentsPanel({
   const productDocs = contextDocs.filter((d) =>
     ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
+  const solutionDocs = contextDocs.filter((d) => d.type === "solution_overview");
   const otherDocs = contextDocs.filter(
-    (d) => d.type === "other" && !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
+    (d) => !["meeting_transcript", "problem_definition", "solution_one_pager", "development_plan", "solution_overview"].includes(d.type)
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
@@ -961,6 +962,60 @@ function DocumentsPanel({
       await onDocumentsChanged();
     } catch (err) {
       console.error("Generation error:", err);
+    } finally {
+      setGenerating(null);
+    }
+  };
+
+  const handleGenerateSolutionOverview = async () => {
+    if (!activeProject?.repoUrl) return;
+    setGenerating("solution_overview");
+    setGenerateError(null);
+    try {
+      // Parse owner/repo from URL like https://github.com/owner/repo
+      const urlParts = activeProject.repoUrl.replace("https://github.com/", "").split("/");
+      const repoOwner = urlParts[0];
+      const repoName = urlParts[1];
+
+      const res = await fetch("/api/generate-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "solution_overview",
+          repoOwner,
+          repoName,
+          projectName: activeProject.name,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to generate solution overview");
+      }
+
+      const data = await res.json();
+      const existing = solutionDocs.find((d) => d.type === "solution_overview");
+      if (existing) {
+        await saveRevisionAndUpdate(
+          contactId,
+          existing.id,
+          { content: existing.content, title: existing.title, status: existing.status, version: existing.version || 1 },
+          { content: data.content },
+          "AI"
+        );
+      } else {
+        await addClientDocument(contactId, {
+          title: `Solution Overview — ${activeProject.name}`,
+          type: "solution_overview",
+          content: data.content,
+          status: "draft",
+          generatedBy: "ai",
+          projectId: activeProjectId,
+        });
+      }
+      await onDocumentsChanged();
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Failed to generate solution overview");
     } finally {
       setGenerating(null);
     }
@@ -1483,9 +1538,9 @@ function DocumentsPanel({
         )}
       </div>
 
-      {/* Product Documents */}
+      {/* Project Documents */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Product Documents</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Project Documents</h3>
 
         {/* Generate buttons */}
         <div className="flex gap-2 flex-wrap mb-3">
@@ -1630,6 +1685,46 @@ function DocumentsPanel({
               <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Solution Assets */}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Solution Assets</h3>
+
+        {activeProject?.repoUrl ? (
+          <div className="space-y-3">
+            <button
+              onClick={handleGenerateSolutionOverview}
+              disabled={generating !== null}
+              className="text-xs font-medium px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+            >
+              {generating === "solution_overview" ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-teal-600/30 border-t-teal-600 rounded-full animate-spin" />
+                  Reading repo &amp; generating...
+                </>
+              ) : solutionDocs.length > 0 ? (
+                "Regenerate Solution Overview"
+              ) : (
+                "Generate Solution Overview"
+              )}
+            </button>
+
+            {solutionDocs.length > 0 && (
+              <div className="space-y-2">
+                {solutionDocs.map((d) => (
+                  <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+                ))}
+              </div>
+            )}
+
+            {solutionDocs.length === 0 && !generating && (
+              <p className="text-muted text-xs">Generate a solution overview to create client-facing tech documentation from the GitHub repository.</p>
+            )}
+          </div>
+        ) : (
+          <p className="text-muted text-xs">Create a GitHub repository first to generate solution assets.</p>
         )}
       </div>
 
