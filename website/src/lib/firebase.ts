@@ -574,8 +574,8 @@ export async function addProject(
     contactName: string;
     companyName: string;
     name: string;
-    repoName: string;
-    repoUrl: string;
+    repoName?: string;
+    repoUrl?: string;
   }
 ) {
   return addDoc(collection(db, "projects"), {
@@ -583,8 +583,8 @@ export async function addProject(
     contactName: data.contactName,
     companyName: data.companyName,
     name: data.name,
-    repoName: data.repoName,
-    repoUrl: data.repoUrl,
+    repoName: data.repoName || "",
+    repoUrl: data.repoUrl || "",
     status: "active",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -650,7 +650,7 @@ export async function tagDocumentsWithProject(
 
 export async function updateProject(
   projectId: string,
-  fields: { status?: Project["status"]; name?: string }
+  fields: { status?: Project["status"]; name?: string; repoName?: string; repoUrl?: string }
 ) {
   return updateDoc(doc(db, "projects", projectId), {
     ...fields,

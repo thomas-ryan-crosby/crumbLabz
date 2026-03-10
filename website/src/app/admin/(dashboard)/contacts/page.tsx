@@ -19,6 +19,7 @@ import {
   PIPELINE_STAGES,
   TEAM_MEMBERS,
   addProject,
+  updateProject,
   getProjectsForContact,
   createReviewToken,
   getDocumentComments,
@@ -705,8 +706,6 @@ function DocumentsPanel({
   const [showRevisions, setShowRevisions] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const [createProjectError, setCreateProjectError] = useState<string | null>(null);
-  const [projectName, setProjectName] = useState("");
-  const [showProjectForm, setShowProjectForm] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [sendingReview, setSendingReview] = useState(false);
@@ -715,20 +714,39 @@ function DocumentsPanel({
   const [comments, setComments] = useState<DocumentComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string>("");
+  const [showNewProjectInput, setShowNewProjectInput] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [creatingNewProject, setCreatingNewProject] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
     getProjectsForContact(contactId).then((p) => {
       setProjects(p);
       setLoadingProjects(false);
-      // Default to the first project if any exist, otherwise pre-project
       if (p.length > 0) {
         setActiveProjectId(p[0].id);
-      } else {
-        setActiveProjectId("");
       }
     });
   }, [contactId]);
+
+  const handleCreateNewProject = async () => {
+    if (!newProjectName.trim()) return;
+    setCreatingNewProject(true);
+    try {
+      const ref = await addProject(contactId, {
+        contactName,
+        companyName,
+        name: newProjectName.trim(),
+      });
+      const updated = await getProjectsForContact(contactId);
+      setProjects(updated);
+      setActiveProjectId(ref.id);
+      setNewProjectName("");
+      setShowNewProjectInput(false);
+    } finally {
+      setCreatingNewProject(false);
+    }
+  };
 
   // Filter documents by active project context
   const contextDocs = documents.filter((d) => (d.projectId || "") === activeProjectId);
@@ -829,8 +847,8 @@ function DocumentsPanel({
     }
   };
 
-  const handleCreateProject = async () => {
-    if (!projectName.trim()) return;
+  const handleCreateRepo = async () => {
+    if (!activeProject) return;
     setCreatingProject(true);
     setCreateProjectError(null);
     try {
@@ -842,7 +860,7 @@ function DocumentsPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          projectName: projectName.trim(),
+          projectName: activeProject.name,
           companyName,
           documents: {
             problemDefinition: problemDef.content,
@@ -854,40 +872,20 @@ function DocumentsPanel({
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create project");
+        throw new Error(data.error || "Failed to create repository");
       }
 
       const { repoUrl, repoName } = await res.json();
 
-      // Store project in Firestore
-      const projectRef = await addProject(contactId, {
-        contactName,
-        companyName,
-        name: projectName.trim(),
-        repoName,
-        repoUrl,
-      });
+      // Update existing project with repo info
+      await updateProject(activeProject.id, { repoName, repoUrl });
 
-      // Tag all current-context docs with the new project ID
-      const docsToTag = [...meetingDocs, ...productDocs].filter((d) => !d.projectId);
-      if (docsToTag.length > 0) {
-        await tagDocumentsWithProject(
-          contactId,
-          projectRef.id,
-          docsToTag.map((d) => d.id)
-        );
-      }
-
-      // Refresh projects list and switch to new project
+      // Refresh projects list
       const updated = await getProjectsForContact(contactId);
       setProjects(updated);
-      setActiveProjectId(projectRef.id);
-      setProjectName("");
-      setShowProjectForm(false);
-      await onDocumentsChanged();
       await onProjectCreated();
     } catch (err) {
-      setCreateProjectError(err instanceof Error ? err.message : "Failed to create project");
+      setCreateProjectError(err instanceof Error ? err.message : "Failed to create repository");
     } finally {
       setCreatingProject(false);
     }
@@ -1236,86 +1234,104 @@ function DocumentsPanel({
     return <div className="px-6 py-6"><p className="text-muted text-sm">Loading documents...</p></div>;
   }
 
-  // Check if there are untagged docs (pre-project)
-  const hasPreProjectDocs = documents.some((d) => !d.projectId);
-
   return (
     <div className="px-6 py-6 max-w-3xl space-y-8">
       {/* Project Tabs */}
-      {(projects.length > 0 || hasPreProjectDocs) && (
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Projects</h3>
-          <div className="flex gap-1.5 flex-wrap">
-            {hasPreProjectDocs && (
-              <button
-                onClick={() => { setActiveProjectId(""); setShowUpload(false); setReviewSent(false); }}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
-                  activeProjectId === ""
-                    ? "bg-charcoal text-white"
-                    : "bg-neutral text-muted hover:bg-border"
-                }`}
-              >
-                Pre-Project
-              </button>
-            )}
-            {projects.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => { setActiveProjectId(p.id); setShowUpload(false); setReviewSent(false); }}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
-                  activeProjectId === p.id
-                    ? "bg-charcoal text-white"
-                    : "bg-neutral text-muted hover:bg-border"
-                }`}
-              >
-                {p.name}
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  activeProjectId === p.id
-                    ? "bg-white/20"
-                    : p.status === "active" ? "bg-emerald-500/15 text-emerald-700"
-                    : p.status === "completed" ? "bg-green-500/15 text-green-700"
-                    : "bg-amber-500/15 text-amber-700"
-                }`}>
-                  {p.status}
-                </span>
-              </button>
-            ))}
+      <div>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Projects</h3>
+        <div className="flex gap-1.5 flex-wrap items-center">
+          {projects.map((p) => (
             <button
-              onClick={() => {
-                setActiveProjectId("");
-                setShowUpload(false);
-                setReviewSent(false);
-              }}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors border-2 border-dashed ${
-                !hasPreProjectDocs && activeProjectId === ""
-                  ? "border-accent text-accent bg-accent/5"
-                  : "border-border text-muted hover:border-accent hover:text-accent"
+              key={p.id}
+              onClick={() => { setActiveProjectId(p.id); setShowUpload(false); setReviewSent(false); setShowNewProjectInput(false); }}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
+                activeProjectId === p.id
+                  ? "bg-charcoal text-white"
+                  : "bg-neutral text-muted hover:bg-border"
               }`}
             >
-              + New Project Cycle
+              {p.name}
+              {p.repoUrl ? (
+                <svg className="w-3 h-3 opacity-60" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+              ) : (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                  activeProjectId === p.id ? "bg-white/20" : "bg-amber-500/15 text-amber-700"
+                }`}>
+                  draft
+                </span>
+              )}
             </button>
-          </div>
-          {/* Active project GitHub link */}
-          {activeProject && (
-            <div className="mt-2 flex items-center gap-2">
-              <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-              </svg>
-              <a
-                href={activeProject.repoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+          ))}
+          {showNewProjectInput ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Project name..."
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handleCreateNewProject(); if (e.key === "Escape") { setShowNewProjectInput(false); setNewProjectName(""); } }}
+                className="text-xs px-3 py-1.5 rounded-full border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 w-48"
+                disabled={creatingNewProject}
+              />
+              <button
+                onClick={handleCreateNewProject}
+                disabled={creatingNewProject || !newProjectName.trim()}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-accent text-white hover:bg-accent-hover disabled:opacity-40 transition-colors"
               >
-                {activeProject.repoUrl.replace("https://github.com/", "")}
-              </a>
+                {creatingNewProject ? "..." : "Create"}
+              </button>
+              <button
+                onClick={() => { setShowNewProjectInput(false); setNewProjectName(""); }}
+                className="text-xs text-muted hover:text-charcoal transition-colors"
+              >
+                Cancel
+              </button>
             </div>
+          ) : (
+            <button
+              onClick={() => setShowNewProjectInput(true)}
+              className="text-xs font-medium px-3 py-1.5 rounded-full transition-colors border-2 border-dashed border-border text-muted hover:border-accent hover:text-accent"
+            >
+              + New Project
+            </button>
           )}
+        </div>
+        {/* Active project GitHub link */}
+        {activeProject?.repoUrl && (
+          <div className="mt-2 flex items-center gap-2">
+            <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+            <a
+              href={activeProject.repoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+            >
+              {activeProject.repoUrl.replace("https://github.com/", "")}
+            </a>
+          </div>
+        )}
+      </div>
+
+      {/* No project selected - prompt */}
+      {!activeProjectId && projects.length === 0 && !showNewProjectInput && (
+        <div className="text-center py-8">
+          <p className="text-muted text-sm mb-3">Create a project to get started with this contact.</p>
+          <button
+            onClick={() => setShowNewProjectInput(true)}
+            className="text-sm font-medium px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
+          >
+            Create First Project
+          </button>
         </div>
       )}
 
       {/* Meeting Documents */}
-      <div>
+      {activeProjectId ? <><div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Meeting Documents</h3>
           <button
@@ -1504,62 +1520,30 @@ function DocumentsPanel({
           </div>
         )}
 
-        {/* Create Project Repository (only in pre-project context) */}
-        {allThreeExist && !generating && !activeProject && (
+        {/* Create GitHub Repository for active project */}
+        {allThreeExist && !generating && activeProject && !activeProject.repoUrl && (
           <div className="mb-3">
-            {!allThreeApproved && (
-              <p className="text-xs text-amber-600 mb-2">Approve all three documents to create a project repository.</p>
-            )}
-            {showProjectForm ? (
-              <div className="border border-emerald-500/20 rounded-lg p-4 bg-emerald-500/5 space-y-3">
-                <label className="block text-sm font-medium text-charcoal">Project Name</label>
-                <input
-                  type="text"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="e.g., Inventory Dashboard, Client Portal"
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                  disabled={creatingProject}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCreateProject}
-                    disabled={creatingProject || !projectName.trim() || !allThreeApproved}
-                    className="flex-1 text-sm font-medium px-4 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-                  >
-                    {creatingProject ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                        </svg>
-                        Create Repository
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => { setShowProjectForm(false); setProjectName(""); setCreateProjectError(null); }}
-                    disabled={creatingProject}
-                    className="text-sm font-medium px-4 py-2.5 rounded-lg border border-border text-muted hover:bg-neutral transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+            {!allThreeApproved ? (
+              <p className="text-xs text-amber-600 mb-2">Approve all three documents to create a GitHub repository.</p>
             ) : (
               <button
-                onClick={() => setShowProjectForm(true)}
-                disabled={!allThreeApproved}
-                className="w-full text-sm font-medium px-4 py-3 rounded-lg border-2 border-dashed border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                onClick={handleCreateRepo}
+                disabled={creatingProject}
+                className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                New Project
+                {creatingProject ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating Repository...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                    </svg>
+                    Create GitHub Repository
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -1595,6 +1579,7 @@ function DocumentsPanel({
           </div>
         </div>
       )}
+      </> : null}
     </div>
   );
 }
