@@ -21,6 +21,8 @@ const KEY_FILE_PATTERNS = [
   "docker-compose.yml",
   "Dockerfile",
   ".env.example",
+  ".env.local.example",
+  "vercel.json",
   "prisma/schema.prisma",
 ];
 
@@ -96,7 +98,33 @@ async function fetchRepoContents(owner: string, repo: string) {
     if (fileContents.join("\n\n").length > 80000) break;
   }
 
-  return { tree: treeLines, files: fileContents.join("\n\n") };
+  // Fetch deployment URL from GitHub deployments (Vercel creates these)
+  let deploymentUrl = "";
+  try {
+    const { data: deployments } = await octokit.repos.listDeployments({
+      owner,
+      repo,
+      per_page: 10,
+      environment: "Production",
+    });
+
+    for (const deployment of deployments) {
+      const { data: statuses } = await octokit.repos.listDeploymentStatuses({
+        owner,
+        repo,
+        deployment_id: deployment.id,
+        per_page: 1,
+      });
+      if (statuses.length > 0 && statuses[0].state === "success" && statuses[0].environment_url) {
+        deploymentUrl = statuses[0].environment_url;
+        break;
+      }
+    }
+  } catch {
+    // Deployments API may not be available for all repos
+  }
+
+  return { tree: treeLines, files: fileContents.join("\n\n"), deploymentUrl };
 }
 
 export async function POST(request: Request) {
@@ -110,8 +138,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const { tree, files } = await fetchRepoContents(repoOwner, repoName);
-      const content = await generateSolutionOverview(tree, files, projectName || repoName);
+      const { tree, files, deploymentUrl } = await fetchRepoContents(repoOwner, repoName);
+      const deploymentContext = deploymentUrl ? `\n\n## Live Deployment URL\n\nThe application is deployed and accessible at: ${deploymentUrl}` : "";
+      const content = await generateSolutionOverview(tree, files + deploymentContext, projectName || repoName);
       return NextResponse.json({ content });
     }
 
@@ -122,8 +151,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const { tree, files } = await fetchRepoContents(repoOwner, repoName);
-      const content = await generateGettingStarted(tree, files, sourceContent || "", projectName || repoName);
+      const { tree, files, deploymentUrl } = await fetchRepoContents(repoOwner, repoName);
+      const deploymentContext = deploymentUrl ? `\n\n## Live Deployment URL\n\nThe application is deployed and accessible at: ${deploymentUrl}\nThe login page is at: ${deploymentUrl}/login or ${deploymentUrl}/admin/login (check the routes in the code to determine which)` : "";
+      const content = await generateGettingStarted(tree, files + deploymentContext, sourceContent || "", projectName || repoName);
       return NextResponse.json({ content });
     }
 

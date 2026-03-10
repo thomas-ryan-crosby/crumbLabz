@@ -340,7 +340,9 @@ End the document with this footer:
 *Prepared by CrumbLabz | crumblabz.com*
 *This document is confidential and intended for the named client only.*
 
-Write for a non-technical business audience. Make it feel like a product manual, not source code documentation. The reader should finish this document understanding exactly what they have, how to use it, and what technologies power it — without needing to read code. Be specific about the actual technologies found in the repository.`;
+Write for a non-technical business audience. Make it feel like a product manual, not source code documentation. The reader should finish this document understanding exactly what they have, how to use it, and what technologies power it — without needing to read code. Be specific about the actual technologies found in the repository.
+
+IMPORTANT: If a "Live Deployment URL" is provided in the input, use that exact URL in the document. Do NOT use placeholder text like "Your CrumbLabz team will provide the access URL" — use the actual URL. Derive login URLs from the deployment URL and the routes found in the codebase (e.g., if the deployment is at https://example.vercel.app and there's a /admin/login route, the login URL is https://example.vercel.app/admin/login).`;
 
 export async function generateSolutionOverview(
   repoTree: string,
@@ -432,7 +434,9 @@ End the document with this footer:
 *Prepared by CrumbLabz | crumblabz.com*
 *This document is confidential and intended for the named client only.*
 
-Be EXTREMELY specific. Use actual button names, field labels, and page titles found in the source code. If the code references specific routes (like /dashboard, /settings, /reports), mention them. The reader should be able to follow this guide with zero technical knowledge and successfully use every feature of the application. Think of this as a product manual that a new employee could follow on their first day.`;
+Be EXTREMELY specific. Use actual button names, field labels, and page titles found in the source code. If the code references specific routes (like /dashboard, /settings, /reports), mention them. The reader should be able to follow this guide with zero technical knowledge and successfully use every feature of the application. Think of this as a product manual that a new employee could follow on their first day.
+
+IMPORTANT: If a "Live Deployment URL" is provided in the input, use that exact URL throughout the document. Construct full clickable URLs by combining the deployment URL with routes found in the code (e.g., deployment URL + /admin/login = the login page). Do NOT use placeholder text — use the real URLs. If login routes exist in the code (like /login, /admin/login, /auth), provide the complete URL with the deployment domain.`;
 
 export async function generateGettingStarted(
   repoTree: string,
