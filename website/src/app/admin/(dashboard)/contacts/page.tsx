@@ -711,6 +711,8 @@ function DocumentsPanel({
   const [uploadContent, setUploadContent] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [extractingPdf, setExtractingPdf] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
   const [revisions, setRevisions] = useState<DocumentRevision[]>([]);
   const [loadingRevisions, setLoadingRevisions] = useState(false);
@@ -794,6 +796,37 @@ function DocumentsPanel({
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
+
+  const handleFileSelected = async (file: File) => {
+    setUploadFile(file);
+    if (!uploadTitle.trim()) {
+      setUploadTitle(file.name.replace(/\.[^.]+$/, ""));
+    }
+    // Auto-extract text from PDFs
+    if (file.type === "application/pdf") {
+      setExtractingPdf(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/extract-pdf", { method: "POST", body: formData });
+        if (res.ok) {
+          const { text } = await res.json();
+          if (text) setUploadContent(text);
+        }
+      } catch {
+        // Extraction failed — user can still upload the file without extracted text
+      } finally {
+        setExtractingPdf(false);
+      }
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileSelected(file);
+  };
 
   const handleUploadDocument = async () => {
     if (!uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)) return;
@@ -1998,7 +2031,12 @@ function DocumentsPanel({
         </div>
 
         {showUpload && uploadPhase === "discovery" && (
-          <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+          <div
+            className={`bg-neutral rounded-lg p-4 mb-3 space-y-3 ${dragOver ? "ring-2 ring-accent" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
             <input
               type="text"
               placeholder="Meeting title (e.g. Discovery Call — Acme Corp)"
@@ -2006,19 +2044,19 @@ function DocumentsPanel({
               onChange={(e) => setUploadTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
             />
-            <label className={`flex items-center justify-center gap-2 w-full px-3 py-3 rounded-lg border-2 border-dashed text-sm cursor-pointer transition-colors ${
-              uploadFile ? "border-accent bg-accent/5 text-accent" : "border-border text-muted hover:border-accent hover:text-accent"
+            <label className={`flex items-center justify-center gap-2 w-full px-4 py-6 rounded-lg border-2 border-dashed text-sm cursor-pointer transition-colors ${
+              dragOver ? "border-accent bg-accent/10 text-accent" : uploadFile ? "border-accent bg-accent/5 text-accent" : "border-border text-muted hover:border-accent hover:text-accent"
             }`}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
               </svg>
-              {uploadFile ? uploadFile.name : "Upload a file (PDF, DOC, etc.)"}
-              <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setUploadFile(file); if (!uploadTitle.trim()) setUploadTitle(file.name.replace(/\.[^.]+$/, "")); } }} />
+              {extractingPdf ? "Extracting text from PDF..." : uploadFile ? uploadFile.name : "Drop a file here or click to browse (PDF, DOC, TXT)"}
+              <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelected(file); }} />
             </label>
-            {uploadFile && <button onClick={() => setUploadFile(null)} className="text-xs text-muted hover:text-red-600 transition-colors">Remove file</button>}
+            {uploadFile && <button onClick={() => { setUploadFile(null); setUploadContent(""); }} className="text-xs text-muted hover:text-red-600 transition-colors">Remove file</button>}
             <div className="flex items-center gap-2"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted">and/or add notes</span><div className="flex-1 h-px bg-border" /></div>
             <textarea placeholder="Paste meeting transcript or notes..." value={uploadContent} onChange={(e) => setUploadContent(e.target.value)} rows={6} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors resize-y" />
-            <button onClick={handleUploadDocument} disabled={uploading || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <button onClick={handleUploadDocument} disabled={uploading || extractingPdf || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
               {uploading ? "Uploading..." : "Save Document"}
             </button>
           </div>
@@ -2202,11 +2240,27 @@ function DocumentsPanel({
           + Add meeting minutes to this phase
         </button>
         {showUpload && uploadPhase === "initial_definition" && (
-          <div className="bg-neutral rounded-lg p-4 mt-2 space-y-3">
+          <div
+            className={`bg-neutral rounded-lg p-4 mt-2 space-y-3 ${dragOver ? "ring-2 ring-accent" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
             <input type="text" placeholder="Meeting title..." value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50" />
+            <label className={`flex items-center justify-center gap-2 w-full px-4 py-6 rounded-lg border-2 border-dashed text-sm cursor-pointer transition-colors ${
+              dragOver ? "border-accent bg-accent/10 text-accent" : uploadFile ? "border-accent bg-accent/5 text-accent" : "border-border text-muted hover:border-accent hover:text-accent"
+            }`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+              </svg>
+              {extractingPdf ? "Extracting text from PDF..." : uploadFile ? uploadFile.name : "Drop a file here or click to browse"}
+              <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelected(file); }} />
+            </label>
+            {uploadFile && <button onClick={() => { setUploadFile(null); setUploadContent(""); }} className="text-xs text-muted hover:text-red-600 transition-colors">Remove file</button>}
+            <div className="flex items-center gap-2"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted">and/or add notes</span><div className="flex-1 h-px bg-border" /></div>
             <textarea placeholder="Paste transcript or notes..." value={uploadContent} onChange={(e) => setUploadContent(e.target.value)} rows={4} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y" />
             <div className="flex gap-2">
-              <button onClick={handleUploadDocument} disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{uploading ? "Uploading..." : "Save"}</button>
+              <button onClick={handleUploadDocument} disabled={uploading || extractingPdf || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{uploading ? "Uploading..." : "Save"}</button>
               <button onClick={() => setShowUpload(false)} className="text-sm text-muted hover:text-charcoal transition-colors">Cancel</button>
             </div>
           </div>
@@ -2370,11 +2424,27 @@ function DocumentsPanel({
               </button>
             </div>
             {showUpload && uploadPhase === "maintenance" && (
-              <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+              <div
+                className={`bg-neutral rounded-lg p-4 mb-3 space-y-3 ${dragOver ? "ring-2 ring-accent" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+              >
                 <input type="text" placeholder="Meeting title..." value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                <label className={`flex items-center justify-center gap-2 w-full px-4 py-6 rounded-lg border-2 border-dashed text-sm cursor-pointer transition-colors ${
+                  dragOver ? "border-accent bg-accent/10 text-accent" : uploadFile ? "border-accent bg-accent/5 text-accent" : "border-border text-muted hover:border-accent hover:text-accent"
+                }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                  </svg>
+                  {extractingPdf ? "Extracting text from PDF..." : uploadFile ? uploadFile.name : "Drop a file here or click to browse"}
+                  <input type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileSelected(file); }} />
+                </label>
+                {uploadFile && <button onClick={() => { setUploadFile(null); setUploadContent(""); }} className="text-xs text-muted hover:text-red-600 transition-colors">Remove file</button>}
+                <div className="flex items-center gap-2"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted">and/or add notes</span><div className="flex-1 h-px bg-border" /></div>
                 <textarea placeholder="Paste transcript or notes..." value={uploadContent} onChange={(e) => setUploadContent(e.target.value)} rows={4} className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y" />
                 <div className="flex gap-2">
-                  <button onClick={handleUploadDocument} disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{uploading ? "Uploading..." : "Save"}</button>
+                  <button onClick={handleUploadDocument} disabled={uploading || extractingPdf || !uploadTitle.trim() || (!uploadContent.trim() && !uploadFile)} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">{uploading ? "Uploading..." : "Save"}</button>
                   <button onClick={() => setShowUpload(false)} className="text-sm text-muted hover:text-charcoal transition-colors">Cancel</button>
                 </div>
               </div>
