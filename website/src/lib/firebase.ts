@@ -427,4 +427,96 @@ export async function getDocumentRevisions(
   });
 }
 
+// --- Projects ---
+
+export interface Project {
+  id: string;
+  contactId: string;
+  contactName: string;
+  companyName: string;
+  name: string;
+  repoName: string;
+  repoUrl: string;
+  status: "active" | "completed" | "on_hold";
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}
+
+export async function addProject(
+  contactId: string,
+  data: {
+    contactName: string;
+    companyName: string;
+    name: string;
+    repoName: string;
+    repoUrl: string;
+  }
+) {
+  return addDoc(collection(db, "projects"), {
+    contactId,
+    contactName: data.contactName,
+    companyName: data.companyName,
+    name: data.name,
+    repoName: data.repoName,
+    repoUrl: data.repoUrl,
+    status: "active",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function getProjects(): Promise<Project[]> {
+  const q = query(collection(db, "projects"), orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      contactId: (data.contactId as string) || "",
+      contactName: (data.contactName as string) || "",
+      companyName: (data.companyName as string) || "",
+      name: (data.name as string) || "",
+      repoName: (data.repoName as string) || "",
+      repoUrl: (data.repoUrl as string) || "",
+      status: (data.status as Project["status"]) || "active",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    };
+  });
+}
+
+export async function getProjectsForContact(contactId: string): Promise<Project[]> {
+  const q = query(
+    collection(db, "projects"),
+    where("contactId", "==", contactId),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      contactId: (data.contactId as string) || "",
+      contactName: (data.contactName as string) || "",
+      companyName: (data.companyName as string) || "",
+      name: (data.name as string) || "",
+      repoName: (data.repoName as string) || "",
+      repoUrl: (data.repoUrl as string) || "",
+      status: (data.status as Project["status"]) || "active",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
+    };
+  });
+}
+
+export async function updateProject(
+  projectId: string,
+  fields: { status?: Project["status"]; name?: string }
+) {
+  return updateDoc(doc(db, "projects", projectId), {
+    ...fields,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export { auth, db, onAuthStateChanged, type User };

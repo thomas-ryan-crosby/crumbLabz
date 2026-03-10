@@ -18,10 +18,13 @@ import {
   getCurrentTeamMember,
   PIPELINE_STAGES,
   TEAM_MEMBERS,
+  addProject,
+  getProjectsForContact,
   type Contact,
   type Activity,
   type ClientDocument,
   type DocumentRevision,
+  type Project,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
@@ -341,8 +344,8 @@ function ContactDetail({
     setSaving(false);
   };
 
-  const handleProjectCreated = async (repoUrl: string) => {
-    await onUpdate(contact.id, { stage: "development", githubRepoUrl: repoUrl });
+  const handleProjectCreated = async () => {
+    await onUpdate(contact.id, { stage: "development" });
     const updated = await getActivities(contact.id);
     setActivities(updated);
   };
@@ -479,8 +482,8 @@ function ContactDetail({
         <DocumentsPanel
           contactId={contact.id}
           actorName={actorName}
+          contactName={contact.name}
           companyName={contact.company}
-          githubRepoUrl={contact.githubRepoUrl}
           documents={documents}
           loadingDocs={loadingDocs}
           viewingDoc={viewingDoc}
@@ -525,13 +528,6 @@ function ContactDetail({
                 : "—"
             }
           />
-          {contact.githubRepoUrl && (
-            <InfoField
-              label="GitHub Repository"
-              value={contact.githubRepoUrl.replace("https://github.com/", "")}
-              href={contact.githubRepoUrl}
-            />
-          )}
         </div>
 
         {/* Assignee */}
@@ -668,8 +664,8 @@ function ContactDetail({
 function DocumentsPanel({
   contactId,
   actorName,
+  contactName,
   companyName,
-  githubRepoUrl,
   documents,
   loadingDocs,
   viewingDoc,
@@ -680,15 +676,15 @@ function DocumentsPanel({
 }: {
   contactId: string;
   actorName: string;
+  contactName: string;
   companyName: string;
-  githubRepoUrl: string;
   documents: ClientDocument[];
   loadingDocs: boolean;
   viewingDoc: ClientDocument | null;
   setViewingDoc: (doc: ClientDocument | null) => void;
   onDocStatusChange: (docId: string, status: string) => Promise<void>;
   onDocumentsChanged: () => Promise<void>;
-  onProjectCreated: (repoUrl: string) => Promise<void>;
+  onProjectCreated: () => Promise<void>;
 }) {
   const [showUpload, setShowUpload] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -702,6 +698,18 @@ function DocumentsPanel({
   const [showRevisions, setShowRevisions] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const [createProjectError, setCreateProjectError] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  useEffect(() => {
+    setLoadingProjects(true);
+    getProjectsForContact(contactId).then((p) => {
+      setProjects(p);
+      setLoadingProjects(false);
+    });
+  }, [contactId]);
 
   const meetingDocs = documents.filter((d) => d.type === "meeting_transcript");
   const productDocs = documents.filter((d) =>
@@ -749,6 +757,7 @@ function DocumentsPanel({
     productDocs.some((d) => d.type === "development_plan" && d.status === "approved");
 
   const handleCreateProject = async () => {
+    if (!projectName.trim()) return;
     setCreatingProject(true);
     setCreateProjectError(null);
     try {
@@ -760,6 +769,7 @@ function DocumentsPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          projectName: projectName.trim(),
           companyName,
           documents: {
             problemDefinition: problemDef.content,
@@ -774,8 +784,23 @@ function DocumentsPanel({
         throw new Error(data.error || "Failed to create project");
       }
 
-      const { repoUrl } = await res.json();
-      await onProjectCreated(repoUrl);
+      const { repoUrl, repoName } = await res.json();
+
+      // Store project in Firestore
+      await addProject(contactId, {
+        contactName,
+        companyName,
+        name: projectName.trim(),
+        repoName,
+        repoUrl,
+      });
+
+      // Refresh projects list
+      const updated = await getProjectsForContact(contactId);
+      setProjects(updated);
+      setProjectName("");
+      setShowProjectForm(false);
+      await onProjectCreated();
     } catch (err) {
       setCreateProjectError(err instanceof Error ? err.message : "Failed to create project");
     } finally {
@@ -1228,45 +1253,90 @@ function DocumentsPanel({
           </div>
         )}
 
-        {/* GitHub Project Repository */}
-        {githubRepoUrl ? (
-          <div className="mb-3 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
-            <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-emerald-700">Project Repository</p>
-              <a
-                href={githubRepoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors truncate block"
-              >
-                {githubRepoUrl.replace("https://github.com/", "")}
-              </a>
-            </div>
+        {/* Projects */}
+        {projects.length > 0 && (
+          <div className="mb-3 space-y-2">
+            {projects.map((p) => (
+              <div key={p.id} className="px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-3">
+                <svg className="w-5 h-5 text-emerald-600 flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-emerald-700">{p.name}</p>
+                  <a
+                    href={p.repoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors truncate block"
+                  >
+                    {p.repoUrl.replace("https://github.com/", "")}
+                  </a>
+                </div>
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  p.status === "active" ? "bg-emerald-500/20 text-emerald-700"
+                    : p.status === "completed" ? "bg-green-500/20 text-green-700"
+                    : "bg-amber-500/20 text-amber-700"
+                }`}>
+                  {p.status}
+                </span>
+              </div>
+            ))}
           </div>
-        ) : allThreeApproved && !generating && (
+        )}
+
+        {allThreeApproved && !generating && (
           <div className="mb-3">
-            <button
-              onClick={handleCreateProject}
-              disabled={creatingProject}
-              className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-            >
-              {creatingProject ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Creating Project Repository...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                  </svg>
-                  Create Project Repository
-                </>
-              )}
-            </button>
+            {showProjectForm ? (
+              <div className="border border-emerald-500/20 rounded-lg p-4 bg-emerald-500/5 space-y-3">
+                <label className="block text-sm font-medium text-charcoal">Project Name</label>
+                <input
+                  type="text"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="e.g., Inventory Dashboard, Client Portal"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                  disabled={creatingProject}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCreateProject}
+                    disabled={creatingProject || !projectName.trim()}
+                    className="flex-1 text-sm font-medium px-4 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {creatingProject ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                        </svg>
+                        Create Repository
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setShowProjectForm(false); setProjectName(""); setCreateProjectError(null); }}
+                    disabled={creatingProject}
+                    className="text-sm font-medium px-4 py-2.5 rounded-lg border border-border text-muted hover:bg-neutral transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowProjectForm(true)}
+                className="w-full text-sm font-medium px-4 py-3 rounded-lg border-2 border-dashed border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/5 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                New Project
+              </button>
+            )}
           </div>
         )}
 
