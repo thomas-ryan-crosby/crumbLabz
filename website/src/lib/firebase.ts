@@ -675,7 +675,7 @@ export async function getChangeRequests(
 export async function updateChangeRequest(
   contactId: string,
   requestId: string,
-  fields: { status?: ChangeRequest["status"]; priority?: ChangeRequest["priority"] }
+  fields: { status?: ChangeRequest["status"]; priority?: ChangeRequest["priority"]; title?: string; description?: string; linkedDocumentId?: string }
 ) {
   return updateDoc(doc(db, "contacts", contactId, "changeRequests", requestId), {
     ...fields,

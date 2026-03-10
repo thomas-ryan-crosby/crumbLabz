@@ -762,6 +762,11 @@ function DocumentsPanel({
   const [newRequestDescription, setNewRequestDescription] = useState("");
   const [newRequestPriority, setNewRequestPriority] = useState<ChangeRequest["priority"]>("medium");
   const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [editRequestTitle, setEditRequestTitle] = useState("");
+  const [editRequestDescription, setEditRequestDescription] = useState("");
+  const [editRequestPriority, setEditRequestPriority] = useState<ChangeRequest["priority"]>("medium");
+  const [savingRequest, setSavingRequest] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -1344,6 +1349,30 @@ function DocumentsPanel({
     }
   };
 
+  const handleStartEditRequest = (cr: ChangeRequest) => {
+    setEditingRequestId(cr.id);
+    setEditRequestTitle(cr.title);
+    setEditRequestDescription(cr.description);
+    setEditRequestPriority(cr.priority);
+  };
+
+  const handleSaveEditRequest = async () => {
+    if (!editingRequestId || !editRequestTitle.trim()) return;
+    setSavingRequest(true);
+    try {
+      await updateChangeRequest(contactId, editingRequestId, {
+        title: editRequestTitle.trim(),
+        description: editRequestDescription.trim(),
+        priority: editRequestPriority,
+      });
+      const updated = await getChangeRequests(contactId, activeProjectId);
+      setChangeRequests(updated);
+      setEditingRequestId(null);
+    } finally {
+      setSavingRequest(false);
+    }
+  };
+
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
   const handleDeleteDocument = async (doc: ClientDocument) => {
     if (!confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
@@ -1398,9 +1427,9 @@ function DocumentsPanel({
         phase: "maintenance",
       });
 
-      // Link selected change requests to this doc and mark in_progress
+      // Link selected change requests to this doc and lock them
       for (const id of selectedRequestIds) {
-        await updateChangeRequest(contactId, id, { status: "in_progress" });
+        await updateChangeRequest(contactId, id, { status: "in_progress", linkedDocumentId: docRef.id });
       }
 
       // Reset form
@@ -2626,47 +2655,86 @@ function DocumentsPanel({
               <p className="text-muted text-xs">No requests yet. Clients can submit from the portal, or add one above.</p>
             ) : (
               <div className="space-y-2">
-                {changeRequests.map((cr) => (
-                  <div key={cr.id} className="bg-neutral rounded-lg p-3 relative">
-                    <button
-                      onClick={() => handleDeleteChangeRequest(cr.id, cr.title)}
-                      title="Delete feature request"
-                      className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-700 transition-colors text-xs font-bold"
-                    >
-                      ×
-                    </button>
-                    <div className="flex items-center justify-between mb-1">
-                      <h5 className="text-sm font-medium">{cr.title}</h5>
-                      <div className="flex items-center gap-2">
-                        {cr.source && cr.source !== "review" && (
-                          <span className="text-[10px] text-muted capitalize">{cr.source.replace("_", " ")}</span>
-                        )}
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                          cr.priority === "high" ? "bg-red-500/10 text-red-700"
-                            : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
-                              : "bg-blue-500/10 text-blue-700"
-                        }`}>{cr.priority}</span>
-                        <select
-                          value={cr.status}
-                          onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
-                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
-                            cr.status === "open" ? "bg-blue-500/10 text-blue-700"
-                              : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
-                                : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
-                                  : "bg-neutral text-muted"
-                          }`}
-                        >
-                          <option value="open">Open</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="resolved">Resolved</option>
-                          <option value="closed">Closed</option>
-                        </select>
+                {changeRequests.map((cr) => {
+                  const isLocked = !!cr.linkedDocumentId;
+                  const isEditing = editingRequestId === cr.id;
+
+                  if (isEditing) {
+                    return (
+                      <div key={cr.id} className="bg-neutral rounded-lg p-3 space-y-2 ring-2 ring-accent/30">
+                        <input type="text" value={editRequestTitle} onChange={(e) => setEditRequestTitle(e.target.value)} className="w-full px-2 py-1.5 rounded border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50" />
+                        <textarea value={editRequestDescription} onChange={(e) => setEditRequestDescription(e.target.value)} rows={2} className="w-full px-2 py-1.5 rounded border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y" />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase text-muted">Priority:</span>
+                          {(["low", "medium", "high"] as const).map((p) => (
+                            <button key={p} onClick={() => setEditRequestPriority(p)} className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full transition-colors ${editRequestPriority === p ? (p === "high" ? "bg-red-500/20 text-red-700" : p === "medium" ? "bg-amber-500/20 text-amber-700" : "bg-blue-500/20 text-blue-700") : "bg-neutral text-muted hover:bg-border"}`}>{p}</button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={handleSaveEditRequest} disabled={savingRequest || !editRequestTitle.trim()} className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">{savingRequest ? "Saving..." : "Save"}</button>
+                          <button onClick={() => setEditingRequestId(null)} className="text-xs text-muted hover:text-charcoal transition-colors">Cancel</button>
+                        </div>
                       </div>
+                    );
+                  }
+
+                  return (
+                    <div key={cr.id} className={`bg-neutral rounded-lg p-3 relative ${isLocked ? "opacity-75" : ""}`}>
+                      {!isLocked && (
+                        <button
+                          onClick={() => handleDeleteChangeRequest(cr.id, cr.title)}
+                          title="Delete feature request"
+                          className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-700 transition-colors text-xs font-bold"
+                        >
+                          ×
+                        </button>
+                      )}
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          {isLocked && (
+                            <svg className="w-3.5 h-3.5 text-muted shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                            </svg>
+                          )}
+                          <h5 className="text-sm font-medium">{cr.title}</h5>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!isLocked && cr.status === "open" && (
+                            <button onClick={() => handleStartEditRequest(cr)} title="Edit request" className="text-[10px] text-accent hover:text-accent-hover transition-colors">Edit</button>
+                          )}
+                          {cr.source && cr.source !== "review" && (
+                            <span className="text-[10px] text-muted capitalize">{cr.source.replace("_", " ")}</span>
+                          )}
+                          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                            cr.priority === "high" ? "bg-red-500/10 text-red-700"
+                              : cr.priority === "medium" ? "bg-amber-500/10 text-amber-700"
+                                : "bg-blue-500/10 text-blue-700"
+                          }`}>{cr.priority}</span>
+                          <select
+                            value={cr.status}
+                            onChange={(e) => handleChangeRequestStatus(cr.id, e.target.value as ChangeRequest["status"])}
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border-0 cursor-pointer ${
+                              cr.status === "open" ? "bg-blue-500/10 text-blue-700"
+                                : cr.status === "in_progress" ? "bg-amber-500/10 text-amber-700"
+                                  : cr.status === "resolved" ? "bg-emerald-500/10 text-emerald-700"
+                                    : "bg-neutral text-muted"
+                            }`}
+                          >
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted">{cr.description}</p>
+                      <p className="text-[10px] text-muted mt-1">
+                        {cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}
+                        {isLocked && " · Linked to spec"}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted">{cr.description}</p>
-                    <p className="text-[10px] text-muted mt-1">{cr.author} · {cr.createdAt?.toLocaleDateString() || "—"}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
