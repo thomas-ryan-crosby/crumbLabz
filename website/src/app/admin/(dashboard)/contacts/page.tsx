@@ -14,6 +14,7 @@ import {
   uploadDocumentFile,
   updateClientDocument,
   deleteClientDocument,
+  deleteChangeRequest,
   saveRevisionAndUpdate,
   getDocumentRevisions,
   getCurrentTeamMember,
@@ -1238,6 +1239,13 @@ function DocumentsPanel({
     setChangeRequests(updated);
   };
 
+  const handleDeleteChangeRequest = async (requestId: string, title: string) => {
+    if (!confirm(`Delete feature request "${title}"? This cannot be undone.`)) return;
+    await deleteChangeRequest(contactId, requestId);
+    const updated = await getChangeRequests(contactId, activeProjectId);
+    setChangeRequests(updated);
+  };
+
   const handlePublishUpdate = async () => {
     if (!newUpdateTitle.trim() || !newUpdateSummary.trim()) return;
     setPublishingUpdate(true);
@@ -2091,17 +2099,7 @@ function DocumentsPanel({
         ) : (
           <div className="space-y-2">
             {discoveryMeetings.map((d) => (
-              <div key={d.id} className="flex items-center gap-2">
-                <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} /></div>
-                <button
-                  onClick={() => handleDeleteDocument(d)}
-                  disabled={deletingDocId === d.id}
-                  title="Delete document"
-                  className="text-xs text-red-500 hover:text-red-700 shrink-0 px-2 py-1"
-                >
-                  {deletingDocId === d.id ? "..." : "×"}
-                </button>
-              </div>
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
             ))}
           </div>
         )}
@@ -2251,7 +2249,7 @@ function DocumentsPanel({
         {productDocs.length > 0 && (
           <div className="space-y-2">
             {productDocs.map((d) => (
-              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
             ))}
           </div>
         )}
@@ -2262,17 +2260,7 @@ function DocumentsPanel({
             <h4 className="text-xs font-bold text-charcoal mb-2">Meeting Minutes</h4>
             <div className="space-y-2">
               {definitionMeetings.map((d) => (
-                <div key={d.id} className="flex items-center gap-2">
-                  <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} /></div>
-                  <button
-                    onClick={() => handleDeleteDocument(d)}
-                    disabled={deletingDocId === d.id}
-                    title="Delete document"
-                    className="text-xs text-red-500 hover:text-red-700 shrink-0 px-2 py-1"
-                  >
-                    {deletingDocId === d.id ? "..." : "×"}
-                  </button>
-                </div>
+                <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
               ))}
             </div>
           </div>
@@ -2402,7 +2390,7 @@ function DocumentsPanel({
             {solutionDocs.length > 0 && (
               <div className="space-y-2">
                 {solutionDocs.map((d) => (
-                  <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+                  <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
                 ))}
               </div>
             )}
@@ -2499,21 +2487,13 @@ function DocumentsPanel({
               <div className="space-y-2">
                 {maintenanceMeetings.map((d) => (
                   <div key={d.id} className="flex items-center gap-2">
-                    <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} /></div>
+                    <div className="flex-1"><DocCard doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} /></div>
                     <button
                       onClick={() => handleCreateFeatureFromMinutes(d)}
                       title="Create feature request from this meeting"
                       className="text-xs text-accent hover:text-accent-hover shrink-0 px-2 py-1"
                     >
                       + Request
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDocument(d)}
-                      disabled={deletingDocId === d.id}
-                      title="Delete document"
-                      className="text-xs text-red-500 hover:text-red-700 shrink-0 px-2 py-1"
-                    >
-                      {deletingDocId === d.id ? "..." : "×"}
                     </button>
                   </div>
                 ))}
@@ -2529,7 +2509,14 @@ function DocumentsPanel({
             ) : (
               <div className="space-y-2">
                 {changeRequests.map((cr) => (
-                  <div key={cr.id} className="bg-neutral rounded-lg p-3">
+                  <div key={cr.id} className="bg-neutral rounded-lg p-3 relative group">
+                    <button
+                      onClick={() => handleDeleteChangeRequest(cr.id, cr.title)}
+                      title="Delete feature request"
+                      className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-all text-xs font-bold"
+                    >
+                      ×
+                    </button>
                     <div className="flex items-center justify-between mb-1">
                       <h5 className="text-sm font-medium">{cr.title}</h5>
                       <div className="flex items-center gap-2">
@@ -2703,7 +2690,7 @@ function DocumentsPanel({
           <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Other</h3>
           <div className="space-y-2">
             {otherDocs.map((d) => (
-              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} />
+              <DocCard key={d.id} doc={d} onClick={() => setViewingDoc(d)} onDelete={() => handleDeleteDocument(d)} deleting={deletingDocId === d.id} />
             ))}
           </div>
         </div>
@@ -2713,41 +2700,53 @@ function DocumentsPanel({
   );
 }
 
-function DocCard({ doc, onClick }: { doc: ClientDocument; onClick: () => void }) {
+function DocCard({ doc, onClick, onDelete, deleting }: { doc: ClientDocument; onClick: () => void; onDelete?: () => void; deleting?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left bg-neutral rounded-lg p-4 hover:bg-border/50 transition-colors"
-    >
-      <div className="flex items-center justify-between mb-1">
-        <p className="font-medium text-sm">{doc.title}</p>
-        <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
-          doc.status === "approved"
-            ? "bg-green-600/10 text-green-700"
-            : doc.status === "sent"
-              ? "bg-blue-500/10 text-blue-600"
-              : doc.status === "review"
-                ? "bg-accent/10 text-accent"
-                : doc.status === "revision_requested"
-                  ? "bg-amber-500/10 text-amber-700"
-                  : "bg-charcoal/10 text-charcoal"
-        }`}>
-          {doc.status === "revision_requested" ? "revision requested" : doc.status}
-        </span>
-      </div>
-      <p className="text-xs text-muted">
-        {doc.generatedBy === "ai" ? "AI Generated" : "Manual"}
-        {["problem_definition", "solution_one_pager", "development_plan"].includes(doc.type) && ` · v${doc.version || 1}`}
-        {doc.fileName ? ` · ${doc.fileName}` : ` · ${doc.type.replace(/_/g, " ")}`}
-        {" · "}
-        {doc.updatedAt?.toLocaleString() || doc.createdAt?.toLocaleString() || "—"}
-      </p>
-      {doc.generatedFromCommit && (
-        <p className="text-[10px] text-muted mt-1">
-          Generated from <span className="font-mono bg-white/60 px-1 py-0.5 rounded">{doc.generatedFromCommit.slice(0, 7)}</span>
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className="w-full text-left bg-neutral rounded-lg p-4 hover:bg-border/50 transition-colors"
+      >
+        <div className="flex items-center justify-between mb-1">
+          <p className="font-medium text-sm">{doc.title}</p>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full capitalize ${
+            doc.status === "approved"
+              ? "bg-green-600/10 text-green-700"
+              : doc.status === "sent"
+                ? "bg-blue-500/10 text-blue-600"
+                : doc.status === "review"
+                  ? "bg-accent/10 text-accent"
+                  : doc.status === "revision_requested"
+                    ? "bg-amber-500/10 text-amber-700"
+                    : "bg-charcoal/10 text-charcoal"
+          }`}>
+            {doc.status === "revision_requested" ? "revision requested" : doc.status}
+          </span>
+        </div>
+        <p className="text-xs text-muted">
+          {doc.generatedBy === "ai" ? "AI Generated" : "Manual"}
+          {["problem_definition", "solution_one_pager", "development_plan"].includes(doc.type) && ` · v${doc.version || 1}`}
+          {doc.fileName ? ` · ${doc.fileName}` : ` · ${doc.type.replace(/_/g, " ")}`}
+          {" · "}
+          {doc.updatedAt?.toLocaleString() || doc.createdAt?.toLocaleString() || "—"}
         </p>
+        {doc.generatedFromCommit && (
+          <p className="text-[10px] text-muted mt-1">
+            Generated from <span className="font-mono bg-white/60 px-1 py-0.5 rounded">{doc.generatedFromCommit.slice(0, 7)}</span>
+          </p>
+        )}
+      </button>
+      {onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          disabled={deleting}
+          title="Delete document"
+          className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-all text-xs font-bold"
+        >
+          {deleting ? "..." : "×"}
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 

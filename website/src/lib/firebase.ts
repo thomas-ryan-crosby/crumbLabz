@@ -681,6 +681,10 @@ export async function updateChangeRequest(
   });
 }
 
+export async function deleteChangeRequest(contactId: string, requestId: string) {
+  return deleteDoc(doc(db, "contacts", contactId, "changeRequests", requestId));
+}
+
 // --- Projects ---
 
 export interface Project {
