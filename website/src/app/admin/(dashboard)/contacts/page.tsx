@@ -1405,7 +1405,16 @@ function DocumentsPanel({
 
         {displayContent && (
           <div className="prose prose-sm max-w-none bg-neutral rounded-lg p-6">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ children, ...props }) => (
+                  <div style={{ overflowX: "auto" }}>
+                    <table {...props}>{children}</table>
+                  </div>
+                ),
+              }}
+            >{displayContent}</ReactMarkdown>
           </div>
         )}
 

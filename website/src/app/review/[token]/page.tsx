@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import {
   getReviewToken,
   getClientDocuments,
@@ -20,6 +21,14 @@ import {
 } from "@/lib/firebase";
 
 const DOC_ORDER = ["problem_definition", "solution_one_pager", "development_plan"] as const;
+const mdComponents: Components = {
+  table: ({ children, ...props }) => (
+    <div style={{ overflowX: "auto" }}>
+      <table {...props}>{children}</table>
+    </div>
+  ),
+};
+
 const DOC_LABELS: Record<string, string> = {
   problem_definition: "Problem Definition",
   solution_one_pager: "Solution One-Pager",
@@ -267,7 +276,7 @@ export default function ReviewPage() {
                 </div>
               )}
               <div className="px-6 py-6 prose prose-sm max-w-none text-[#2d2d2d]">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{activeDoc.content}</ReactMarkdown>
               </div>
             </div>
           )}
@@ -475,7 +484,7 @@ export default function ReviewPage() {
             )}
 
             <div className="px-6 py-6 prose prose-sm max-w-none text-[#2d2d2d]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.content}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{activeDoc.content}</ReactMarkdown>
             </div>
 
             {comments[activeDoc.id]?.length > 0 && (

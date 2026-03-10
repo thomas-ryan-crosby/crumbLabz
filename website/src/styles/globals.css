@@ -146,21 +146,48 @@
 .prose table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 1rem;
   margin-bottom: 1.5rem;
   font-size: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.prose thead {
+  background-color: var(--color-neutral);
 }
 
 .prose th {
   text-align: left;
   font-weight: 600;
-  padding: 0.5rem 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-bottom: 2px solid var(--color-border);
-  background-color: var(--color-neutral);
+  border-right: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.prose th:last-child {
+  border-right: none;
 }
 
 .prose td {
-  padding: 0.5rem 0.75rem;
+  padding: 0.625rem 0.75rem;
   border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.prose td:last-child {
+  border-right: none;
+}
+
+.prose tr:last-child td {
+  border-bottom: none;
+}
+
+.prose tbody tr:hover {
+  background-color: var(--color-neutral);
 }
 
 .prose code {
