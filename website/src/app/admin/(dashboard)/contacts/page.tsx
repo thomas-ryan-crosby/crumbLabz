@@ -716,6 +716,8 @@ function DocumentsPanel({
   const [activeProjectId, setActiveProjectId] = useState<string>("");
   const [showNewProjectInput, setShowNewProjectInput] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectNameValue, setEditingProjectNameValue] = useState("");
   const [creatingNewProject, setCreatingNewProject] = useState(false);
 
   useEffect(() => {
@@ -1296,28 +1298,48 @@ function DocumentsPanel({
       <div>
         <div className="flex gap-1.5 flex-wrap items-center">
           {projects.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => { setActiveProjectId(p.id); setShowUpload(false); setReviewSent(false); setShowNewProjectInput(false); }}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
-                activeProjectId === p.id
-                  ? "bg-charcoal text-white"
-                  : "bg-neutral text-muted hover:bg-border"
-              }`}
-            >
-              {p.name}
-              {p.repoUrl ? (
-                <svg className="w-3 h-3 opacity-60" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                </svg>
-              ) : (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  activeProjectId === p.id ? "bg-white/20" : "bg-amber-500/15 text-amber-700"
-                }`}>
-                  draft
-                </span>
-              )}
-            </button>
+            editingProjectId === p.id ? (
+              <div key={p.id} className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={editingProjectNameValue}
+                  onChange={(e) => setEditingProjectNameValue(e.target.value)}
+                  autoFocus
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter" && editingProjectNameValue.trim()) {
+                      await updateProject(p.id, { name: editingProjectNameValue.trim() });
+                      const updated = await getProjectsForContact(contactId);
+                      setProjects(updated);
+                      setEditingProjectId(null);
+                    }
+                    if (e.key === "Escape") setEditingProjectId(null);
+                  }}
+                  onBlur={async () => {
+                    if (editingProjectNameValue.trim() && editingProjectNameValue.trim() !== p.name) {
+                      await updateProject(p.id, { name: editingProjectNameValue.trim() });
+                      const updated = await getProjectsForContact(contactId);
+                      setProjects(updated);
+                    }
+                    setEditingProjectId(null);
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-full border border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/30 w-48"
+                />
+              </div>
+            ) : (
+              <button
+                key={p.id}
+                onClick={() => { setActiveProjectId(p.id); setShowUpload(false); setReviewSent(false); setShowNewProjectInput(false); }}
+                onDoubleClick={() => { setEditingProjectId(p.id); setEditingProjectNameValue(p.name); }}
+                title="Double-click to rename"
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${
+                  activeProjectId === p.id
+                    ? "bg-charcoal text-white"
+                    : "bg-neutral text-muted hover:bg-border"
+                }`}
+              >
+                {p.name}
+              </button>
+            )
           ))}
 
           {/* + New Project */}
@@ -1379,22 +1401,6 @@ function DocumentsPanel({
           )}
         </div>
 
-        {/* Active project GitHub link */}
-        {activeProject?.repoUrl && (
-          <div className="mt-2 flex items-center gap-2">
-            <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            <a
-              href={activeProject.repoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
-            >
-              {activeProject.repoUrl.replace("https://github.com/", "")}
-            </a>
-          </div>
-        )}
       </div>
 
       {/* No projects yet - prompt */}
@@ -1694,6 +1700,21 @@ function DocumentsPanel({
 
         {activeProject?.repoUrl ? (
           <div className="space-y-3">
+            {/* GitHub Repository Link */}
+            <div className="flex items-center gap-2 bg-neutral rounded-lg px-4 py-3">
+              <svg className="w-5 h-5 text-charcoal flex-shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+              </svg>
+              <a
+                href={activeProject.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-charcoal hover:text-accent transition-colors"
+              >
+                {activeProject.repoUrl.replace("https://github.com/", "")}
+              </a>
+            </div>
+
             <button
               onClick={handleGenerateSolutionOverview}
               disabled={generating !== null}
