@@ -174,25 +174,16 @@ function drawFooter(
   // Cookie icon in footer (data URI, works in serverless)
   doc.image("data:image/png;base64," + LOGO_COOKIE_BASE64, PAGE_MARGIN_X, y + 5, { height: 16 });
 
-  // Footer text with clickable website link
+  // Footer text — render as single string to avoid continued+link NaN bug on switched pages
   const textX = PAGE_MARGIN_X + 22;
   const footerTextY = y + 10;
   doc
     .font("Helvetica")
     .fontSize(7.5)
     .fillColor(MUTED)
-    .text("Prepared by CrumbLabz  |  ", textX, footerTextY, {
+    .text("Prepared by CrumbLabz  |  crumblabz.com  |  Confidential", textX, footerTextY, {
       lineBreak: false,
-      continued: true,
-    })
-    .fillColor(ACCENT)
-    .text("crumblabz.com", {
-      lineBreak: false,
-      continued: true,
-      link: "https://crumblabz.com",
-    })
-    .fillColor(MUTED)
-    .text("  |  Confidential", { lineBreak: false });
+    });
 
   // Page number — right-aligned, no line break
   doc
