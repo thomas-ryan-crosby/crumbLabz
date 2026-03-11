@@ -449,7 +449,7 @@ function ContactDetail({
   onClose: () => void;
   onUpdate: (
     id: string,
-    fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string; isPrimary?: boolean }
+    fields: { stage?: string; assignee?: string; notes?: string; headache?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string; isPrimary?: boolean }
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<void>;
@@ -814,11 +814,17 @@ function ContactDetail({
                         {!isPrimary && (
                           <button
                             onClick={async () => {
-                              // Unset old primary, set new primary
+                              // Transfer company-level fields to new primary, then swap
+                              await onUpdate(tc.id, {
+                                isPrimary: true,
+                                stage: primaryContact.stage,
+                                assignee: primaryContact.assignee,
+                                notes: primaryContact.notes,
+                                headache: primaryContact.headache,
+                              });
                               if (primaryContact.isPrimary) {
                                 await onUpdate(primaryContact.id, { isPrimary: false });
                               }
-                              await onUpdate(tc.id, { isPrimary: true });
                               await onContactsChanged();
                             }}
                             className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent/5 text-accent hover:bg-accent/15 transition-colors"
