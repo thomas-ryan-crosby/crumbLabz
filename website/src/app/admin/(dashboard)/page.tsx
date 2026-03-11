@@ -24,6 +24,17 @@ export default function AdminDashboardPage() {
     });
   }, []);
 
+  // Group contacts by company — dashboard should be company-based
+  const clientMap = new Map<string, Contact[]>();
+  for (const c of contacts) {
+    const key = (c.company || "").toLowerCase();
+    if (!clientMap.has(key)) clientMap.set(key, []);
+    clientMap.get(key)!.push(c);
+  }
+  const getPrimaryContact = (group: Contact[]) =>
+    group.find((c) => c.isPrimary) || group[0];
+  const clients = Array.from(clientMap.values()).map(getPrimaryContact);
+
   if (loading) {
     return (
       <div className="p-8">
@@ -32,10 +43,10 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const myContacts = contacts.filter(
+  const myClients = clients.filter(
     (c) => c.assignee === currentMember?.id
   );
-  const unassigned = contacts.filter((c) => !c.assignee);
+  const unassigned = clients.filter((c) => !c.assignee);
 
   return (
     <div className="p-8 max-w-6xl">
@@ -44,17 +55,17 @@ export default function AdminDashboardPage() {
           {currentMember ? `Welcome, ${currentMember.name.split(" ")[0]}` : "Dashboard"}
         </h1>
         <p className="text-muted text-sm mt-1">
-          {contacts.length} total contacts &middot; {myContacts.length} assigned
+          {clients.length} total clients &middot; {myClients.length} assigned
           to you &middot; {unassigned.length} unassigned
         </p>
       </div>
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-        <StatCard label="Total Contacts" value={contacts.length} color="bg-charcoal" />
-        <StatCard label="New Leads" value={contacts.filter((c) => c.stage === "new_lead").length} color="bg-accent" />
-        <StatCard label="In Development" value={contacts.filter((c) => c.stage === "development").length} color="bg-emerald-500" />
-        <StatCard label="Active Clients" value={contacts.filter((c) => c.stage === "active_client").length} color="bg-green-600" />
+        <StatCard label="Total Clients" value={clients.length} color="bg-charcoal" />
+        <StatCard label="New Leads" value={clients.filter((c) => c.stage === "new_lead").length} color="bg-accent" />
+        <StatCard label="In Development" value={clients.filter((c) => c.stage === "development").length} color="bg-emerald-500" />
+        <StatCard label="Active Clients" value={clients.filter((c) => c.stage === "active_client").length} color="bg-green-600" />
       </div>
 
       {/* Pipeline overview */}
@@ -65,7 +76,7 @@ export default function AdminDashboardPage() {
         <div className="p-6">
           <div className="grid grid-cols-3 lg:grid-cols-5 gap-3">
             {PIPELINE_STAGES.filter((s) => s.value !== "closed_lost").map((stage) => {
-              const count = contacts.filter(
+              const count = clients.filter(
                 (c) => c.stage === stage.value
               ).length;
               return (
@@ -86,7 +97,7 @@ export default function AdminDashboardPage() {
       {/* Team workload */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {TEAM_MEMBERS.map((member) => {
-          const memberContacts = contacts.filter(
+          const memberClients = clients.filter(
             (c) => c.assignee === member.id && c.stage !== "closed_lost"
           );
           return (
@@ -101,33 +112,33 @@ export default function AdminDashboardPage() {
                 <div>
                   <h3 className="font-semibold text-sm">{member.name}</h3>
                   <p className="text-xs text-muted">
-                    {memberContacts.length} active contact
-                    {memberContacts.length !== 1 ? "s" : ""}
+                    {memberClients.length} active client
+                    {memberClients.length !== 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
-              {memberContacts.length === 0 ? (
+              {memberClients.length === 0 ? (
                 <div className="px-6 py-6 text-center text-muted text-sm">
-                  No active contacts assigned.
+                  No active clients assigned.
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {memberContacts.slice(0, 5).map((c) => (
+                  {memberClients.slice(0, 5).map((c) => (
                     <div key={c.id} className="px-6 py-3 flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium">{c.name}</p>
-                        <p className="text-xs text-muted">{c.company}</p>
+                        <p className="text-sm font-medium">{c.company || "No Company"}</p>
+                        <p className="text-xs text-muted">{c.headache ? c.headache.slice(0, 60) + (c.headache.length > 60 ? "..." : "") : "—"}</p>
                       </div>
                       <StageBadge stage={c.stage} />
                     </div>
                   ))}
-                  {memberContacts.length > 5 && (
+                  {memberClients.length > 5 && (
                     <div className="px-6 py-3 text-center">
                       <Link
                         href="/admin/contacts"
                         className="text-accent hover:text-accent-hover text-xs font-medium transition-colors"
                       >
-                        +{memberContacts.length - 5} more
+                        +{memberClients.length - 5} more
                       </Link>
                     </div>
                   )}
@@ -153,25 +164,22 @@ export default function AdminDashboardPage() {
             </Link>
           </div>
           <div className="divide-y divide-border">
-            {unassigned.slice(0, 5).map((contact) => (
+            {unassigned.slice(0, 5).map((client) => (
               <div
-                key={contact.id}
+                key={client.id}
                 className="px-6 py-4 flex items-center justify-between"
               >
                 <div>
-                  <p className="font-medium text-sm">{contact.name}</p>
-                  <p className="text-muted text-xs">
-                    {contact.company} &middot; {contact.email}
-                  </p>
+                  <p className="font-medium text-sm">{client.company || "No Company"}</p>
                   <p className="text-muted text-xs mt-1 line-clamp-1">
-                    {contact.headache}
+                    {client.headache}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <StageBadge stage={contact.stage} />
+                  <StageBadge stage={client.stage} />
                   <span className="text-xs text-muted">
-                    {contact.createdAt
-                      ? contact.createdAt.toLocaleDateString()
+                    {client.createdAt
+                      ? client.createdAt.toLocaleDateString()
                       : "—"}
                   </span>
                 </div>
