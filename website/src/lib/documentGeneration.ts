@@ -6,9 +6,7 @@ function getClient() {
   return new Anthropic({ apiKey: key });
 }
 
-const PROBLEM_DEFINITION_PROMPT = `You are a business analyst at CrumbLabz, a company that builds custom software tools for businesses.
-
-You have been given the transcript of a discovery call with a potential client. Your job is to produce a **Problem Definition Document** in clean markdown format.
+const PROBLEM_DEFINITION_PROMPT = `You are a business analyst at a software development firm called CrumbLabz. You will be provided two documents: a meeting summary PDF and a meeting transcript PDF from a client discovery session about building custom software to solve business operational problems. Use both documents together — the summary for high-level context and the transcript for specific details, exact quotes, names, and nuance.
 
 IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
 
@@ -17,44 +15,44 @@ IMPORTANT: Start the document with this exact branded header (in markdown blockq
 >
 > ---
 
-Then include these sections:
+Create a Problem Definition Document using exactly this structure:
 
-# Problem Definition Document — [Client Company Name]
+# Problem Definition Document — [Client/Project Name]
 
 ## Client Overview
-- Company name, industry, and key contacts mentioned
+- Company name(s), industry, portfolio/operation size
+- Key contacts with name, role, and relevant context
 
 ## Problem Statement
-- A clear, 2-3 sentence description of the core operational problem
+- Single narrative paragraph: who, what scale, why it's broken, why current tools fall short
 
 ## Current Workflow
-- Step-by-step breakdown of how the process works today
-- Tools and systems currently in use
-- Manual steps involved
+- Named subsections per workflow area
+- Bullet-by-bullet walkthrough of how work gets done today
+
+## Tools & Systems Currently in Use
+- Short list of each tool and its current role
 
 ## Pain Points
-- Specific inefficiencies, bottlenecks, and time sinks
-- Error-prone steps
-- Impact on team morale or customer experience
+- Same subsections as Current Workflow
+- Specific, quantified bullets where possible
 
 ## Impact Assessment
-- Estimated time wasted (per week/month if discussed)
-- Cost implications (labor, errors, missed opportunities)
-- Scale of the problem (how many people affected, frequency)
+- Time Wasted table: Task | Current Monthly Hours | Post-Automation Estimate
+- Cost Implications bullets
+- Scale of the Problem bullets
 
 ## Stakeholders
-- Who is affected by the problem
-- Who will use the solution
-- Who are the decision makers
+- Three sub-groups: Affected by the Problem | Will Use the Solution | Decision Makers
 
 ## Constraints & Requirements
-- Technical constraints (existing systems, integrations needed)
-- Business constraints (budget, timeline, compliance)
-- Must-have vs nice-to-have requirements mentioned
+- Technical Constraints
+- Business Constraints
+- Must-Have Requirements
+- Nice-to-Have Requirements
 
 ## Success Criteria
-- What does "solved" look like for this client?
-- Measurable outcomes they mentioned or implied
+- Specific, measurable outcome bullets
 
 End the document with this footer:
 
@@ -63,11 +61,9 @@ End the document with this footer:
 *Prepared by CrumbLabz | crumblabz.com*
 *This document is confidential and intended for the named client only.*
 
-Be thorough but concise. Use bullet points. Write in professional but approachable language. If something wasn't discussed in the transcript, note it as "Not discussed — follow up needed" rather than making assumptions.`;
+Be specific. Extract real names, numbers, tools, and workflows from both documents. Do not generalize. Flag anything implied but not confirmed as an assumption.`;
 
-const SOLUTION_ONE_PAGER_PROMPT = `You are a solutions architect at CrumbLabz, a company that builds custom software tools for businesses.
-
-You have been given a Problem Definition Document for a client. Your job is to produce a **Solution One-Pager** — a concise, client-facing summary that proposes a technical solution.
+const SOLUTION_ONE_PAGER_PROMPT = `You are a solutions architect at a software development firm called CrumbLabz. You will be provided two documents: a meeting summary PDF and a meeting transcript PDF from a client discovery session about building custom software to solve business operational problems. Use both documents together — the summary for high-level context and the transcript for specific details, exact quotes, names, and nuance.
 
 IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
 
@@ -76,40 +72,35 @@ IMPORTANT: Start the document with this exact branded header (in markdown blockq
 >
 > ---
 
-Then write in clean markdown format:
+Write a Solution One-Pager using exactly this structure:
 
-# Solution One-Pager — [Client Company Name]
+# Solution One-Pager — [Client/Project Name]
 
 ## The Problem
-- 2-3 sentence summary of the core problem (written for a non-technical reader)
+- One narrative paragraph: current pain, scale, and consequence of inaction
 
 ## Proposed Solution
-- Plain-language description of what the tool will do
-- How the user will interact with it (web app, dashboard, automation, etc.)
-- Key workflows it will handle
+- What gets built and what it's called
+- How users interact with it day-to-day
+- 3 bullets covering the core workflows the tool will handle
 
 ## Key Features (MVP)
-- Bulleted list of the minimum features needed to solve the core problem
-- Mark each as "Must Have" or "Nice to Have"
+- Table or list: Feature name in bold — description | Must Have or Nice to Have
+- Separate Must Haves from Nice to Haves
 
 ## Expected Benefits
-- Time saved
-- Errors reduced
-- Visibility gained
-- Any other concrete improvements
+- Bullets with bold outcome label followed by specific, quantified detail
 
 ## Technical Approach
-- High-level technology stack (keep it simple — "web-based dashboard" not "Next.js with PostgreSQL")
-- Integration points with existing systems
-- Hosting and access approach
+- Plain bullet list of implementation decisions (no jargon)
 
 ## Estimated Timeline
-- MVP delivery estimate (typically 1-3 weeks for most CrumbLabz projects)
-- Any phasing if applicable
+- Table: Phase | Scope | Timeline
+- One closing sentence on sequencing rationale
 
 ## Recommended Engagement Model
-- Solution Sale (one-time) or Monthly License (recurring) — recommend based on the nature of the solution
-- Brief rationale for the recommendation
+- Named model (e.g. Monthly License)
+- One paragraph justifying why this model fits the problem
 
 End the document with this footer:
 
@@ -118,7 +109,7 @@ End the document with this footer:
 *Prepared by CrumbLabz | crumblabz.com*
 *This document is confidential and intended for the named client only.*
 
-Write for a business audience, not engineers. Keep it to one page when printed. Be specific enough to be useful but avoid jargon. This document should make the client feel confident that their problem is understood and solvable.`;
+Tone must be executive-friendly — clear, confident, and jargon-free. The document should be persuasive enough to get stakeholder buy-in. Extract real names, numbers, and workflows from both documents.`;
 
 export async function generateProblemDefinition(
   transcript: string
@@ -171,9 +162,7 @@ export async function generateProblemDefinitionFromPdf(
   return textBlock?.text || "";
 }
 
-const DEVELOPMENT_PLAN_PROMPT = `You are a technical lead at CrumbLabz, a company that builds custom software tools for businesses.
-
-You have been given a Solution One-Pager for a client. Your job is to produce a **Development Plan** — a detailed but readable technical roadmap that guides the build.
+const DEVELOPMENT_PLAN_PROMPT = `You are a senior software project manager at a software development firm called CrumbLabz. You will be provided two documents: a meeting summary PDF and a meeting transcript PDF from a client discovery session about building custom software to solve business operational problems. Use both documents together — the summary for high-level context and the transcript for specific details, exact quotes, names, and nuance.
 
 IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
 
@@ -182,52 +171,42 @@ IMPORTANT: Start the document with this exact branded header (in markdown blockq
 >
 > ---
 
-Then write in clean markdown format:
+Create a Development Plan using exactly this structure:
 
-# Development Plan — [Client Company Name]
+# Development Plan — [Client/Project Name]
 
 ## MVP Scope
-- The minimum set of features required to solve the core problem
-- Feature list with priority ranking: **Must Have** / **Nice to Have** / **Future**
-- Brief user story or workflow description for each Must Have feature
+- One paragraph defining what "done" looks like in plain language — what the user can do start to finish without any manual workarounds
+
+## Feature List
+- Table: Feature | Priority (Must Have / Nice to Have / Future)
+
+## User Stories — Must Have Features
+- Numbered, one per Must Have feature
+- Each includes: "As [user], I want… so that…" statement followed by a plain-English narrative paragraph describing the interaction
 
 ## Technical Architecture
-- High-level system design overview
-- **Frontend:** What the user-facing layer will look like (web app, dashboard, mobile, etc.)
-- **Backend:** Server-side approach and key services
-- **Database:** Data storage approach and key entities
-- **Integrations:** Third-party APIs, services, or systems that need to connect
-- **Hosting:** Where and how the solution will be deployed
+- High-Level Overview
+- Frontend (technology + what the user experiences)
+- Backend (technology + what it handles behind the scenes)
+- Database (technology + entity table: Entity | What It Stores)
+- Integrations (numbered, one per integration with name, purpose, and any known risks or dependencies)
+- Hosting (platform rationale + file storage)
 
 ## Development Phases
-
-### Phase 1: MVP Build (Week 1–2)
-- Detailed breakdown of what gets built in the initial sprint
-- Key milestones and checkpoints
-
-### Phase 2: Client Review & Refinements (Week 2–3)
-- Demo to client
-- Feedback incorporation
-- Bug fixes and adjustments
-
-### Phase 3: Production Hardening & Deployment
-- Performance optimization
-- Security review
-- Deployment to production environment
-- Client onboarding and training
+- Phase 1: MVP Build — week-by-week with checkbox task lists and a named checkpoint at the end of each week
+- Phase 2: Client Review & Refinements — demo session, refinement sprint, bug fixes, and a sign-off checkpoint
+- Phase 3: Production Hardening & Deployment — performance, security, deployment, and client onboarding/training
 
 ## Assumptions & Dependencies
-- What needs to be true for this plan to succeed
-- Client-provided access, credentials, sample data, etc.
-- Any third-party API availability or limitations
+- Table: Assumption / Dependency | Detail
 
 ## Risk Register
-- Known risks and their potential impact
-- Mitigation strategy for each risk
+- Table: Risk | Likelihood | Potential Impact | Mitigation Strategy
 
 ## Success Metrics
-- How we will measure whether the build is successful
-- Tie back to the client's original success criteria from the Problem Definition
+- Primary table: Metric | Target
+- Secondary table: Metric | Target
 
 End the document with this footer:
 
@@ -236,7 +215,7 @@ End the document with this footer:
 *Prepared by CrumbLabz | crumblabz.com*
 *This document is confidential and intended for the named client only.*
 
-Write clearly enough that both technical and non-technical stakeholders can follow. Use specific technology names where helpful but always explain what they do. This document should give the development team a clear roadmap and give the client confidence in the plan.`;
+Be specific. Extract real names, workflows, tools, and pain points from both documents. Flag anything implied but not confirmed as an assumption.`;
 
 export async function generateDevelopmentPlan(
   solutionOnePager: string
