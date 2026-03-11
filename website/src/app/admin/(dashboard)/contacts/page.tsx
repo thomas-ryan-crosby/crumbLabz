@@ -477,7 +477,7 @@ function ContactDetail({
                 : "text-muted hover:bg-neutral"
             }`}
           >
-            Documents
+            Project Center
             {documents.length > 0 && (
               <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                 tab === "documents" ? "bg-white/20" : "bg-accent/10 text-accent"
