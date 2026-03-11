@@ -2715,7 +2715,8 @@ function DocumentsPanel({
 
       {/* ===== INITIAL DEFINITION ===== */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Initial Definition</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-1">Initial Definition</h3>
+        <p className="text-xs text-muted mb-3">Discovery transcripts, problem definition, solution one-pager, and development plan — the foundation for every project.</p>
 
         {/* Generate / Upload buttons */}
         <div className="flex gap-2 flex-wrap mb-3">
@@ -2920,7 +2921,8 @@ function DocumentsPanel({
 
       {/* ===== SOLUTION ASSETS ===== */}
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Solution Assets</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-1">Solution Assets</h3>
+        <p className="text-xs text-muted mb-3">GitHub repository, solution overview, and getting started guide — client-facing deliverables generated from the codebase.</p>
 
         {/* Create GitHub Repository */}
         {activeProject && !activeProject.repoUrl && (
