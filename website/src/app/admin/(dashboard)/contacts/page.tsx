@@ -63,6 +63,8 @@ export default function ContactsPage() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ name: "", company: "", email: "", phone: "", headache: "" });
   const [addingContact, setAddingContact] = useState(false);
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+  const [showCompanySuggestions, setShowCompanySuggestions] = useState(false);
 
   const handleAddContact = async () => {
     if (!newContact.name.trim() || !newContact.company.trim()) return;
@@ -103,6 +105,32 @@ export default function ContactsPage() {
     }
     return true;
   });
+
+  // Group filtered contacts by company
+  const companyGroups = filtered.reduce<Record<string, Contact[]>>((acc, c) => {
+    const key = c.company || "No Company";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(c);
+    return acc;
+  }, {});
+  const sortedCompanies = Object.keys(companyGroups).sort((a, b) => a.localeCompare(b));
+
+  // All unique company names for autocomplete
+  const allCompanyNames = [...new Set(contacts.map((c) => c.company).filter(Boolean))].sort();
+
+  const toggleCompany = (company: string) => {
+    setExpandedCompanies((prev) => {
+      const next = new Set(prev);
+      if (next.has(company)) next.delete(company);
+      else next.add(company);
+      return next;
+    });
+  };
+
+  // Auto-expand company when a contact is selected
+  if (selected && !expandedCompanies.has(selected.company || "No Company")) {
+    setExpandedCompanies((prev) => new Set(prev).add(selected.company || "No Company"));
+  }
 
   if (loading) {
     return (
@@ -159,13 +187,32 @@ export default function ContactsPage() {
                   onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                   className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
                 />
-                <input
-                  type="text"
-                  placeholder="Company name *"
-                  value={newContact.company}
-                  onChange={(e) => setNewContact({ ...newContact, company: e.target.value })}
-                  className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Company name *"
+                    value={newContact.company}
+                    onChange={(e) => { setNewContact({ ...newContact, company: e.target.value }); setShowCompanySuggestions(true); }}
+                    onFocus={() => setShowCompanySuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowCompanySuggestions(false), 150)}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                  />
+                  {showCompanySuggestions && newContact.company && allCompanyNames.filter((n) => n.toLowerCase().includes(newContact.company.toLowerCase())).length > 0 && (
+                    <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg max-h-32 overflow-y-auto">
+                      {allCompanyNames.filter((n) => n.toLowerCase().includes(newContact.company.toLowerCase())).map((name) => (
+                        <button
+                          key={name}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => { setNewContact({ ...newContact, company: name }); setShowCompanySuggestions(false); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-neutral transition-colors"
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <input
                   type="email"
                   placeholder="Email"
@@ -310,36 +357,67 @@ export default function ContactsPage() {
               No contacts found.
             </div>
           ) : (
-            filtered.map((contact) => (
-              <button
-                key={contact.id}
-                onClick={() => setSelected(contact)}
-                className={`w-full text-left px-6 py-4 hover:bg-neutral/50 transition-colors ${
-                  selected?.id === contact.id ? "bg-neutral" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-medium text-sm">{contact.name}</p>
-                  <StageBadge stage={contact.stage} />
+            sortedCompanies.map((company) => {
+              const companyContacts = companyGroups[company];
+              const isExpanded = expandedCompanies.has(company);
+              const hasSelectedContact = companyContacts.some((c) => c.id === selected?.id);
+              // Most advanced stage in the company
+              const stageOrder = PIPELINE_STAGES.map((s) => s.value);
+              const furthestStage = companyContacts.reduce((best, c) => {
+                const idx = stageOrder.indexOf(c.stage);
+                return idx > stageOrder.indexOf(best) ? c.stage : best;
+              }, companyContacts[0].stage);
+
+              return (
+                <div key={company}>
+                  <button
+                    onClick={() => toggleCompany(company)}
+                    className={`w-full text-left px-6 py-3 hover:bg-neutral/50 transition-colors border-b border-border ${
+                      hasSelectedContact ? "bg-accent/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className={`w-3 h-3 text-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                          fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                        </svg>
+                        <div>
+                          <p className="font-semibold text-sm text-charcoal">{company}</p>
+                          <p className="text-[10px] text-muted">{companyContacts.length} contact{companyContacts.length !== 1 ? "s" : ""}</p>
+                        </div>
+                      </div>
+                      <StageBadge stage={furthestStage} />
+                    </div>
+                  </button>
+                  {isExpanded && companyContacts.map((contact) => (
+                    <button
+                      key={contact.id}
+                      onClick={() => setSelected(contact)}
+                      className={`w-full text-left pl-11 pr-6 py-3 hover:bg-neutral/50 transition-colors border-b border-border/50 ${
+                        selected?.id === contact.id ? "bg-neutral" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <p className="font-medium text-sm">{contact.name}</p>
+                        <StageBadge stage={contact.stage} />
+                      </div>
+                      <p className="text-xs text-muted">{contact.email}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-muted/70 line-clamp-1 flex-1">
+                          {contact.headache}
+                        </p>
+                        {contact.assignee && (
+                          <AssigneeAvatar assigneeId={contact.assignee} />
+                        )}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                <p className="text-xs text-muted mb-1">
-                  {contact.company} &middot; {contact.email}
-                </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted line-clamp-1 flex-1">
-                    {contact.headache}
-                  </p>
-                  {contact.assignee && (
-                    <AssigneeAvatar assigneeId={contact.assignee} />
-                  )}
-                </div>
-                <p className="text-xs text-muted/60 mt-1">
-                  {contact.createdAt
-                    ? contact.createdAt.toLocaleDateString()
-                    : "—"}
-                </p>
-              </button>
-            ))
+              );
+            })
           )}
         </div>
       </div>
