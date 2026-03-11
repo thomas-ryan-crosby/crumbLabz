@@ -362,7 +362,7 @@ export default function ContactsPage() {
               const isExpanded = expandedCompanies.has(company);
               const hasSelectedContact = companyContacts.some((c) => c.id === selected?.id);
               // Most advanced stage in the company
-              const stageOrder = PIPELINE_STAGES.map((s) => s.value);
+              const stageOrder = PIPELINE_STAGES.map((s) => s.value as string);
               const furthestStage = companyContacts.reduce((best, c) => {
                 const idx = stageOrder.indexOf(c.stage);
                 return idx > stageOrder.indexOf(best) ? c.stage : best;
@@ -1061,6 +1061,9 @@ function DocumentsPanel({
   const [extractingPdf, setExtractingPdf] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [showDocUpload, setShowDocUpload] = useState<string | null>(null); // doc type being uploaded
+  const [docUploadFile, setDocUploadFile] = useState<File | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const [revisions, setRevisions] = useState<DocumentRevision[]>([]);
   const [loadingRevisions, setLoadingRevisions] = useState(false);
   const [viewingRevision, setViewingRevision] = useState<DocumentRevision | null>(null);
@@ -1220,6 +1223,46 @@ function DocumentsPanel({
       await onDocumentsChanged();
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleUploadCoreDocument = async () => {
+    if (!docUploadFile || !showDocUpload) return;
+    setUploadingDoc(true);
+    try {
+      // Read file content
+      const text = await docUploadFile.text();
+      const titleMap: Record<string, string> = {
+        problem_definition: "Problem Definition",
+        solution_one_pager: "Solution One-Pager",
+        development_plan: "Development Plan",
+        solution_overview: "Solution Overview",
+        getting_started: "Getting Started Guide",
+      };
+
+      // Upload file for storage
+      let fileUrl = "";
+      let fileName = "";
+      const result = await uploadDocumentFile(contactId, docUploadFile);
+      fileUrl = result.url;
+      fileName = result.name;
+
+      await addClientDocument(contactId, {
+        title: titleMap[showDocUpload] || docUploadFile.name.replace(/\.[^.]+$/, ""),
+        type: showDocUpload as "problem_definition" | "solution_one_pager" | "development_plan" | "solution_overview" | "getting_started",
+        content: text,
+        fileUrl,
+        fileName,
+        status: "draft",
+        generatedBy: "manual",
+        projectId: activeProjectId,
+        phase: ["problem_definition", "solution_one_pager", "development_plan"].includes(showDocUpload) ? "initial_definition" : "",
+      });
+      setDocUploadFile(null);
+      setShowDocUpload(null);
+      await onDocumentsChanged();
+    } finally {
+      setUploadingDoc(false);
     }
   };
 
@@ -2599,8 +2642,15 @@ function DocumentsPanel({
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-3">Initial Definition</h3>
 
-        {/* Generate buttons */}
+        {/* Generate / Upload buttons */}
         <div className="flex gap-2 flex-wrap mb-3">
+          <button
+            onClick={() => setShowDocUpload(showDocUpload ? null : "pick_initial")}
+            className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${showDocUpload?.startsWith("pick_initial") || ["problem_definition", "solution_one_pager", "development_plan"].includes(showDocUpload || "") ? "bg-charcoal text-white" : "bg-charcoal/10 text-charcoal hover:bg-charcoal/20"}`}
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+            Upload
+          </button>
           <button
             onClick={() => handleGenerate("problem_definition")}
             disabled={discoveryMeetings.length === 0 || generating !== null}
@@ -2650,6 +2700,37 @@ function DocumentsPanel({
             )}
           </button>
         </div>
+
+        {/* Upload core document form */}
+        {showDocUpload && (showDocUpload === "pick_initial" || ["problem_definition", "solution_one_pager", "development_plan"].includes(showDocUpload)) && (
+          <div className="mb-3 bg-neutral rounded-lg p-4 space-y-3">
+            <p className="text-xs font-bold text-charcoal">Upload Document</p>
+            {showDocUpload === "pick_initial" ? (
+              <div className="flex gap-2 flex-wrap">
+                <button onClick={() => setShowDocUpload("problem_definition")} className="text-xs font-medium px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 transition-colors">Problem Definition</button>
+                <button onClick={() => setShowDocUpload("solution_one_pager")} className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 transition-colors">Solution One-Pager</button>
+                <button onClick={() => setShowDocUpload("development_plan")} className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors">Development Plan</button>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted">
+                  Uploading as: <span className="font-medium text-charcoal">{showDocUpload === "problem_definition" ? "Problem Definition" : showDocUpload === "solution_one_pager" ? "Solution One-Pager" : "Development Plan"}</span>
+                </p>
+                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border hover:border-accent cursor-pointer transition-colors">
+                  <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                  <span className="text-xs text-muted">{docUploadFile ? docUploadFile.name : "Choose .md file..."}</span>
+                  <input type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setDocUploadFile(e.target.files[0]); }} />
+                </label>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => { setShowDocUpload(null); setDocUploadFile(null); }} className="text-xs text-muted hover:text-charcoal px-3 py-1.5 transition-colors">Cancel</button>
+                  <button onClick={handleUploadCoreDocument} disabled={!docUploadFile || uploadingDoc} className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors">
+                    {uploadingDoc ? "Uploading..." : "Upload"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {generating && ["problem_definition", "solution_one_pager", "development_plan"].includes(generating) && (
           <GeneratingProgress label={
@@ -2848,8 +2929,15 @@ function DocumentsPanel({
               })()}
             </div>
 
-            {/* Generate buttons */}
+            {/* Generate / Upload buttons */}
             <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setShowDocUpload(showDocUpload ? null : "pick_solution")}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${showDocUpload?.startsWith("pick_solution") || ["solution_overview", "getting_started"].includes(showDocUpload || "") ? "bg-charcoal text-white" : "bg-charcoal/10 text-charcoal hover:bg-charcoal/20"}`}
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                Upload
+              </button>
               <button
                 onClick={handleGenerateSolutionOverview}
                 disabled={generating !== null}
@@ -2883,6 +2971,36 @@ function DocumentsPanel({
                 )}
               </button>
             </div>
+
+            {/* Upload solution document form */}
+            {showDocUpload && (showDocUpload === "pick_solution" || ["solution_overview", "getting_started"].includes(showDocUpload)) && (
+              <div className="bg-neutral rounded-lg p-4 space-y-3">
+                <p className="text-xs font-bold text-charcoal">Upload Document</p>
+                {showDocUpload === "pick_solution" ? (
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={() => setShowDocUpload("solution_overview")} className="text-xs font-medium px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 transition-colors">Solution Overview</button>
+                    <button onClick={() => setShowDocUpload("getting_started")} className="text-xs font-medium px-3 py-1.5 rounded-full bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 transition-colors">Getting Started Guide</button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted">
+                      Uploading as: <span className="font-medium text-charcoal">{showDocUpload === "solution_overview" ? "Solution Overview" : "Getting Started Guide"}</span>
+                    </p>
+                    <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border hover:border-accent cursor-pointer transition-colors">
+                      <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                      <span className="text-xs text-muted">{docUploadFile ? docUploadFile.name : "Choose .md file..."}</span>
+                      <input type="file" accept=".md,.markdown,.txt" className="hidden" onChange={(e) => { if (e.target.files?.[0]) setDocUploadFile(e.target.files[0]); }} />
+                    </label>
+                    <div className="flex gap-2 justify-end">
+                      <button onClick={() => { setShowDocUpload(null); setDocUploadFile(null); }} className="text-xs text-muted hover:text-charcoal px-3 py-1.5 transition-colors">Cancel</button>
+                      <button onClick={handleUploadCoreDocument} disabled={!docUploadFile || uploadingDoc} className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors">
+                        {uploadingDoc ? "Uploading..." : "Upload"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {generating && ["solution_overview", "getting_started"].includes(generating) && (
               <GeneratingProgress label={
