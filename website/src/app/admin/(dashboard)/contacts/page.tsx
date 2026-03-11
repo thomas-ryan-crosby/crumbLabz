@@ -458,6 +458,11 @@ function ContactDetail({
   const [addingTeamContact, setAddingTeamContact] = useState(false);
   const [teamForm, setTeamForm] = useState({ name: "", email: "", phone: "", headache: "" });
 
+  // All contact IDs in this company (to aggregate docs/projects across all)
+  const companyContactIds = allContacts
+    .filter((c) => c.company.toLowerCase() === contact.company.toLowerCase())
+    .map((c) => c.id);
+
   useEffect(() => {
     setNotes(contact.notes);
     setTab("details");
@@ -467,16 +472,25 @@ function ContactDetail({
     setTeamForm({ name: "", email: "", phone: "", headache: "" });
     setLoadingActivity(true);
     setLoadingDocs(true);
+
+    // Load activities from the primary contact
     getActivities(contact.id).then((data) => {
       setActivities(data);
       setLoadingActivity(false);
     });
-    getClientDocuments(contact.id).then((data) => {
-      setDocuments(data);
+
+    // Load documents and projects from ALL contacts in the company
+    Promise.all(companyContactIds.map((id) => getClientDocuments(id))).then((results) => {
+      setDocuments(results.flat());
       setLoadingDocs(false);
     });
-    getProjectsForContact(contact.id).then(setContactProjects);
-  }, [contact.id, contact.notes]);
+    Promise.all(companyContactIds.map((id) => getProjectsForContact(id))).then((results) => {
+      // Deduplicate projects by ID
+      const all = results.flat();
+      const unique = Array.from(new Map(all.map((p) => [p.id, p])).values());
+      setContactProjects(unique);
+    });
+  }, [contact.id, contact.notes, companyContactIds.join(",")]);
 
   const handleStageChange = async (stage: string) => {
     await onUpdate(contact.id, { stage });
@@ -718,11 +732,6 @@ function ContactDetail({
                         <p className="text-xs text-muted truncate">{tc.email || "No email"}{tc.phone ? ` · ${tc.phone}` : ""}</p>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ml-3 ${
-                      PIPELINE_STAGES.find((s) => s.value === tc.stage)?.color || "bg-neutral text-muted"
-                    }`}>
-                      {PIPELINE_STAGES.find((s) => s.value === tc.stage)?.label || tc.stage}
-                    </span>
                   </div>
                 ))}
               </div>
