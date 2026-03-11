@@ -615,35 +615,47 @@ export async function generateClaudeMd(
   return textBlock?.text || "";
 }
 
-const PORTFOLIO_SHOWCASE_PROMPT = `You are a technical writer at CrumbLabz, creating a concise portfolio summary card for a client project.
+const PORTFOLIO_SHOWCASE_PROMPT = `You are a front-end designer at CrumbLabz, creating a portfolio showcase for a client project.
 
-You will receive the project's REAL codebase structure and source files pulled directly from the GitHub repository. Use ONLY what you can verify from the actual code. Do NOT invent features, metrics, or data that isn't evidenced in the source files.
+You will receive the project's REAL codebase structure and source files pulled directly from the GitHub repository. Use ONLY what you can verify from the actual code.
 
 **OUTPUT FORMAT**: Return a JSON object with exactly these fields:
 {
   "description": "A 2-3 sentence public-facing description of what this project does and the problem it solves. Based ONLY on what the code actually does.",
   "benefits": "A 2-3 sentence summary of the value this delivers to the client. Infer from the actual features in the code, not hypothetical outcomes.",
-  "showcaseHtml": "<the HTML summary card>"
+  "showcaseHtml": "<the HTML showcase>"
 }
 
-**SHOWCASE HTML RULES**:
-- Create a simple, clean HTML summary card (NOT a full page — no <html>, <head>, <body> tags)
-- Use inline styles only (no external CSS, no <style> tags)
-- Keep it simple and factual:
-  1. **Key Features** — 3-5 bullet points describing what the app actually does (derived from routes, components, and logic in the code)
-  2. **Tech Stack** — list the actual technologies found in package.json, config files, etc.
-  3. **Architecture** — one short paragraph about how the app is structured (based on the directory tree and key files)
-- Use the CrumbLabz color palette:
-  - Accent/primary: #e87a2e (orange)
-  - Dark text: #2d2d2d
-  - Muted text: #6b6b6b
-  - Borders: #e0e0e0
-  - Light background: #f7f7f5
-- Use unicode characters for bullet icons (no external images, no SVGs)
-- Keep total HTML under 2000 characters
-- Use rounded corners (border-radius: 8px), clean spacing, and simple layout
-- Do NOT create mock UIs, fake dashboards, or simulated screenshots
-- Do NOT invent user counts, performance metrics, or ROI numbers`;
+**SHOWCASE HTML — Feature Preview + Summary**:
+
+Your showcase should have TWO parts:
+
+**PART 1: Interactive Feature Preview**
+Study the actual React/JSX components, page layouts, forms, tables, dashboards, and UI elements in the source code. Then recreate a static but realistic-looking preview of the application's key screen(s) using HTML + inline styles. This should give a prospective client a feel for what the solution looks like and how it operates.
+
+Rules for the preview:
+- Reconstruct the UI from REAL components found in the code (look at page.tsx, layout.tsx, and component files)
+- Use realistic field names, labels, column headers, and nav items that appear in the actual source code
+- Reproduce the actual color scheme, layout patterns, and UI structure from the code (check tailwind classes, CSS variables, theme config)
+- Include realistic placeholder data that matches the domain (e.g. if it's a reporting tool, show sample report rows with plausible names/numbers)
+- Render interactive-feeling elements: buttons with hover states, form fields, table rows, navigation tabs, status badges — all from what the code actually builds
+- If the app has a dashboard, show the dashboard. If it has forms, show a key form. If it has a data table, show the table. Pick the 1-2 most impressive screens.
+- Use a subtle browser-chrome wrapper (light gray top bar with three dots) to frame the preview so it feels like looking at a real app
+
+**PART 2: Summary**
+Below the preview, include:
+- **Key Features** — 3-5 short bullet points of what the app does (from the actual routes/components)
+- **Tech Stack** — the real technologies from package.json and config files, shown as small pill badges
+
+**STYLE RULES**:
+- Self-contained HTML snippet (no <html>, <head>, <body>)
+- Inline styles ONLY (no <style> tags, no external CSS)
+- CrumbLabz palette: accent #e87a2e, dark #2d2d2d, muted #6b6b6b, border #e0e0e0, light bg #f7f7f5
+- Use unicode characters for icons (no external images). SVG is OK for simple shapes (circles, arrows).
+- Keep total HTML under 6000 characters
+- Rounded corners (8-12px), subtle box-shadows, clean spacing
+- Responsive-friendly: max-width, flexbox, percentage widths
+- Do NOT invent user counts, revenue numbers, or ROI metrics`;
 
 export async function generatePortfolioShowcase(
   tree: string,
