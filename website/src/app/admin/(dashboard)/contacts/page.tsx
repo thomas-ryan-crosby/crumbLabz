@@ -125,7 +125,7 @@ export default function ContactsPage() {
         {/* Header */}
         <div className="px-6 py-5 border-b border-border space-y-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">{showDeleted ? "Deleted Contacts" : "Contacts"}</h1>
+            <h1 className="text-xl font-bold">{showDeleted ? "Deleted Clients" : "Clients"}</h1>
             <div className="flex gap-2">
               {!showDeleted && (
                 <button
@@ -136,7 +136,7 @@ export default function ContactsPage() {
                       : "bg-accent/10 text-accent hover:bg-accent/20"
                   }`}
                 >
-                  + Add Contact
+                  + Add Client
                 </button>
               )}
               <button
@@ -147,18 +147,18 @@ export default function ContactsPage() {
                     : "bg-neutral text-muted hover:bg-border"
                 }`}
               >
-                {showDeleted ? "Back to Contacts" : `Deleted (${deletedContacts.length})`}
+                {showDeleted ? "Back to Clients" : `Deleted (${deletedContacts.length})`}
               </button>
             </div>
           </div>
 
           {showAddContact && (
             <div className="bg-neutral rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-bold text-charcoal">New Contact</h3>
+              <h3 className="text-sm font-bold text-charcoal">New Client</h3>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
-                  placeholder="Contact name *"
+                  placeholder="Primary contact name *"
                   value={newContact.name}
                   onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
                   className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
@@ -223,14 +223,14 @@ export default function ContactsPage() {
                   disabled={addingContact || !newContact.name.trim() || !newContact.company.trim()}
                   className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
                 >
-                  {addingContact ? "Adding..." : "Add Contact"}
+                  {addingContact ? "Adding..." : "Add Client"}
                 </button>
               </div>
             </div>
           )}
           <input
             type="text"
-            placeholder="Search contacts..."
+            placeholder="Search clients..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
@@ -297,7 +297,7 @@ export default function ContactsPage() {
           {showDeleted ? (
             deletedContacts.length === 0 ? (
               <div className="px-6 py-10 text-center text-muted text-sm">
-                No deleted contacts.
+                No deleted clients.
               </div>
             ) : (
               deletedContacts.map((contact) => {
@@ -330,7 +330,7 @@ export default function ContactsPage() {
             )
           ) : filtered.length === 0 ? (
             <div className="px-6 py-10 text-center text-muted text-sm">
-              No contacts found.
+              No clients found.
             </div>
           ) : (
             filtered.map((contact) => (
@@ -342,11 +342,11 @@ export default function ContactsPage() {
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-medium text-sm">{contact.name}</p>
+                  <p className="font-medium text-sm">{contact.company || "No Company"}</p>
                   <StageBadge stage={contact.stage} />
                 </div>
                 <p className="text-xs text-muted mb-1">
-                  {contact.company} &middot; {contact.email}
+                  {contact.name} &middot; {contact.email}
                 </p>
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-muted line-clamp-1 flex-1">
@@ -396,7 +396,7 @@ export default function ContactsPage() {
         />
       ) : (
         <div className="hidden lg:flex flex-1 items-center justify-center text-muted text-sm">
-          Select a contact to view details
+          Select a client to view details
         </div>
       )}
     </div>
@@ -507,10 +507,10 @@ function ContactDetail({
     <div className="flex-1 bg-white overflow-y-auto">
       {/* Header */}
       <div className="px-6 py-5 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-1">
           <div>
-            <h2 className="text-lg font-bold">{contact.name}</h2>
-            <p className="text-muted text-sm">{contact.company}</p>
+            <h2 className="text-lg font-bold">{contact.company || "No Company"}</h2>
+            <p className="text-muted text-sm">Primary contact: {contact.name}</p>
           </div>
           <div className="flex items-center gap-2">
             {isDeleted ? (
@@ -575,8 +575,115 @@ function ContactDetail({
           </div>
         </div>
 
+        {/* Contacts section */}
+        {contact.company && (() => {
+          const companyContacts = allContacts.filter(
+            (c) => c.company.toLowerCase() === contact.company.toLowerCase() && c.id !== contact.id
+          );
+          return (
+            <div className="mt-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                  Contacts ({companyContacts.length + 1})
+                </p>
+                <button
+                  onClick={() => setShowAddTeamContact(!showAddTeamContact)}
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                    showAddTeamContact
+                      ? "bg-accent text-white"
+                      : "bg-accent/10 text-accent hover:bg-accent/20"
+                  }`}
+                >
+                  + Add
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-2">
+                {/* Primary contact */}
+                <div className="flex items-center gap-1.5 bg-accent/5 border border-accent/20 rounded-full px-2.5 py-1">
+                  <span className="w-5 h-5 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center">
+                    {contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="text-xs font-medium text-charcoal">{contact.name}</span>
+                  <span className="text-[10px] text-accent font-medium">Primary</span>
+                </div>
+                {/* Other contacts */}
+                {companyContacts.map((tc) => (
+                  <div key={tc.id} className="flex items-center gap-1.5 bg-neutral rounded-full px-2.5 py-1">
+                    <span className="w-5 h-5 rounded-full bg-charcoal/70 text-white text-[10px] font-bold flex items-center justify-center">
+                      {tc.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="text-xs font-medium text-charcoal">{tc.name}</span>
+                    {tc.email && <span className="text-[10px] text-muted">{tc.email}</span>}
+                  </div>
+                ))}
+              </div>
+
+              {showAddTeamContact && (
+                <div className="bg-neutral rounded-lg p-3 space-y-2 mb-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Name *"
+                      value={teamForm.name}
+                      onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                      className="px-2.5 py-1.5 rounded-lg border border-border text-xs focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={teamForm.email}
+                      onChange={(e) => setTeamForm({ ...teamForm, email: e.target.value })}
+                      className="px-2.5 py-1.5 rounded-lg border border-border text-xs focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone"
+                      value={teamForm.phone}
+                      onChange={(e) => setTeamForm({ ...teamForm, phone: e.target.value })}
+                      className="px-2.5 py-1.5 rounded-lg border border-border text-xs focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => { setShowAddTeamContact(false); setTeamForm({ name: "", email: "", phone: "", headache: "" }); }}
+                      className="text-[11px] font-medium px-2.5 py-1 rounded-lg text-muted hover:bg-border transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!teamForm.name.trim()) return;
+                        setAddingTeamContact(true);
+                        try {
+                          await submitContactForm({
+                            name: teamForm.name,
+                            company: contact.company,
+                            email: teamForm.email,
+                            phone: teamForm.phone,
+                            headache: teamForm.headache,
+                          });
+                          setTeamForm({ name: "", email: "", phone: "", headache: "" });
+                          setShowAddTeamContact(false);
+                          await onContactsChanged();
+                        } finally {
+                          setAddingTeamContact(false);
+                        }
+                      }}
+                      disabled={addingTeamContact || !teamForm.name.trim()}
+                      className="text-[11px] font-medium px-3 py-1 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+                    >
+                      {addingTeamContact ? "Adding..." : "Add"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Tabs */}
-        <div className="flex gap-1">
+        <div className="flex gap-1 mt-3">
           <button
             onClick={() => { setTab("details"); setViewingDoc(null); }}
             className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
@@ -769,119 +876,6 @@ function ContactDetail({
             {saving ? "Saving..." : "Save Notes"}
           </button>
         </div>
-
-        {/* Team Contacts */}
-        {contact.company && (() => {
-          const companyContacts = allContacts.filter(
-            (c) => c.company.toLowerCase() === contact.company.toLowerCase() && c.id !== contact.id
-          );
-          return (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-medium">
-                  Team at {contact.company} ({companyContacts.length})
-                </label>
-                <button
-                  onClick={() => setShowAddTeamContact(!showAddTeamContact)}
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
-                    showAddTeamContact
-                      ? "bg-accent text-white"
-                      : "bg-accent/10 text-accent hover:bg-accent/20"
-                  }`}
-                >
-                  + Add
-                </button>
-              </div>
-
-              {showAddTeamContact && (
-                <div className="bg-neutral rounded-lg p-4 space-y-3 mb-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Name *"
-                      value={teamForm.name}
-                      onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
-                      className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                    />
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={teamForm.email}
-                      onChange={(e) => setTeamForm({ ...teamForm, email: e.target.value })}
-                      className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone"
-                      value={teamForm.phone}
-                      onChange={(e) => setTeamForm({ ...teamForm, phone: e.target.value })}
-                      className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                    />
-                  </div>
-                  <textarea
-                    placeholder="Role or notes (optional)"
-                    value={teamForm.headache}
-                    onChange={(e) => setTeamForm({ ...teamForm, headache: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => { setShowAddTeamContact(false); setTeamForm({ name: "", email: "", phone: "", headache: "" }); }}
-                      className="text-xs font-medium px-3 py-1.5 rounded-lg text-muted hover:bg-border transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (!teamForm.name.trim()) return;
-                        setAddingTeamContact(true);
-                        try {
-                          await submitContactForm({
-                            name: teamForm.name,
-                            company: contact.company,
-                            email: teamForm.email,
-                            phone: teamForm.phone,
-                            headache: teamForm.headache,
-                          });
-                          setTeamForm({ name: "", email: "", phone: "", headache: "" });
-                          setShowAddTeamContact(false);
-                          await onContactsChanged();
-                        } finally {
-                          setAddingTeamContact(false);
-                        }
-                      }}
-                      disabled={addingTeamContact || !teamForm.name.trim()}
-                      className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
-                    >
-                      {addingTeamContact ? "Adding..." : "Add Contact"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {companyContacts.length > 0 ? (
-                <div className="space-y-2">
-                  {companyContacts.map((tc) => (
-                    <div key={tc.id} className="flex items-center justify-between bg-neutral rounded-lg px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-charcoal truncate">{tc.name}</p>
-                        <p className="text-xs text-muted truncate">{tc.email || "No email"}</p>
-                      </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ml-3 ${
-                        PIPELINE_STAGES.find((s) => s.value === tc.stage)?.color || "bg-neutral text-muted"
-                      }`}>
-                        {PIPELINE_STAGES.find((s) => s.value === tc.stage)?.label || tc.stage}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : !showAddTeamContact ? (
-                <p className="text-sm text-muted">No other contacts at this company.</p>
-              ) : null}
-            </div>
-          );
-        })()}
 
         {/* Activity log */}
         <div>
