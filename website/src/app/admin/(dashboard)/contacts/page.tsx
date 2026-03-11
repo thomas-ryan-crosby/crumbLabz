@@ -63,7 +63,6 @@ export default function ContactsPage() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ name: "", company: "", email: "", phone: "", headache: "" });
   const [addingContact, setAddingContact] = useState(false);
-  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
   const [showCompanySuggestions, setShowCompanySuggestions] = useState(false);
 
   const handleAddContact = async () => {
@@ -106,31 +105,8 @@ export default function ContactsPage() {
     return true;
   });
 
-  // Group filtered contacts by company
-  const companyGroups = filtered.reduce<Record<string, Contact[]>>((acc, c) => {
-    const key = c.company || "No Company";
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(c);
-    return acc;
-  }, {});
-  const sortedCompanies = Object.keys(companyGroups).sort((a, b) => a.localeCompare(b));
-
   // All unique company names for autocomplete
   const allCompanyNames = [...new Set(contacts.map((c) => c.company).filter(Boolean))].sort();
-
-  const toggleCompany = (company: string) => {
-    setExpandedCompanies((prev) => {
-      const next = new Set(prev);
-      if (next.has(company)) next.delete(company);
-      else next.add(company);
-      return next;
-    });
-  };
-
-  // Auto-expand company when a contact is selected
-  if (selected && !expandedCompanies.has(selected.company || "No Company")) {
-    setExpandedCompanies((prev) => new Set(prev).add(selected.company || "No Company"));
-  }
 
   if (loading) {
     return (
@@ -357,67 +333,31 @@ export default function ContactsPage() {
               No contacts found.
             </div>
           ) : (
-            sortedCompanies.map((company) => {
-              const companyContacts = companyGroups[company];
-              const isExpanded = expandedCompanies.has(company);
-              const hasSelectedContact = companyContacts.some((c) => c.id === selected?.id);
-              // Most advanced stage in the company
-              const stageOrder = PIPELINE_STAGES.map((s) => s.value as string);
-              const furthestStage = companyContacts.reduce((best, c) => {
-                const idx = stageOrder.indexOf(c.stage);
-                return idx > stageOrder.indexOf(best) ? c.stage : best;
-              }, companyContacts[0].stage);
-
-              return (
-                <div key={company}>
-                  <button
-                    onClick={() => toggleCompany(company)}
-                    className={`w-full text-left px-6 py-3 hover:bg-neutral/50 transition-colors border-b border-border ${
-                      hasSelectedContact ? "bg-accent/5" : ""
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className={`w-3 h-3 text-muted transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                          fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-                        </svg>
-                        <div>
-                          <p className="font-semibold text-sm text-charcoal">{company}</p>
-                          <p className="text-[10px] text-muted">{companyContacts.length} contact{companyContacts.length !== 1 ? "s" : ""}</p>
-                        </div>
-                      </div>
-                      <StageBadge stage={furthestStage} />
-                    </div>
-                  </button>
-                  {isExpanded && companyContacts.map((contact) => (
-                    <button
-                      key={contact.id}
-                      onClick={() => setSelected(contact)}
-                      className={`w-full text-left pl-11 pr-6 py-3 hover:bg-neutral/50 transition-colors border-b border-border/50 ${
-                        selected?.id === contact.id ? "bg-neutral" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className="font-medium text-sm">{contact.name}</p>
-                        <StageBadge stage={contact.stage} />
-                      </div>
-                      <p className="text-xs text-muted">{contact.email}</p>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-xs text-muted/70 line-clamp-1 flex-1">
-                          {contact.headache}
-                        </p>
-                        {contact.assignee && (
-                          <AssigneeAvatar assigneeId={contact.assignee} />
-                        )}
-                      </div>
-                    </button>
-                  ))}
+            filtered.map((contact) => (
+              <button
+                key={contact.id}
+                onClick={() => setSelected(contact)}
+                className={`w-full text-left px-6 py-4 hover:bg-neutral/50 transition-colors ${
+                  selected?.id === contact.id ? "bg-neutral" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-medium text-sm">{contact.name}</p>
+                  <StageBadge stage={contact.stage} />
                 </div>
-              );
-            })
+                <p className="text-xs text-muted mb-1">
+                  {contact.company} &middot; {contact.email}
+                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted line-clamp-1 flex-1">
+                    {contact.headache}
+                  </p>
+                  {contact.assignee && (
+                    <AssigneeAvatar assigneeId={contact.assignee} />
+                  )}
+                </div>
+              </button>
+            ))
           )}
         </div>
       </div>
@@ -428,7 +368,9 @@ export default function ContactsPage() {
           contact={selected}
           actorName={currentMember?.name || "Unknown"}
           isDeleted={showDeleted}
+          allContacts={contacts}
           onClose={() => setSelected(null)}
+          onContactsChanged={loadContacts}
           onUpdate={async (id, fields) => {
             await updateContact(id, fields, currentMember?.name);
             await loadContacts();
@@ -465,15 +407,18 @@ function ContactDetail({
   contact,
   actorName,
   isDeleted,
+  allContacts,
   onClose,
   onUpdate,
   onDelete,
   onRestore,
   onPermanentDelete,
+  onContactsChanged,
 }: {
   contact: Contact;
   actorName: string;
   isDeleted: boolean;
+  allContacts: Contact[];
   onClose: () => void;
   onUpdate: (
     id: string,
@@ -482,6 +427,7 @@ function ContactDetail({
   onDelete: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<void>;
   onPermanentDelete: (id: string) => Promise<void>;
+  onContactsChanged: () => Promise<void>;
 }) {
   const [tab, setTab] = useState<"details" | "documents" | "portfolio">("details");
   const [notes, setNotes] = useState(contact.notes);
@@ -493,12 +439,17 @@ function ContactDetail({
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [contactProjects, setContactProjects] = useState<Project[]>([]);
   const [viewingDoc, setViewingDoc] = useState<ClientDocument | null>(null);
+  const [showAddTeamContact, setShowAddTeamContact] = useState(false);
+  const [addingTeamContact, setAddingTeamContact] = useState(false);
+  const [teamForm, setTeamForm] = useState({ name: "", email: "", phone: "", headache: "" });
 
   useEffect(() => {
     setNotes(contact.notes);
     setTab("details");
     setViewingDoc(null);
     setConfirmPermanentDelete(false);
+    setShowAddTeamContact(false);
+    setTeamForm({ name: "", email: "", phone: "", headache: "" });
     setLoadingActivity(true);
     setLoadingDocs(true);
     getActivities(contact.id).then((data) => {
@@ -818,6 +769,119 @@ function ContactDetail({
             {saving ? "Saving..." : "Save Notes"}
           </button>
         </div>
+
+        {/* Team Contacts */}
+        {contact.company && (() => {
+          const companyContacts = allContacts.filter(
+            (c) => c.company.toLowerCase() === contact.company.toLowerCase() && c.id !== contact.id
+          );
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium">
+                  Team at {contact.company} ({companyContacts.length})
+                </label>
+                <button
+                  onClick={() => setShowAddTeamContact(!showAddTeamContact)}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
+                    showAddTeamContact
+                      ? "bg-accent text-white"
+                      : "bg-accent/10 text-accent hover:bg-accent/20"
+                  }`}
+                >
+                  + Add
+                </button>
+              </div>
+
+              {showAddTeamContact && (
+                <div className="bg-neutral rounded-lg p-4 space-y-3 mb-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Name *"
+                      value={teamForm.name}
+                      onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                      className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={teamForm.email}
+                      onChange={(e) => setTeamForm({ ...teamForm, email: e.target.value })}
+                      className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone"
+                      value={teamForm.phone}
+                      onChange={(e) => setTeamForm({ ...teamForm, phone: e.target.value })}
+                      className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                  </div>
+                  <textarea
+                    placeholder="Role or notes (optional)"
+                    value={teamForm.headache}
+                    onChange={(e) => setTeamForm({ ...teamForm, headache: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => { setShowAddTeamContact(false); setTeamForm({ name: "", email: "", phone: "", headache: "" }); }}
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg text-muted hover:bg-border transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!teamForm.name.trim()) return;
+                        setAddingTeamContact(true);
+                        try {
+                          await submitContactForm({
+                            name: teamForm.name,
+                            company: contact.company,
+                            email: teamForm.email,
+                            phone: teamForm.phone,
+                            headache: teamForm.headache,
+                          });
+                          setTeamForm({ name: "", email: "", phone: "", headache: "" });
+                          setShowAddTeamContact(false);
+                          await onContactsChanged();
+                        } finally {
+                          setAddingTeamContact(false);
+                        }
+                      }}
+                      disabled={addingTeamContact || !teamForm.name.trim()}
+                      className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+                    >
+                      {addingTeamContact ? "Adding..." : "Add Contact"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {companyContacts.length > 0 ? (
+                <div className="space-y-2">
+                  {companyContacts.map((tc) => (
+                    <div key={tc.id} className="flex items-center justify-between bg-neutral rounded-lg px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-charcoal truncate">{tc.name}</p>
+                        <p className="text-xs text-muted truncate">{tc.email || "No email"}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ml-3 ${
+                        PIPELINE_STAGES.find((s) => s.value === tc.stage)?.color || "bg-neutral text-muted"
+                      }`}>
+                        {PIPELINE_STAGES.find((s) => s.value === tc.stage)?.label || tc.stage}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : !showAddTeamContact ? (
+                <p className="text-sm text-muted">No other contacts at this company.</p>
+              ) : null}
+            </div>
+          );
+        })()}
 
         {/* Activity log */}
         <div>
