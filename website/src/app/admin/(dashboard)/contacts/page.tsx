@@ -2394,7 +2394,16 @@ function DocumentsPanel({
               <span className="text-sm font-bold text-amber-800 uppercase tracking-wide">CrumbLabz Notes</span>
             </div>
             <div className="prose prose-sm max-w-none text-amber-900">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{adminNotesOriginal}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  table: ({ children, ...props }) => (
+                    <div style={{ overflowX: "auto" }}>
+                      <table {...props}>{children}</table>
+                    </div>
+                  ),
+                }}
+              >{adminNotesOriginal}</ReactMarkdown>
             </div>
           </div>
         )}

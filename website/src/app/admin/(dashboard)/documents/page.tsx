@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface DocMeta {
   slug: string;
@@ -122,7 +123,16 @@ export default function DocumentsPage() {
               <p className="text-muted">Loading...</p>
             ) : (
               <article className="prose prose-sm max-w-none">
-                <ReactMarkdown>{active.content}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    table: ({ children, ...props }) => (
+                      <div style={{ overflowX: "auto" }}>
+                        <table {...props}>{children}</table>
+                      </div>
+                    ),
+                  }}
+                >{active.content}</ReactMarkdown>
               </article>
             )}
           </div>

@@ -271,7 +271,7 @@ export default function ReviewPage() {
                     <span className="text-sm font-bold text-amber-800">From Your CrumbLabz Team</span>
                   </div>
                   <div className="prose prose-sm max-w-none text-amber-900">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.adminNotes}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{activeDoc.adminNotes}</ReactMarkdown>
                   </div>
                 </div>
               )}
@@ -478,7 +478,7 @@ export default function ReviewPage() {
                   <span className="text-sm font-bold text-amber-800">From Your CrumbLabz Team</span>
                 </div>
                 <div className="prose prose-sm max-w-none text-amber-900">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.adminNotes}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{activeDoc.adminNotes}</ReactMarkdown>
                 </div>
               </div>
             )}
