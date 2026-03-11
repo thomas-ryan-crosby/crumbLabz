@@ -329,7 +329,7 @@ export default function PortalPage() {
                     <div className="flex items-center gap-4 text-xs text-[#6b6b6b]">
                       <span>{pDocs.length} document{pDocs.length !== 1 ? "s" : ""}</span>
                       {p.repoUrl && <span>GitHub connected</span>}
-                      {p.deploymentUrl && <span>Live</span>}
+
                     </div>
                     <p className="text-xs text-[#e87a2e] font-medium mt-3 group-hover:underline">View project &rarr;</p>
                   </button>
