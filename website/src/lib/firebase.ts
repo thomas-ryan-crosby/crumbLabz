@@ -813,13 +813,20 @@ export async function updateProject(
 }
 
 export async function getPortfolioProjects(): Promise<Project[]> {
-  const q = query(
-    collection(db, "projects"),
-    where("portfolioEnabled", "==", true),
-    orderBy("createdAt", "desc")
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(mapProject);
+  try {
+    const q = query(
+      collection(db, "projects"),
+      where("portfolioEnabled", "==", true),
+      orderBy("createdAt", "desc")
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(mapProject);
+  } catch {
+    // Fallback if composite index doesn't exist yet
+    const q = query(collection(db, "projects"), where("portfolioEnabled", "==", true));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(mapProject).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
 }
 
 // --- Product Updates ---
