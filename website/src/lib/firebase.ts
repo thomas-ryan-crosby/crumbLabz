@@ -706,7 +706,7 @@ export interface Project {
   portfolioEnabled: boolean;
   portfolioDescription: string;
   portfolioBenefits: string;
-  portfolioScreenshots: string[];
+  portfolioContent: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -753,7 +753,7 @@ function mapProject(d: { id: string; data: () => Record<string, unknown> }): Pro
     portfolioEnabled: (data.portfolioEnabled as boolean) || false,
     portfolioDescription: (data.portfolioDescription as string) || "",
     portfolioBenefits: (data.portfolioBenefits as string) || "",
-    portfolioScreenshots: (data.portfolioScreenshots as string[]) || [],
+    portfolioContent: (data.portfolioContent as string) || "",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
   };
@@ -803,7 +803,7 @@ export async function updateProject(
     portfolioEnabled?: boolean;
     portfolioDescription?: string;
     portfolioBenefits?: string;
-    portfolioScreenshots?: string[];
+    portfolioContent?: string;
   }
 ) {
   return updateDoc(doc(db, "projects", projectId), {

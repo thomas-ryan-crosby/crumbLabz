@@ -316,7 +316,7 @@ function ContactDetail({
   onRestore: (id: string) => Promise<void>;
   onPermanentDelete: (id: string) => Promise<void>;
 }) {
-  const [tab, setTab] = useState<"details" | "documents">("details");
+  const [tab, setTab] = useState<"details" | "documents" | "portfolio">("details");
   const [notes, setNotes] = useState(contact.notes);
   const [saving, setSaving] = useState(false);
   const [confirmPermanentDelete, setConfirmPermanentDelete] = useState(false);
@@ -324,6 +324,7 @@ function ContactDetail({
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
+  const [contactProjects, setContactProjects] = useState<Project[]>([]);
   const [viewingDoc, setViewingDoc] = useState<ClientDocument | null>(null);
 
   useEffect(() => {
@@ -341,6 +342,7 @@ function ContactDetail({
       setDocuments(data);
       setLoadingDocs(false);
     });
+    getProjectsForContact(contact.id).then(setContactProjects);
   }, [contact.id, contact.notes]);
 
   const handleStageChange = async (stage: string) => {
@@ -367,6 +369,8 @@ function ContactDetail({
     await onUpdate(contact.id, { stage: "development" });
     const updated = await getActivities(contact.id);
     setActivities(updated);
+    const updatedProjects = await getProjectsForContact(contact.id);
+    setContactProjects(updatedProjects);
   };
 
   const handleDocStatusChange = async (
@@ -482,6 +486,18 @@ function ContactDetail({
               </span>
             )}
           </button>
+          {contactProjects.length > 0 && (
+            <button
+              onClick={() => { setTab("portfolio"); setViewingDoc(null); }}
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
+                tab === "portfolio"
+                  ? "bg-charcoal text-white"
+                  : "text-muted hover:bg-neutral"
+              }`}
+            >
+              Portfolio
+            </button>
+          )}
         </div>
       </div>
 
@@ -677,6 +693,168 @@ function ContactDetail({
         </div>
       </div>
       )}
+
+      {/* Portfolio tab */}
+      {tab === "portfolio" && (
+        <PortfolioPanel
+          projects={contactProjects}
+          onProjectsChanged={async () => {
+            const updated = await getProjectsForContact(contact.id);
+            setContactProjects(updated);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PortfolioPanel({
+  projects,
+  onProjectsChanged,
+}: {
+  projects: Project[];
+  onProjectsChanged: () => Promise<void>;
+}) {
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+
+  const handleGenerateShowcase = async (project: Project) => {
+    if (!project.repoUrl) return;
+    setGeneratingId(project.id);
+    try {
+      const urlParts = project.repoUrl.replace("https://github.com/", "").split("/");
+      const owner = urlParts[0];
+      const repo = urlParts[1];
+
+      const res = await fetch("/api/generate-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "portfolio_showcase",
+          repoOwner: owner,
+          repoName: repo,
+          projectName: project.name,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to generate portfolio showcase");
+      const { description, benefits, showcaseHtml } = await res.json();
+
+      await updateProject(project.id, {
+        portfolioDescription: description,
+        portfolioBenefits: benefits,
+        portfolioContent: showcaseHtml,
+      });
+      await onProjectsChanged();
+    } catch (err) {
+      console.error("Portfolio generation error:", err);
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
+  return (
+    <div className="px-6 py-6 max-w-3xl space-y-6">
+      <div>
+        <h3 className="text-lg font-bold text-charcoal mb-1">Portfolio Management</h3>
+        <p className="text-sm text-muted">Control which projects appear on the public portfolio page and generate showcase assets.</p>
+      </div>
+
+      {projects.map((project) => (
+        <div key={project.id} className="border border-border rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-bold text-charcoal">{project.name}</h4>
+              <p className="text-xs text-muted">{project.companyName}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted">Show on website</span>
+              <button
+                onClick={async () => {
+                  await updateProject(project.id, { portfolioEnabled: !project.portfolioEnabled });
+                  await onProjectsChanged();
+                }}
+                className={`relative w-10 h-6 rounded-full transition-colors ${project.portfolioEnabled ? "bg-accent" : "bg-border"}`}
+              >
+                <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow ${project.portfolioEnabled ? "translate-x-4" : ""}`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Status indicators */}
+          <div className="flex gap-2 flex-wrap">
+            {project.repoUrl ? (
+              <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-green-600/10 text-green-700">GitHub Connected</span>
+            ) : (
+              <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-red-500/10 text-red-600">No GitHub Repo</span>
+            )}
+            {project.portfolioContent ? (
+              <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-blue-500/10 text-blue-600">Showcase Generated</span>
+            ) : (
+              <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-amber-500/10 text-amber-700">No Showcase</span>
+            )}
+            {project.portfolioEnabled && (
+              <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-accent/10 text-accent">Live on Website</span>
+            )}
+          </div>
+
+          {/* Generated content preview */}
+          {project.portfolioDescription && (
+            <div className="bg-neutral rounded-lg p-3 space-y-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted mb-1">Description</p>
+                <p className="text-sm text-charcoal/80">{project.portfolioDescription}</p>
+              </div>
+              {project.portfolioBenefits && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted mb-1">Client Impact</p>
+                  <p className="text-sm text-charcoal/80">{project.portfolioBenefits}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Showcase preview */}
+          {project.portfolioContent && previewHtml === project.id && (
+            <div className="border border-border rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between bg-neutral px-3 py-2 border-b border-border">
+                <span className="text-xs font-medium text-muted">Showcase Preview</span>
+                <button onClick={() => setPreviewHtml(null)} className="text-xs text-muted hover:text-charcoal">Close</button>
+              </div>
+              <div className="p-4" dangerouslySetInnerHTML={{ __html: project.portfolioContent }} />
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2 flex-wrap">
+            {project.repoUrl && (
+              <button
+                onClick={() => handleGenerateShowcase(project)}
+                disabled={generatingId !== null}
+                className="text-sm font-medium px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+              >
+                {generatingId === project.id ? "Generating..." : project.portfolioContent ? "Regenerate Showcase" : "Generate Showcase"}
+              </button>
+            )}
+            {project.portfolioContent && previewHtml !== project.id && (
+              <button
+                onClick={() => setPreviewHtml(project.id)}
+                className="text-sm font-medium px-4 py-2 rounded-lg bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors"
+              >
+                Preview
+              </button>
+            )}
+          </div>
+
+          {generatingId === project.id && (
+            <GeneratingProgress label={`Generating showcase for ${project.name}`} />
+          )}
+        </div>
+      ))}
+
+      {projects.length === 0 && (
+        <p className="text-muted text-sm">No projects yet. Create a project in the Documents tab first.</p>
+      )}
     </div>
   );
 }
@@ -767,11 +945,6 @@ function DocumentsPanel({
   const [editRequestDescription, setEditRequestDescription] = useState("");
   const [editRequestPriority, setEditRequestPriority] = useState<ChangeRequest["priority"]>("medium");
   const [savingRequest, setSavingRequest] = useState(false);
-  const [portfolioDescription, setPortfolioDescription] = useState("");
-  const [portfolioBenefits, setPortfolioBenefits] = useState("");
-  const [portfolioScreenshots, setPortfolioScreenshots] = useState<string[]>([]);
-  const [newScreenshotUrl, setNewScreenshotUrl] = useState("");
-  const [savingPortfolio, setSavingPortfolio] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -819,14 +992,6 @@ function DocumentsPanel({
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
-
-  useEffect(() => {
-    if (activeProject) {
-      setPortfolioDescription(activeProject.portfolioDescription);
-      setPortfolioBenefits(activeProject.portfolioBenefits);
-      setPortfolioScreenshots(activeProject.portfolioScreenshots);
-    }
-  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelected = async (file: File) => {
     setUploadFile(file);
@@ -3035,111 +3200,6 @@ function DocumentsPanel({
           </div>
         </div>
       </div>
-
-      {/* ===== PORTFOLIO ===== */}
-      {activeProject && (
-        <div className="border-t border-border pt-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Portfolio</h3>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <span className="text-xs text-muted">Show on website</span>
-              <button
-                onClick={async () => {
-                  await updateProject(activeProject.id, { portfolioEnabled: !activeProject.portfolioEnabled });
-                  onDocumentsChanged();
-                }}
-                className={`relative w-9 h-5 rounded-full transition-colors ${activeProject.portfolioEnabled ? "bg-accent" : "bg-border"}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${activeProject.portfolioEnabled ? "translate-x-4" : ""}`} />
-              </button>
-            </label>
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <label className="text-xs font-medium text-muted block mb-1">Description</label>
-              <textarea
-                placeholder="Public-facing description of what this project does..."
-                value={portfolioDescription}
-                onChange={(e) => setPortfolioDescription(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted block mb-1">Client Benefits</label>
-              <textarea
-                placeholder="How this project benefits the client (shown on portfolio page)..."
-                value={portfolioBenefits}
-                onChange={(e) => setPortfolioBenefits(e.target.value)}
-                rows={2}
-                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted block mb-1">Screenshots</label>
-              {portfolioScreenshots.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  {portfolioScreenshots.map((url, i) => (
-                    <div key={i} className="relative group">
-                      <img src={url} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover rounded-lg border border-border" />
-                      <button
-                        onClick={() => setPortfolioScreenshots(portfolioScreenshots.filter((_, j) => j !== i))}
-                        className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/80 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        x
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Paste screenshot URL..."
-                  value={newScreenshotUrl}
-                  onChange={(e) => setNewScreenshotUrl(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-                />
-                <button
-                  onClick={() => {
-                    if (newScreenshotUrl.trim()) {
-                      setPortfolioScreenshots([...portfolioScreenshots, newScreenshotUrl.trim()]);
-                      setNewScreenshotUrl("");
-                    }
-                  }}
-                  disabled={!newScreenshotUrl.trim()}
-                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-40 transition-colors"
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={async () => {
-                setSavingPortfolio(true);
-                try {
-                  await updateProject(activeProject.id, {
-                    portfolioDescription,
-                    portfolioBenefits,
-                    portfolioScreenshots,
-                  });
-                  onDocumentsChanged();
-                } finally {
-                  setSavingPortfolio(false);
-                }
-              }}
-              disabled={savingPortfolio}
-              className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              {savingPortfolio ? "Saving..." : "Save Portfolio Info"}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Other Documents */}
       {otherDocs.length > 0 && (

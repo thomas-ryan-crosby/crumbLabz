@@ -8,6 +8,7 @@ import {
   generateSolutionOverview,
   generateGettingStarted,
   generateFeatureSpecification,
+  generatePortfolioShowcase,
 } from "@/lib/documentGeneration";
 
 // Key files to read from repo for solution overview generation
@@ -138,6 +139,18 @@ async function fetchRepoContents(owner: string, repo: string) {
 export async function POST(request: Request) {
   try {
     const { type, sourceContent, fileUrl, repoOwner, repoName, projectName, inputs } = await request.json();
+
+    if (type === "portfolio_showcase") {
+      if (!repoOwner || !repoName) {
+        return NextResponse.json(
+          { error: "repoOwner and repoName are required for portfolio_showcase" },
+          { status: 400 }
+        );
+      }
+      const { tree, files, deploymentUrl } = await fetchRepoContents(repoOwner, repoName);
+      const result = await generatePortfolioShowcase(tree, files, projectName || repoName, deploymentUrl);
+      return NextResponse.json(result);
+    }
 
     if (type === "feature_specification") {
       if (!inputs || !Array.isArray(inputs) || inputs.length === 0) {

@@ -614,3 +614,80 @@ export async function generateClaudeMd(
   const textBlock = response.content.find((b) => b.type === "text");
   return textBlock?.text || "";
 }
+
+const PORTFOLIO_SHOWCASE_PROMPT = `You are a web designer at CrumbLabz, creating a portfolio showcase for a client project.
+
+You will receive the project's codebase structure, key source files, and project context. Your job is to create a compelling portfolio entry that showcases the project.
+
+**OUTPUT FORMAT**: Return a JSON object with exactly these fields:
+{
+  "description": "A 2-3 sentence public-facing description of what this project does and the problem it solves",
+  "benefits": "A 2-3 sentence summary of the measurable impact and benefits this project delivers to the client",
+  "showcaseHtml": "<the HTML showcase content>"
+}
+
+**SHOWCASE HTML RULES**:
+- Create a self-contained HTML snippet (NOT a full page — no <html>, <head>, <body> tags)
+- Use inline styles only (no external CSS, no <style> tags)
+- The HTML will be rendered inside a white container on the portfolio page
+- Use the CrumbLabz color palette:
+  - Accent/primary: #e87a2e (orange)
+  - Dark text: #2d2d2d
+  - Muted text: #6b6b6b
+  - Borders: #e0e0e0
+  - Light background: #f7f7f5
+- Create visual representations of the application:
+  - Mock UI components (cards, tables, dashboards, forms) based on the actual code
+  - Show realistic data flows and user interactions
+  - Use SVG icons or unicode characters for icons (no external images)
+  - Render code snippets from the actual codebase where they illustrate architecture decisions
+- Include 2-3 visual sections:
+  1. A mock UI render showing the key interface/feature
+  2. A "tech stack" or "architecture" summary with visual indicators
+  3. A key metrics or results section
+- Make it look polished and professional
+- Keep total HTML under 5000 characters
+- Use rounded corners (border-radius: 12px), subtle shadows, and clean spacing
+- Responsive-friendly: use max-width, flexbox, and percentage-based widths
+
+Focus on making the project look impressive and demonstrating the real value delivered.`;
+
+export async function generatePortfolioShowcase(
+  tree: string,
+  files: string,
+  projectName: string,
+  deploymentUrl: string
+): Promise<{ description: string; benefits: string; showcaseHtml: string }> {
+  const deploymentContext = deploymentUrl ? `\n\nLive deployment: ${deploymentUrl}` : "";
+
+  const response = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 6000,
+    system: PORTFOLIO_SHOWCASE_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Project: ${projectName}${deploymentContext}\n\n## Repository Structure\n\n${tree}\n\n## Key Source Files\n\n${files}`,
+      },
+    ],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  const text = textBlock?.text || "";
+
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        description: parsed.description || "",
+        benefits: parsed.benefits || "",
+        showcaseHtml: parsed.showcaseHtml || "",
+      };
+    }
+  } catch {
+    // If JSON parsing fails, treat entire response as showcase HTML
+  }
+
+  return { description: "", benefits: "", showcaseHtml: text };
+}
