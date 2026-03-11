@@ -49,6 +49,21 @@ const TAB_LABELS: Record<Tab, string> = {
   solution_assets: "Solution Assets",
 };
 
+const PAYMENT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  active: { label: "Subscription Active", color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
+  retainer_paid: { label: "Retainer Paid", color: "bg-blue-500/10 text-blue-700 border-blue-500/20" },
+  past_due: { label: "Past Due", color: "bg-red-500/10 text-red-700 border-red-500/20" },
+  cancelled: { label: "Cancelled", color: "bg-[#f7f7f5] text-[#6b6b6b] border-[#e0e0e0]" },
+  unpaid: { label: "Awaiting Setup", color: "bg-[#f7f7f5] text-[#6b6b6b] border-[#e0e0e0]" },
+};
+
+const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  feature: { label: "Feature", color: "bg-violet-500/10 text-violet-700" },
+  improvement: { label: "Improvement", color: "bg-blue-500/10 text-blue-700" },
+  bugfix: { label: "Bug Fix", color: "bg-red-500/10 text-red-700" },
+  maintenance: { label: "Maintenance", color: "bg-[#f7f7f5] text-[#6b6b6b]" },
+};
+
 export default function PortalPage() {
   const { token } = useParams<{ token: string }>();
   const [loading, setLoading] = useState(true);
@@ -101,9 +116,6 @@ export default function PortalPage() {
         ]);
         setDocuments(docs);
         setProjects(projs);
-        if (projs.length > 0) {
-          setActiveProjectId(projs[0].id);
-        }
       } catch {
         setError("Failed to load portal data.");
       } finally {
@@ -125,7 +137,7 @@ export default function PortalPage() {
       setProductUpdates(pus);
       setChangeLog(cls);
     });
-  }, [contact?.id, activeProjectId]);
+  }, [contact, activeProjectId]);
 
   const handleSubmitChangeLog = async () => {
     if (!contact || !changeLogTitle.trim() || !changeLogDescription.trim()) return;
@@ -170,6 +182,20 @@ export default function PortalPage() {
     }
   };
 
+  const openProject = (projectId: string) => {
+    setActiveProjectId(projectId);
+    setActiveTab("billing");
+    setViewingDoc(null);
+  };
+
+  const backToProjects = () => {
+    setActiveProjectId("");
+    setViewingDoc(null);
+    setChangeRequests([]);
+    setProductUpdates([]);
+    setChangeLog([]);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f7f5] flex items-center justify-center">
@@ -192,34 +218,27 @@ export default function PortalPage() {
   const activeProject = projects.find((p) => p.id === activeProjectId);
   const projectDocs = documents.filter((d) => d.projectId === activeProjectId);
 
-  // Discovery: meeting transcripts with phase "discovery" or unphased ones (backwards compat)
   const discoveryDocs = projectDocs.filter(
     (d) => d.type === "meeting_transcript" && (d.phase === "discovery" || !d.phase)
   );
-
-  // Initial Definition: problem def, solution one-pager, dev plan, plus any initial_definition phase meetings
   const definitionDocs = projectDocs.filter((d) =>
     ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type)
   );
   const definitionMeetings = projectDocs.filter(
     (d) => d.type === "meeting_transcript" && d.phase === "initial_definition"
   );
-
-  // Solution Assets: solution overview, getting started
   const solutionDocs = projectDocs.filter((d) =>
     ["solution_overview", "getting_started"].includes(d.type)
   );
-  // Feature specifications
   const featureDocs = projectDocs.filter((d) => d.type === "feature_specification");
-  // Maintenance meetings
   const maintenanceMeetings = projectDocs.filter(
     (d) => d.type === "meeting_transcript" && d.phase === "maintenance"
   );
-
   const openRequests = changeRequests.filter(
     (cr) => cr.status === "open" || cr.status === "in_progress"
   );
 
+  // ===== Document detail view =====
   if (viewingDoc) {
     return (
       <div className="min-h-screen bg-[#f7f7f5]">
@@ -228,7 +247,7 @@ export default function PortalPage() {
             onClick={() => setViewingDoc(null)}
             className="text-sm text-[#e87a2e] font-medium mb-6 hover:underline"
           >
-            &larr; Back to Portal
+            &larr; Back
           </button>
 
           <h1 className="text-xl font-bold text-[#2d2d2d] mb-1">{viewingDoc.title}</h1>
@@ -258,49 +277,100 @@ export default function PortalPage() {
     );
   }
 
-  const PAYMENT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    active: { label: "Subscription Active", color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" },
-    retainer_paid: { label: "Retainer Paid", color: "bg-blue-500/10 text-blue-700 border-blue-500/20" },
-    past_due: { label: "Past Due", color: "bg-red-500/10 text-red-700 border-red-500/20" },
-    cancelled: { label: "Cancelled", color: "bg-[#f7f7f5] text-[#6b6b6b] border-[#e0e0e0]" },
-    unpaid: { label: "Awaiting Setup", color: "bg-[#f7f7f5] text-[#6b6b6b] border-[#e0e0e0]" },
-  };
+  // ===== Project list (landing) =====
+  if (!activeProjectId) {
+    return (
+      <div className="min-h-screen bg-[#f7f7f5]">
+        {/* Header */}
+        <div className="bg-white border-b border-[#e0e0e0]">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            <p className="text-xs font-bold text-[#e87a2e] uppercase tracking-wide mb-1">CrumbLabz Client Portal</p>
+            <h1 className="text-xl font-bold text-[#2d2d2d]">{contact?.company || contact?.name}</h1>
+          </div>
+        </div>
 
-  const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
-    feature: { label: "Feature", color: "bg-violet-500/10 text-violet-700" },
-    improvement: { label: "Improvement", color: "bg-blue-500/10 text-blue-700" },
-    bugfix: { label: "Bug Fix", color: "bg-red-500/10 text-red-700" },
-    maintenance: { label: "Maintenance", color: "bg-[#f7f7f5] text-[#6b6b6b]" },
-  };
+        <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+          {/* Value statement */}
+          <div className="bg-white border border-[#e0e0e0] rounded-xl p-6">
+            <h2 className="text-lg font-bold text-[#2d2d2d] mb-2">Welcome to your CrumbLabz portal</h2>
+            <p className="text-sm text-[#6b6b6b] leading-relaxed">
+              CrumbLabz builds custom software tools that eliminate the manual work slowing your business down.
+              This portal is your window into every project we&apos;re building together &mdash; from discovery
+              conversations and project plans, all the way through to the finished solution and ongoing improvements.
+            </p>
+            <p className="text-sm text-[#6b6b6b] leading-relaxed mt-3">
+              Select a project below to view documents, track progress, submit feature requests, and manage billing.
+            </p>
+          </div>
 
+          {/* Project cards */}
+          {projects.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-[#6b6b6b] text-sm">No projects yet. Your CrumbLabz team will set up your first project soon.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b]">Your Projects</h3>
+              {projects.map((p) => {
+                const pDocs = documents.filter((d) => d.projectId === p.id);
+                const paymentInfo = PAYMENT_STATUS_LABELS[p.paymentStatus] || PAYMENT_STATUS_LABELS.unpaid;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => openProject(p.id)}
+                    className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-base font-bold text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{p.name}</h4>
+                      <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full border ${paymentInfo.color}`}>
+                        {paymentInfo.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-[#6b6b6b]">
+                      <span>{pDocs.length} document{pDocs.length !== 1 ? "s" : ""}</span>
+                      {p.repoUrl && <span>GitHub connected</span>}
+                      {p.deploymentUrl && <span>Live</span>}
+                    </div>
+                    <p className="text-xs text-[#e87a2e] font-medium mt-3 group-hover:underline">View project &rarr;</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-[#e0e0e0] mt-16">
+          <div className="max-w-4xl mx-auto px-6 py-8 text-center">
+            <p className="text-xs text-[#6b6b6b]">CrumbLabz &mdash; Custom Tools for Smarter Operations</p>
+            <p className="text-xs text-[#6b6b6b] mt-1">
+              <a href="https://crumblabz.com" className="text-[#e87a2e] hover:underline">crumblabz.com</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== Project detail view =====
   return (
     <div className="min-h-screen bg-[#f7f7f5]">
       {/* Header */}
       <div className="bg-white border-b border-[#e0e0e0]">
         <div className="max-w-4xl mx-auto px-6 py-6">
+          <button
+            onClick={backToProjects}
+            className="text-xs text-[#e87a2e] font-medium mb-3 hover:underline"
+          >
+            &larr; All Projects
+          </button>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold text-[#e87a2e] uppercase tracking-wide mb-1">CrumbLabz Client Portal</p>
-              <h1 className="text-xl font-bold text-[#2d2d2d]">{contact?.company || contact?.name}</h1>
+              <h1 className="text-xl font-bold text-[#2d2d2d]">{activeProject?.name || "Project"}</h1>
+              <p className="text-sm text-[#6b6b6b]">{contact?.company || contact?.name}</p>
             </div>
           </div>
-
-          {/* Project selector */}
-          {projects.length > 1 && (
-            <div className="flex gap-1.5 mt-4 flex-wrap">
-              {projects.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setActiveProjectId(p.id)}
-                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
-                    activeProjectId === p.id ? "bg-[#2d2d2d] text-white" : "bg-[#f7f7f5] text-[#6b6b6b] hover:bg-[#e0e0e0]"
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          )}
 
           {/* Tabs */}
           <div className="flex gap-1 mt-4 border-b border-[#e0e0e0] -mx-6 px-6 overflow-x-auto">
@@ -417,7 +487,6 @@ export default function PortalPage() {
               </p>
             </div>
 
-            {/* Definition Documents */}
             {definitionDocs.length === 0 && definitionMeetings.length === 0 ? (
               <p className="text-[#6b6b6b] text-sm">No definition documents available yet.</p>
             ) : (
@@ -438,7 +507,6 @@ export default function PortalPage() {
                   </button>
                 ))}
 
-                {/* Meeting Minutes for this phase */}
                 {definitionMeetings.length > 0 && (
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b] mb-3 mt-4">Meeting Minutes</h3>
@@ -465,7 +533,7 @@ export default function PortalPage() {
         {activeTab === "solution_assets" && (
           <div className="space-y-8">
 
-            {/* -- Solution Documents Sub-section -- */}
+            {/* Solution Documents */}
             <div className="space-y-4">
               <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
                 <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Solution Documents</h2>
@@ -490,7 +558,7 @@ export default function PortalPage() {
               )}
             </div>
 
-            {/* -- Codebase Sub-section -- */}
+            {/* Codebase */}
             {activeProject?.repoUrl && (
               <div className="space-y-3">
                 <h2 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b]">Codebase</h2>
@@ -510,7 +578,7 @@ export default function PortalPage() {
               </div>
             )}
 
-            {/* -- Maintenance & Continuous Development Sub-section -- */}
+            {/* Maintenance & Continuous Development */}
             <div className="space-y-6">
               <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
                 <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Maintenance &amp; Continuous Development</h2>
@@ -697,7 +765,6 @@ export default function PortalPage() {
                   <p className="text-[#6b6b6b] text-sm">No change log entries yet. Your CrumbLabz team will log updates here, and you can add entries too.</p>
                 ) : (
                   <div className="space-y-3">
-                    {/* Show product updates (legacy) alongside change log */}
                     {productUpdates.map((pu) => (
                       <div key={`pu-${pu.id}`} className="bg-white border border-[#e0e0e0] rounded-xl p-5">
                         <div className="flex items-center justify-between mb-2">
