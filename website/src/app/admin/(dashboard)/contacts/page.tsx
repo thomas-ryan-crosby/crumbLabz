@@ -28,6 +28,7 @@ import {
   tagDocumentsWithProject,
   getChangeRequests,
   updateChangeRequest,
+  submitContactForm,
   getOrCreatePortalToken,
   addProductUpdate,
   getProductUpdates,
@@ -59,6 +60,22 @@ export default function ContactsPage() {
   const [filterAssignee, setFilterAssignee] = useState("all");
   const [search, setSearch] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: "", company: "", email: "", phone: "", headache: "" });
+  const [addingContact, setAddingContact] = useState(false);
+
+  const handleAddContact = async () => {
+    if (!newContact.name.trim() || !newContact.company.trim()) return;
+    setAddingContact(true);
+    try {
+      await submitContactForm(newContact);
+      setNewContact({ name: "", company: "", email: "", phone: "", headache: "" });
+      setShowAddContact(false);
+      await loadContacts();
+    } finally {
+      setAddingContact(false);
+    }
+  };
 
   const loadContacts = useCallback(async () => {
     const [data, deleted] = await Promise.all([getContacts(), getDeletedContacts()]);
@@ -105,17 +122,89 @@ export default function ContactsPage() {
         <div className="px-6 py-5 border-b border-border space-y-3">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">{showDeleted ? "Deleted Contacts" : "Contacts"}</h1>
-            <button
-              onClick={() => { setShowDeleted(!showDeleted); setSelected(null); }}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
-                showDeleted
-                  ? "bg-red-500/10 text-red-600"
-                  : "bg-neutral text-muted hover:bg-border"
-              }`}
-            >
-              {showDeleted ? "Back to Contacts" : `Deleted (${deletedContacts.length})`}
-            </button>
+            <div className="flex gap-2">
+              {!showDeleted && (
+                <button
+                  onClick={() => setShowAddContact(!showAddContact)}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                    showAddContact
+                      ? "bg-accent text-white"
+                      : "bg-accent/10 text-accent hover:bg-accent/20"
+                  }`}
+                >
+                  + Add Contact
+                </button>
+              )}
+              <button
+                onClick={() => { setShowDeleted(!showDeleted); setSelected(null); setShowAddContact(false); }}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors ${
+                  showDeleted
+                    ? "bg-red-500/10 text-red-600"
+                    : "bg-neutral text-muted hover:bg-border"
+                }`}
+              >
+                {showDeleted ? "Back to Contacts" : `Deleted (${deletedContacts.length})`}
+              </button>
+            </div>
           </div>
+
+          {showAddContact && (
+            <div className="bg-neutral rounded-lg p-4 space-y-3">
+              <h3 className="text-sm font-bold text-charcoal">New Contact</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="Contact name *"
+                  value={newContact.name}
+                  onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <input
+                  type="text"
+                  placeholder="Company name *"
+                  value={newContact.company}
+                  onChange={(e) => setNewContact({ ...newContact, company: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={newContact.email}
+                  onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone"
+                  value={newContact.phone}
+                  onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+              </div>
+              <textarea
+                placeholder="What's their headache? (optional)"
+                value={newContact.headache}
+                onChange={(e) => setNewContact({ ...newContact, headache: e.target.value })}
+                rows={2}
+                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setShowAddContact(false); setNewContact({ name: "", company: "", email: "", phone: "", headache: "" }); }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg text-muted hover:bg-border transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddContact}
+                  disabled={addingContact || !newContact.name.trim() || !newContact.company.trim()}
+                  className="text-xs font-medium px-4 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+                >
+                  {addingContact ? "Adding..." : "Add Contact"}
+                </button>
+              </div>
+            </div>
+          )}
           <input
             type="text"
             placeholder="Search contacts..."
