@@ -630,28 +630,36 @@ You will receive the project's REAL codebase structure and source files pulled d
 
 Your showcase should have TWO parts:
 
-**PART 1: Interactive Feature Preview**
-Study the actual React/JSX components, page layouts, forms, tables, dashboards, and UI elements in the source code. Then recreate a static but realistic-looking preview of the application's key screen(s) using HTML + inline styles. This should give a prospective client a feel for what the solution looks like and how it operates.
+**PART 1: Static Feature Preview**
+Study the actual React/JSX components, page layouts, forms, tables, dashboards, and UI elements in the source code. Then recreate a static, realistic-looking preview of the application's key screen(s) using HTML + inline styles. This should give a prospective client a visual feel for what the solution looks like.
 
 Rules for the preview:
 - Reconstruct the UI from REAL components found in the code (look at page.tsx, layout.tsx, and component files)
 - Use realistic field names, labels, column headers, and nav items that appear in the actual source code
-- Reproduce the actual color scheme, layout patterns, and UI structure from the code (check tailwind classes, CSS variables, theme config)
-- Include realistic placeholder data that matches the domain (e.g. if it's a reporting tool, show sample report rows with plausible names/numbers)
-- Render interactive-feeling elements: buttons with hover states, form fields, table rows, navigation tabs, status badges — all from what the code actually builds
+- **CRITICAL: Extract the actual CSS styling from the project.** Look at:
+  - Tailwind config (tailwind.config.ts/js) for custom colors, fonts, spacing
+  - CSS variables defined in globals.css or layout files (e.g. --color-accent, --color-charcoal, etc.)
+  - The actual Tailwind classes used on components (bg-charcoal, text-accent, rounded-xl, etc.) and translate them to inline CSS
+  - If the project uses a specific color palette (e.g. theme colors in tailwind config), use THOSE colors, not the CrumbLabz defaults
+- Include realistic placeholder data that matches the domain
 - If the app has a dashboard, show the dashboard. If it has forms, show a key form. If it has a data table, show the table. Pick the 1-2 most impressive screens.
-- Use a subtle browser-chrome wrapper (light gray top bar with three dots) to frame the preview so it feels like looking at a real app
+- Use a subtle browser-chrome wrapper (light gray top bar with three colored dots) to frame the preview so it feels like looking at a real app
 
 **PART 2: Summary**
 Below the preview, include:
 - **Key Features** — 3-5 short bullet points of what the app does (from the actual routes/components)
 - **Tech Stack** — the real technologies from package.json and config files, shown as small pill badges
 
-**STYLE RULES**:
+**CRITICAL STYLE RULES — NON-INTERACTIVE**:
+- The entire preview is a STATIC IMAGE of the app. It is NOT interactive.
+- **Do NOT add any hover effects, cursor:pointer, :hover pseudo-classes, or onmouseover attributes to ANY element inside the preview**
+- Add \`pointer-events: none\` to the outer preview container so nothing inside is clickable or hoverable
+- All elements inside the preview should use \`cursor: default\`
+- No <a> tags, no <button> tags inside the preview — use <div> or <span> styled to LOOK like buttons/links but without any interactivity
 - Self-contained HTML snippet (no <html>, <head>, <body>)
 - Inline styles ONLY (no <style> tags, no external CSS)
-- CrumbLabz palette: accent #e87a2e, dark #2d2d2d, muted #6b6b6b, border #e0e0e0, light bg #f7f7f5
-- Use unicode characters for icons (no external images). SVG is OK for simple shapes (circles, arrows).
+- Fallback palette (only if project has no custom theme): accent #e87a2e, dark #2d2d2d, muted #6b6b6b, border #e0e0e0, light bg #f7f7f5
+- Use unicode characters for icons (no external images). SVG is OK for simple shapes.
 - Keep total HTML under 6000 characters
 - Rounded corners (8-12px), subtle box-shadows, clean spacing
 - Responsive-friendly: max-width, flexbox, percentage widths
