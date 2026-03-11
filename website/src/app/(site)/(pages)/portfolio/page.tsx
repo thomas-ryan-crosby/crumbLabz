@@ -34,7 +34,7 @@ export default function PortfolioPage() {
 
       {/* Projects */}
       <section className="py-16 md:py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-5xl mx-auto px-6">
           {loading ? (
             <div className="flex justify-center py-20">
               <span className="w-8 h-8 border-3 border-accent/30 border-t-accent rounded-full animate-spin" />
@@ -45,55 +45,43 @@ export default function PortfolioPage() {
               <p className="text-muted/70">We&apos;re preparing case studies of our recent work.</p>
             </div>
           ) : (
-            <div className="space-y-12">
+            <div className="grid md:grid-cols-2 gap-6">
               {projects.map((project, i) => (
-                <div
+                <button
                   key={project.id}
-                  className={`animate-in ${i > 0 ? `animate-delay-${i}` : ""}`}
+                  onClick={() => setSelectedProject(project)}
+                  className={`animate-in ${i > 0 ? `animate-delay-${Math.min(i, 3)}` : ""} text-left bg-white border border-border rounded-xl p-6 hover:shadow-lg hover:border-accent/30 transition-all duration-300 group`}
                 >
-                  {/* Project card */}
-                  <div className="bg-white border border-border rounded-xl overflow-hidden hover:shadow-xl hover:border-accent/30 transition-all duration-300">
-                    {/* Header */}
-                    <div className="p-6 pb-4 border-b border-border">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-2xl font-bold text-charcoal">{project.name}</h3>
-                          <p className="text-sm text-muted mt-1">{project.companyName}</p>
-                        </div>
-                        <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full shrink-0 ${
-                          project.status === "active"
-                            ? "bg-green-600/10 text-green-700"
-                            : project.status === "completed"
-                              ? "bg-blue-500/10 text-blue-600"
-                              : "bg-amber-500/10 text-amber-700"
-                        }`}>
-                          {project.status === "active" ? "Active" : project.status === "completed" ? "Delivered" : "In Progress"}
-                        </span>
-                      </div>
-
-                      {project.portfolioDescription && (
-                        <p className="text-charcoal/70 leading-relaxed">{project.portfolioDescription}</p>
-                      )}
-                    </div>
-
-                    {/* AI-generated showcase */}
-                    {project.portfolioContent && (
-                      <div className="p-6">
-                        <div dangerouslySetInnerHTML={{ __html: project.portfolioContent }} />
-                      </div>
-                    )}
-
-                    {/* Benefits footer */}
-                    {project.portfolioBenefits && (
-                      <div className="px-6 pb-6">
-                        <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
-                          <p className="text-xs font-bold uppercase tracking-wide text-accent mb-2">Client Impact</p>
-                          <p className="text-charcoal/80 leading-relaxed">{project.portfolioBenefits}</p>
-                        </div>
-                      </div>
-                    )}
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-xl font-bold text-charcoal group-hover:text-accent transition-colors">
+                      {project.name}
+                    </h3>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full shrink-0 ml-3 ${
+                      project.status === "active"
+                        ? "bg-green-600/10 text-green-700"
+                        : project.status === "completed"
+                          ? "bg-blue-500/10 text-blue-600"
+                          : "bg-amber-500/10 text-amber-700"
+                    }`}>
+                      {project.status === "active" ? "Active" : project.status === "completed" ? "Delivered" : "In Progress"}
+                    </span>
                   </div>
-                </div>
+
+                  <p className="text-sm text-muted mb-4">{project.companyName}</p>
+
+                  <p className="text-sm text-charcoal/70 leading-relaxed line-clamp-3">
+                    {project.portfolioDescription || "Custom software solution built to streamline operations and eliminate manual bottlenecks."}
+                  </p>
+
+                  {project.portfolioBenefits && (
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <p className="text-xs font-medium text-accent uppercase tracking-wide mb-1">Impact</p>
+                      <p className="text-sm text-charcoal/60 line-clamp-2">{project.portfolioBenefits}</p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-accent font-medium mt-4 group-hover:underline">View details &rarr;</p>
+                </button>
               ))}
             </div>
           )}
@@ -126,7 +114,7 @@ export default function PortfolioPage() {
         >
           <div className="absolute inset-0 bg-charcoal/60 backdrop-blur-sm" />
           <div
-            className="relative bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto shadow-2xl"
+            className="relative bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -138,13 +126,10 @@ export default function PortfolioPage() {
               </svg>
             </button>
 
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-charcoal">{selectedProject.name}</h2>
-                  <p className="text-muted mt-1">{selectedProject.companyName}</p>
-                </div>
-                <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-full shrink-0 ${
+            <div className="p-6 md:p-8">
+              <div className="flex items-start justify-between mb-2">
+                <h2 className="text-2xl font-bold text-charcoal">{selectedProject.name}</h2>
+                <span className={`text-xs font-bold uppercase px-2.5 py-1 rounded-full shrink-0 ml-3 ${
                   selectedProject.status === "active"
                     ? "bg-green-600/10 text-green-700"
                     : selectedProject.status === "completed"
@@ -154,26 +139,26 @@ export default function PortfolioPage() {
                   {selectedProject.status === "active" ? "Active" : selectedProject.status === "completed" ? "Delivered" : "In Progress"}
                 </span>
               </div>
+              <p className="text-muted mb-6">{selectedProject.companyName}</p>
 
-              {selectedProject.portfolioDescription && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Overview</h3>
-                  <p className="text-charcoal/80 leading-relaxed whitespace-pre-wrap">{selectedProject.portfolioDescription}</p>
-                </div>
-              )}
+              <div className="mb-6">
+                <p className="text-charcoal/80 leading-relaxed">
+                  {selectedProject.portfolioDescription || "Custom software solution built to streamline operations and eliminate manual bottlenecks."}
+                </p>
+              </div>
 
               {selectedProject.portfolioContent && (
-                <div className="mb-6" dangerouslySetInnerHTML={{ __html: selectedProject.portfolioContent }} />
+                <div className="mb-6 border border-border rounded-xl p-4 overflow-hidden" dangerouslySetInnerHTML={{ __html: selectedProject.portfolioContent }} />
               )}
 
               {selectedProject.portfolioBenefits && (
-                <div className="bg-accent/5 border border-accent/20 rounded-lg p-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-accent mb-2">Client Impact</h3>
-                  <p className="text-charcoal/80 leading-relaxed whitespace-pre-wrap">{selectedProject.portfolioBenefits}</p>
+                <div className="bg-accent/5 border border-accent/20 rounded-lg p-4 mb-6">
+                  <p className="text-xs font-bold uppercase tracking-wide text-accent mb-2">Client Impact</p>
+                  <p className="text-charcoal/80 leading-relaxed">{selectedProject.portfolioBenefits}</p>
                 </div>
               )}
 
-              <div className="mt-6 pt-4 border-t border-border text-center">
+              <div className="pt-4 border-t border-border text-center">
                 <Link
                   href="/contact"
                   className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
