@@ -50,7 +50,7 @@ export default function PortfolioPage() {
                 <button
                   key={project.id}
                   onClick={() => setSelectedProject(project)}
-                  className={`animate-in ${i > 0 ? `animate-delay-${Math.min(i, 3)}` : ""} text-left bg-white border border-border rounded-xl p-6 hover:shadow-lg hover:border-accent/30 transition-all duration-300 group`}
+                  className="text-left bg-white border border-border rounded-xl p-6 hover:shadow-lg hover:border-accent/30 transition-all duration-300 group"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-xl font-bold text-charcoal group-hover:text-accent transition-colors">
