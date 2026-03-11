@@ -13,6 +13,7 @@ const DOC_LABELS: Record<string, string> = {
   CallScript_DiscoveryCall: "Call Script: Discovery Call",
   CallScript_SolutionReview: "Call Script: Solution Review",
   CallScript_MVPPresentation: "Call Script: MVP Presentation",
+  CrumbLabz_AIPromptsReference: "AI Prompts Reference",
 };
 
 export async function GET(request: Request) {
