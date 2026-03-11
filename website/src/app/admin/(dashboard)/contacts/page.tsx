@@ -437,7 +437,7 @@ function ContactDetail({
   onClose: () => void;
   onUpdate: (
     id: string,
-    fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string }
+    fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string }
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<void>;
@@ -457,6 +457,11 @@ function ContactDetail({
   const [showAddTeamContact, setShowAddTeamContact] = useState(false);
   const [addingTeamContact, setAddingTeamContact] = useState(false);
   const [teamForm, setTeamForm] = useState({ name: "", email: "", phone: "", headache: "" });
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmDeleteContactId, setConfirmDeleteContactId] = useState<string | null>(null);
+  const [deletingContact, setDeletingContact] = useState(false);
 
   // All contact IDs in this company (to aggregate docs/projects across all)
   const companyContactIds = allContacts
@@ -707,33 +712,136 @@ function ContactDetail({
               </div>
 
               <div className="space-y-2">
-                {/* Primary contact */}
-                <div className="flex items-center justify-between bg-accent/5 border border-accent/20 rounded-lg px-4 py-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-8 h-8 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center shrink-0">
-                      {contact.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-charcoal truncate">{contact.name}</p>
-                      <p className="text-xs text-muted truncate">{contact.email || "No email"}{contact.phone ? ` · ${contact.phone}` : ""}</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent/10 text-accent shrink-0 ml-3">Primary</span>
-                </div>
-                {/* Other contacts */}
-                {companyContacts.map((tc) => (
-                  <div key={tc.id} className="flex items-center justify-between bg-neutral rounded-lg px-4 py-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-8 h-8 rounded-full bg-charcoal/70 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                        {tc.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-charcoal truncate">{tc.name}</p>
-                        <p className="text-xs text-muted truncate">{tc.email || "No email"}{tc.phone ? ` · ${tc.phone}` : ""}</p>
+                {/* Render a contact card (reused for primary + others) */}
+                {[contact, ...companyContacts].map((tc) => {
+                  const isPrimary = tc.id === contact.id;
+                  const isEditing = editingContactId === tc.id;
+
+                  if (isEditing) {
+                    return (
+                      <div key={tc.id} className="bg-neutral rounded-lg px-4 py-3 space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Name *"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            className="px-2.5 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                          />
+                          <input
+                            type="email"
+                            placeholder="Email"
+                            value={editForm.email}
+                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                            className="px-2.5 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                          />
+                          <input
+                            type="tel"
+                            placeholder="Phone"
+                            value={editForm.phone}
+                            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                            className="px-2.5 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                          />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => setEditingContactId(null)}
+                            className="text-xs font-medium px-3 py-1 rounded-lg text-muted hover:bg-border transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!editForm.name.trim()) return;
+                              setSavingEdit(true);
+                              try {
+                                await onUpdate(tc.id, { name: editForm.name, email: editForm.email, phone: editForm.phone });
+                                setEditingContactId(null);
+                                await onContactsChanged();
+                              } finally {
+                                setSavingEdit(false);
+                              }
+                            }}
+                            disabled={savingEdit || !editForm.name.trim()}
+                            className="text-xs font-medium px-3 py-1 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+                          >
+                            {savingEdit ? "Saving..." : "Save"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={tc.id} className={`flex items-center justify-between rounded-lg px-4 py-3 ${
+                      isPrimary ? "bg-accent/5 border border-accent/20" : "bg-neutral"
+                    }`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${
+                          isPrimary ? "bg-accent" : "bg-charcoal/70"
+                        }`}>
+                          {tc.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-charcoal truncate">{tc.name}</p>
+                          <p className="text-xs text-muted truncate">{tc.email || "No email"}{tc.phone ? ` · ${tc.phone}` : ""}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                        {isPrimary && (
+                          <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent/10 text-accent">Primary</span>
+                        )}
+                        <button
+                          onClick={() => { setEditingContactId(tc.id); setEditForm({ name: tc.name, email: tc.email, phone: tc.phone }); }}
+                          className="p-1 text-muted hover:text-charcoal transition-colors"
+                          title="Edit contact"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                          </svg>
+                        </button>
+                        {!isPrimary && (
+                          confirmDeleteContactId === tc.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={async () => {
+                                  setDeletingContact(true);
+                                  try {
+                                    await permanentlyDeleteContact(tc.id);
+                                    setConfirmDeleteContactId(null);
+                                    await onContactsChanged();
+                                  } finally {
+                                    setDeletingContact(false);
+                                  }
+                                }}
+                                disabled={deletingContact}
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors"
+                              >
+                                {deletingContact ? "..." : "Confirm"}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteContactId(null)}
+                                className="text-[10px] font-medium px-2 py-0.5 rounded-full text-muted hover:bg-border transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteContactId(tc.id)}
+                              className="p-1 text-muted hover:text-red-600 transition-colors"
+                              title="Delete contact"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {showAddTeamContact && (

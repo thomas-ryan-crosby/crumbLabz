@@ -193,7 +193,7 @@ export async function permanentlyDeleteContact(id: string) {
 
 export async function updateContact(
   id: string,
-  fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string },
+  fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string },
   actorName?: string
 ) {
   const updates: Record<string, unknown> = {
