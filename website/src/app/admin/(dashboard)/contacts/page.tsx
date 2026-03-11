@@ -89,15 +89,17 @@ export default function ContactsPage() {
     loadContacts();
   }, [loadContacts]);
 
-  // Group contacts by company — one sidebar entry per company, using first contact as primary
+  // Group contacts by company — one sidebar entry per company
   const clientMap = new Map<string, Contact[]>();
   for (const c of contacts) {
     const key = (c.company || "").toLowerCase();
     if (!clientMap.has(key)) clientMap.set(key, []);
     clientMap.get(key)!.push(c);
   }
-  // Primary contact = first (oldest) per company
-  const clients = Array.from(clientMap.values()).map((group) => group[0]);
+  // Pick the primary contact (isPrimary flag, or fallback to oldest)
+  const getPrimaryContact = (group: Contact[]) =>
+    group.find((c) => c.isPrimary) || group[0];
+  const clients = Array.from(clientMap.values()).map(getPrimaryContact);
 
   const filtered = clients.filter((c) => {
     if (filterStage !== "all" && c.stage !== filterStage) return false;
@@ -325,13 +327,13 @@ export default function ContactsPage() {
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <p className="font-medium text-sm">{contact.name}</p>
+                      <p className="font-medium text-sm">{contact.company || contact.name}</p>
                       <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-red-500/10 text-red-600">
                         {daysLeft}d remaining
                       </span>
                     </div>
                     <p className="text-xs text-muted mb-1">
-                      {contact.company} &middot; {contact.email}
+                      {contact.name} &middot; {contact.email}
                     </p>
                     <p className="text-xs text-muted/60 mt-1">
                       Deleted {contact.deletedAt?.toLocaleDateString() || "—"}
@@ -346,11 +348,11 @@ export default function ContactsPage() {
             </div>
           ) : (
             filtered.map((contact) => {
-              const groupSize = (clientMap.get((contact.company || "").toLowerCase()) || []).length;
+              const group = clientMap.get((contact.company || "").toLowerCase()) || [contact];
               return (
                 <button
-                  key={contact.id}
-                  onClick={() => setSelected(contact)}
+                  key={contact.company.toLowerCase()}
+                  onClick={() => setSelected(getPrimaryContact(group))}
                   className={`w-full text-left px-6 py-4 hover:bg-neutral/50 transition-colors ${
                     selected && selected.company.toLowerCase() === (contact.company || "").toLowerCase() ? "bg-neutral" : ""
                   }`}
@@ -360,7 +362,7 @@ export default function ContactsPage() {
                     <StageBadge stage={contact.stage} />
                   </div>
                   <p className="text-xs text-muted mb-1">
-                    {contact.name}{groupSize > 1 ? ` +${groupSize - 1} more` : ""} &middot; {contact.email}
+                    {group.length} contact{group.length !== 1 ? "s" : ""}
                   </p>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted line-clamp-1 flex-1">
@@ -385,7 +387,17 @@ export default function ContactsPage() {
           isDeleted={showDeleted}
           allContacts={contacts}
           onClose={() => setSelected(null)}
-          onContactsChanged={loadContacts}
+          onContactsChanged={async () => {
+            const [data] = await Promise.all([getContacts(), getDeletedContacts().then(setDeletedContacts)]);
+            setContacts(data);
+            // Re-select the primary contact for this company
+            if (selected) {
+              const companyKey = selected.company.toLowerCase();
+              const group = data.filter((c) => (c.company || "").toLowerCase() === companyKey && !c.deletedAt);
+              const primary = group.find((c) => c.isPrimary) || group[0];
+              if (primary) setSelected(primary);
+            }
+          }}
           onUpdate={async (id, fields) => {
             await updateContact(id, fields, currentMember?.name);
             await loadContacts();
@@ -437,7 +449,7 @@ function ContactDetail({
   onClose: () => void;
   onUpdate: (
     id: string,
-    fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string }
+    fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string; isPrimary?: boolean }
   ) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onRestore: (id: string) => Promise<void>;
@@ -696,13 +708,16 @@ function ContactDetail({
         {/* Contacts */}
         {contact.company && (() => {
           const companyContacts = allContacts.filter(
-            (c) => c.company.toLowerCase() === contact.company.toLowerCase() && c.id !== contact.id
+            (c) => c.company.toLowerCase() === contact.company.toLowerCase()
           );
+          // Determine actual primary: isPrimary flag or fallback to the passed contact
+          const primaryContact = companyContacts.find((c) => c.isPrimary) || contact;
+          const otherContacts = companyContacts.filter((c) => c.id !== primaryContact.id);
           return (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium">
-                  Contacts ({companyContacts.length + 1})
+                  Contacts ({companyContacts.length})
                 </label>
                 <button
                   onClick={() => setShowAddTeamContact(!showAddTeamContact)}
@@ -718,8 +733,8 @@ function ContactDetail({
 
               <div className="space-y-2">
                 {/* Render a contact card (reused for primary + others) */}
-                {[contact, ...companyContacts].map((tc) => {
-                  const isPrimary = tc.id === contact.id;
+                {[primaryContact, ...otherContacts].map((tc) => {
+                  const isPrimary = tc.id === primaryContact.id;
                   const isEditing = editingContactId === tc.id;
 
                   if (isEditing) {
@@ -795,6 +810,22 @@ function ContactDetail({
                       <div className="flex items-center gap-1.5 shrink-0 ml-3">
                         {isPrimary && (
                           <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-accent/10 text-accent">Primary</span>
+                        )}
+                        {!isPrimary && (
+                          <button
+                            onClick={async () => {
+                              // Unset old primary, set new primary
+                              if (primaryContact.isPrimary) {
+                                await onUpdate(primaryContact.id, { isPrimary: false });
+                              }
+                              await onUpdate(tc.id, { isPrimary: true });
+                              await onContactsChanged();
+                            }}
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-accent/5 text-accent hover:bg-accent/15 transition-colors"
+                            title="Set as primary contact"
+                          >
+                            Set Primary
+                          </button>
                         )}
                         <button
                           onClick={() => { setEditingContactId(tc.id); setEditForm({ name: tc.name, email: tc.email, phone: tc.phone }); }}

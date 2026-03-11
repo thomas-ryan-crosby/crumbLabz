@@ -108,6 +108,7 @@ export interface Contact {
   assignee: string;
   notes: string;
   githubRepoUrl: string;
+  isPrimary: boolean;
   createdAt: Date | null;
   updatedAt: Date | null;
   deletedAt: Date | null;
@@ -126,6 +127,7 @@ function mapContact(d: { id: string; data: () => Record<string, unknown> }): Con
     assignee: (data.assignee as string) || "",
     notes: (data.notes as string) || "",
     githubRepoUrl: (data.githubRepoUrl as string) || "",
+    isPrimary: data.isPrimary === true,
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
     deletedAt: data.deletedAt instanceof Timestamp ? data.deletedAt.toDate() : null,
@@ -193,7 +195,7 @@ export async function permanentlyDeleteContact(id: string) {
 
 export async function updateContact(
   id: string,
-  fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string },
+  fields: { stage?: string; assignee?: string; notes?: string; githubRepoUrl?: string; name?: string; email?: string; phone?: string; isPrimary?: boolean },
   actorName?: string
 ) {
   const updates: Record<string, unknown> = {
