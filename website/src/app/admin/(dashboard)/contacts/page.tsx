@@ -89,17 +89,29 @@ export default function ContactsPage() {
     loadContacts();
   }, [loadContacts]);
 
-  const filtered = contacts.filter((c) => {
+  // Group contacts by company — one sidebar entry per company, using first contact as primary
+  const clientMap = new Map<string, Contact[]>();
+  for (const c of contacts) {
+    const key = (c.company || "").toLowerCase();
+    if (!clientMap.has(key)) clientMap.set(key, []);
+    clientMap.get(key)!.push(c);
+  }
+  // Primary contact = first (oldest) per company
+  const clients = Array.from(clientMap.values()).map((group) => group[0]);
+
+  const filtered = clients.filter((c) => {
     if (filterStage !== "all" && c.stage !== filterStage) return false;
     if (filterAssignee === "unassigned" && c.assignee) return false;
     if (filterAssignee !== "all" && filterAssignee !== "unassigned" && c.assignee !== filterAssignee) return false;
     if (search) {
       const q = search.toLowerCase();
-      return (
-        c.name.toLowerCase().includes(q) ||
-        c.company.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.headache.toLowerCase().includes(q)
+      // Search across all contacts in the company group
+      const group = clientMap.get((c.company || "").toLowerCase()) || [c];
+      return group.some((gc) =>
+        gc.name.toLowerCase().includes(q) ||
+        gc.company.toLowerCase().includes(q) ||
+        gc.email.toLowerCase().includes(q) ||
+        gc.headache.toLowerCase().includes(q)
       );
     }
     return true;
@@ -244,10 +256,10 @@ export default function ContactsPage() {
                   active={filterStage === "all"}
                   onClick={() => setFilterStage("all")}
                 >
-                  All ({contacts.length})
+                  All ({clients.length})
                 </FilterChip>
                 {PIPELINE_STAGES.map((s) => {
-                  const count = contacts.filter((c) => c.stage === s.value).length;
+                  const count = clients.filter((c) => c.stage === s.value).length;
                   if (count === 0) return null;
                   return (
                     <FilterChip
@@ -333,31 +345,34 @@ export default function ContactsPage() {
               No clients found.
             </div>
           ) : (
-            filtered.map((contact) => (
-              <button
-                key={contact.id}
-                onClick={() => setSelected(contact)}
-                className={`w-full text-left px-6 py-4 hover:bg-neutral/50 transition-colors ${
-                  selected?.id === contact.id ? "bg-neutral" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-medium text-sm">{contact.company || "No Company"}</p>
-                  <StageBadge stage={contact.stage} />
-                </div>
-                <p className="text-xs text-muted mb-1">
-                  {contact.name} &middot; {contact.email}
-                </p>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted line-clamp-1 flex-1">
-                    {contact.headache}
+            filtered.map((contact) => {
+              const groupSize = (clientMap.get((contact.company || "").toLowerCase()) || []).length;
+              return (
+                <button
+                  key={contact.id}
+                  onClick={() => setSelected(contact)}
+                  className={`w-full text-left px-6 py-4 hover:bg-neutral/50 transition-colors ${
+                    selected && selected.company.toLowerCase() === (contact.company || "").toLowerCase() ? "bg-neutral" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="font-medium text-sm">{contact.company || "No Company"}</p>
+                    <StageBadge stage={contact.stage} />
+                  </div>
+                  <p className="text-xs text-muted mb-1">
+                    {contact.name}{groupSize > 1 ? ` +${groupSize - 1} more` : ""} &middot; {contact.email}
                   </p>
-                  {contact.assignee && (
-                    <AssigneeAvatar assigneeId={contact.assignee} />
-                  )}
-                </div>
-              </button>
-            ))
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted line-clamp-1 flex-1">
+                      {contact.headache}
+                    </p>
+                    {contact.assignee && (
+                      <AssigneeAvatar assigneeId={contact.assignee} />
+                    )}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
       </div>
