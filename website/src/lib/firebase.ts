@@ -703,6 +703,10 @@ export interface Project {
   stripeCustomerId: string;
   stripeSubscriptionId: string;
   paymentStatus: "unpaid" | "retainer_paid" | "active" | "past_due" | "cancelled";
+  portfolioEnabled: boolean;
+  portfolioDescription: string;
+  portfolioBenefits: string;
+  portfolioScreenshots: string[];
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -746,6 +750,10 @@ function mapProject(d: { id: string; data: () => Record<string, unknown> }): Pro
     stripeCustomerId: (data.stripeCustomerId as string) || "",
     stripeSubscriptionId: (data.stripeSubscriptionId as string) || "",
     paymentStatus: (data.paymentStatus as Project["paymentStatus"]) || "unpaid",
+    portfolioEnabled: (data.portfolioEnabled as boolean) || false,
+    portfolioDescription: (data.portfolioDescription as string) || "",
+    portfolioBenefits: (data.portfolioBenefits as string) || "",
+    portfolioScreenshots: (data.portfolioScreenshots as string[]) || [],
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
   };
@@ -792,12 +800,26 @@ export async function updateProject(
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
     paymentStatus?: Project["paymentStatus"];
+    portfolioEnabled?: boolean;
+    portfolioDescription?: string;
+    portfolioBenefits?: string;
+    portfolioScreenshots?: string[];
   }
 ) {
   return updateDoc(doc(db, "projects", projectId), {
     ...fields,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function getPortfolioProjects(): Promise<Project[]> {
+  const q = query(
+    collection(db, "projects"),
+    where("portfolioEnabled", "==", true),
+    orderBy("createdAt", "desc")
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(mapProject);
 }
 
 // --- Product Updates ---

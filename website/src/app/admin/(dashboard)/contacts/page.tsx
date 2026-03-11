@@ -767,6 +767,11 @@ function DocumentsPanel({
   const [editRequestDescription, setEditRequestDescription] = useState("");
   const [editRequestPriority, setEditRequestPriority] = useState<ChangeRequest["priority"]>("medium");
   const [savingRequest, setSavingRequest] = useState(false);
+  const [portfolioDescription, setPortfolioDescription] = useState("");
+  const [portfolioBenefits, setPortfolioBenefits] = useState("");
+  const [portfolioScreenshots, setPortfolioScreenshots] = useState<string[]>([]);
+  const [newScreenshotUrl, setNewScreenshotUrl] = useState("");
+  const [savingPortfolio, setSavingPortfolio] = useState(false);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -814,6 +819,14 @@ function DocumentsPanel({
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
+
+  useEffect(() => {
+    if (activeProject) {
+      setPortfolioDescription(activeProject.portfolioDescription);
+      setPortfolioBenefits(activeProject.portfolioBenefits);
+      setPortfolioScreenshots(activeProject.portfolioScreenshots);
+    }
+  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelected = async (file: File) => {
     setUploadFile(file);
@@ -3022,6 +3035,111 @@ function DocumentsPanel({
           </div>
         </div>
       </div>
+
+      {/* ===== PORTFOLIO ===== */}
+      {activeProject && (
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold uppercase tracking-wide text-muted">Portfolio</h3>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-xs text-muted">Show on website</span>
+              <button
+                onClick={async () => {
+                  await updateProject(activeProject.id, { portfolioEnabled: !activeProject.portfolioEnabled });
+                  onDocumentsChanged();
+                }}
+                className={`relative w-9 h-5 rounded-full transition-colors ${activeProject.portfolioEnabled ? "bg-accent" : "bg-border"}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${activeProject.portfolioEnabled ? "translate-x-4" : ""}`} />
+              </button>
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted block mb-1">Description</label>
+              <textarea
+                placeholder="Public-facing description of what this project does..."
+                value={portfolioDescription}
+                onChange={(e) => setPortfolioDescription(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted block mb-1">Client Benefits</label>
+              <textarea
+                placeholder="How this project benefits the client (shown on portfolio page)..."
+                value={portfolioBenefits}
+                onChange={(e) => setPortfolioBenefits(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted block mb-1">Screenshots</label>
+              {portfolioScreenshots.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {portfolioScreenshots.map((url, i) => (
+                    <div key={i} className="relative group">
+                      <img src={url} alt={`Screenshot ${i + 1}`} className="w-full h-24 object-cover rounded-lg border border-border" />
+                      <button
+                        onClick={() => setPortfolioScreenshots(portfolioScreenshots.filter((_, j) => j !== i))}
+                        className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-red-500/80 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Paste screenshot URL..."
+                  value={newScreenshotUrl}
+                  onChange={(e) => setNewScreenshotUrl(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <button
+                  onClick={() => {
+                    if (newScreenshotUrl.trim()) {
+                      setPortfolioScreenshots([...portfolioScreenshots, newScreenshotUrl.trim()]);
+                      setNewScreenshotUrl("");
+                    }
+                  }}
+                  disabled={!newScreenshotUrl.trim()}
+                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 disabled:opacity-40 transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                setSavingPortfolio(true);
+                try {
+                  await updateProject(activeProject.id, {
+                    portfolioDescription,
+                    portfolioBenefits,
+                    portfolioScreenshots,
+                  });
+                  onDocumentsChanged();
+                } finally {
+                  setSavingPortfolio(false);
+                }
+              }}
+              disabled={savingPortfolio}
+              className="bg-accent hover:bg-accent-hover disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              {savingPortfolio ? "Saving..." : "Save Portfolio Info"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Other Documents */}
       {otherDocs.length > 0 && (
