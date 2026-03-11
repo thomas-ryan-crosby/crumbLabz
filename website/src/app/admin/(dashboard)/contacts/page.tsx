@@ -529,8 +529,12 @@ function ContactDetail({
     docId: string,
     status: string
   ) => {
-    await updateClientDocument(contact.id, docId, { status });
-    const updated = await getClientDocuments(contact.id);
+    // Find which contact owns this document
+    const doc = documents.find((d) => d.id === docId);
+    const ownerContactId = doc?.contactId || contact.id;
+    await updateClientDocument(ownerContactId, docId, { status });
+    const results = await Promise.all(companyContactIds.map((id) => getClientDocuments(id)));
+    const updated = results.flat();
     setDocuments(updated);
     if (viewingDoc?.id === docId) {
       setViewingDoc(updated.find((d) => d.id === docId) || null);
@@ -668,6 +672,7 @@ function ContactDetail({
       {tab === "documents" && (
         <DocumentsPanel
           contactId={contact.id}
+          companyContactIds={companyContactIds}
           actorName={actorName}
           contactName={contact.name}
           contactEmail={contact.email}
@@ -678,8 +683,8 @@ function ContactDetail({
           setViewingDoc={setViewingDoc}
           onDocStatusChange={handleDocStatusChange}
           onDocumentsChanged={async () => {
-            const updated = await getClientDocuments(contact.id);
-            setDocuments(updated);
+            const results = await Promise.all(companyContactIds.map((id) => getClientDocuments(id)));
+            setDocuments(results.flat());
           }}
           onProjectCreated={handleProjectCreated}
         />
@@ -1202,6 +1207,7 @@ function PortfolioPanel({
 
 function DocumentsPanel({
   contactId,
+  companyContactIds,
   actorName,
   contactName,
   contactEmail,
@@ -1215,6 +1221,7 @@ function DocumentsPanel({
   onProjectCreated,
 }: {
   contactId: string;
+  companyContactIds: string[];
   actorName: string;
   contactName: string;
   contactEmail: string;
@@ -1292,14 +1299,16 @@ function DocumentsPanel({
 
   useEffect(() => {
     setLoadingProjects(true);
-    getProjectsForContact(contactId).then((p) => {
-      setProjects(p);
+    Promise.all(companyContactIds.map((id) => getProjectsForContact(id))).then((results) => {
+      const all = results.flat();
+      const unique = Array.from(new Map(all.map((p) => [p.id, p])).values());
+      setProjects(unique);
       setLoadingProjects(false);
-      if (p.length > 0) {
-        setActiveProjectId(p[0].id);
+      if (unique.length > 0 && !unique.find((p) => p.id === activeProjectId)) {
+        setActiveProjectId(unique[0].id);
       }
     });
-  }, [contactId]);
+  }, [companyContactIds.join(",")]);
 
   const handleCreateNewProject = async () => {
     if (!newProjectName.trim()) return;
@@ -1646,14 +1655,14 @@ function DocumentsPanel({
       const existing = solutionDocs.find((d) => d.type === "solution_overview");
       if (existing) {
         await saveRevisionAndUpdate(
-          contactId,
+          existing.contactId || contactId,
           existing.id,
           { content: existing.content, title: existing.title, status: existing.status, version: existing.version || 1 },
           { content: data.content },
           "AI"
         );
         if (data.commitSha) {
-          await updateClientDocument(contactId, existing.id, { generatedFromCommit: data.commitSha });
+          await updateClientDocument(existing.contactId || contactId, existing.id, { generatedFromCommit: data.commitSha });
         }
       } else {
         await addClientDocument(contactId, {
@@ -1707,14 +1716,14 @@ function DocumentsPanel({
       const existing = solutionDocs.find((d) => d.type === "getting_started");
       if (existing) {
         await saveRevisionAndUpdate(
-          contactId,
+          existing.contactId || contactId,
           existing.id,
           { content: existing.content, title: existing.title, status: existing.status, version: existing.version || 1 },
           { content: data.content },
           "AI"
         );
         if (data.commitSha) {
-          await updateClientDocument(contactId, existing.id, { generatedFromCommit: data.commitSha });
+          await updateClientDocument(existing.contactId || contactId, existing.id, { generatedFromCommit: data.commitSha });
         }
       } else {
         await addClientDocument(contactId, {
@@ -1798,7 +1807,7 @@ function DocumentsPanel({
       // Update solution doc statuses to "sent"
       for (const d of solutionDocs) {
         if (d.status === "draft") {
-          await updateClientDocument(contactId, d.id, { status: "sent" });
+          await updateClientDocument(d.contactId || contactId, d.id, { status: "sent" });
         }
       }
 
@@ -1940,7 +1949,7 @@ function DocumentsPanel({
     if (!confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
     setDeletingDocId(doc.id);
     try {
-      await deleteClientDocument(contactId, doc.id);
+      await deleteClientDocument(doc.contactId || contactId, doc.id);
       if (viewingDoc?.id === doc.id) {
         setViewingDoc(null);
       }
@@ -2073,7 +2082,7 @@ function DocumentsPanel({
       setLoadingRevisions(true);
       setViewingRevision(null);
       setShowRevisions(false);
-      getDocumentRevisions(contactId, viewingDoc.id).then((data) => {
+      getDocumentRevisions(viewingDoc.contactId || contactId, viewingDoc.id).then((data) => {
         setRevisions(data);
         setLoadingRevisions(false);
       });
@@ -2088,7 +2097,7 @@ function DocumentsPanel({
   useEffect(() => {
     if (viewingDoc && ["problem_definition", "solution_one_pager", "development_plan"].includes(viewingDoc.type)) {
       setLoadingComments(true);
-      getDocumentComments(contactId, viewingDoc.id).then((data) => {
+      getDocumentComments(viewingDoc.contactId || contactId, viewingDoc.id).then((data) => {
         setComments(data);
         setLoadingComments(false);
       });
@@ -2109,7 +2118,7 @@ function DocumentsPanel({
     if (!viewingDoc) return;
     setSavingNotes(true);
     try {
-      await updateClientDocument(contactId, viewingDoc.id, { adminNotes });
+      await updateClientDocument(viewingDoc.contactId || contactId, viewingDoc.id, { adminNotes });
       setAdminNotesOriginal(adminNotes);
       await onDocumentsChanged();
     } finally {

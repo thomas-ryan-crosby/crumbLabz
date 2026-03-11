@@ -279,6 +279,7 @@ export async function signOut() {
 
 export interface ClientDocument {
   id: string;
+  contactId: string;
   title: string;
   type: "problem_definition" | "solution_one_pager" | "development_plan" | "meeting_transcript" | "solution_overview" | "getting_started" | "feature_specification" | "other";
   content: string;
@@ -358,6 +359,7 @@ export async function getClientDocuments(contactId: string): Promise<ClientDocum
     const data = d.data();
     return {
       id: d.id,
+      contactId,
       title: data.title || "",
       type: data.type || "other",
       content: data.content || "",
