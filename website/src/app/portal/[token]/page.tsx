@@ -69,6 +69,7 @@ export default function PortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [contact, setContact] = useState<Contact | null>(null);
+  const [companyContactIds, setCompanyContactIds] = useState<string[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
@@ -110,12 +111,21 @@ export default function PortalPage() {
         }
         setContact(c);
 
-        const [docs, projs] = await Promise.all([
-          getClientDocuments(portalData.contactId),
-          getProjectsForContact(portalData.contactId),
+        // Aggregate docs and projects across all contacts in the same company
+        const companyContacts = contacts.filter(
+          (ct) => ct.company.toLowerCase() === c.company.toLowerCase()
+        );
+        const ccIds = companyContacts.map((ct) => ct.id);
+        setCompanyContactIds(ccIds);
+
+        const [docsResults, projResults] = await Promise.all([
+          Promise.all(ccIds.map((id) => getClientDocuments(id))),
+          Promise.all(ccIds.map((id) => getProjectsForContact(id))),
         ]);
-        setDocuments(docs);
-        setProjects(projs);
+        setDocuments(docsResults.flat());
+        const allProjects = projResults.flat();
+        const uniqueProjects = Array.from(new Map(allProjects.map((p) => [p.id, p])).values());
+        setProjects(uniqueProjects);
       } catch {
         setError("Failed to load portal data.");
       } finally {
@@ -127,17 +137,17 @@ export default function PortalPage() {
 
   // Load change requests, product updates, and change log when project changes
   useEffect(() => {
-    if (!contact || !activeProjectId) return;
+    if (!contact || !activeProjectId || companyContactIds.length === 0) return;
     Promise.all([
-      getChangeRequests(contact.id, activeProjectId),
-      getProductUpdates(contact.id, activeProjectId),
-      getChangeLogEntries(contact.id, activeProjectId),
-    ]).then(([crs, pus, cls]) => {
-      setChangeRequests(crs);
-      setProductUpdates(pus);
-      setChangeLog(cls);
+      Promise.all(companyContactIds.map((id) => getChangeRequests(id, activeProjectId))),
+      Promise.all(companyContactIds.map((id) => getProductUpdates(id, activeProjectId))),
+      Promise.all(companyContactIds.map((id) => getChangeLogEntries(id, activeProjectId))),
+    ]).then(([crsArr, pusArr, clsArr]) => {
+      setChangeRequests(crsArr.flat());
+      setProductUpdates(pusArr.flat());
+      setChangeLog(clsArr.flat());
     });
-  }, [contact, activeProjectId]);
+  }, [contact, activeProjectId, companyContactIds]);
 
   const handleSubmitChangeLog = async () => {
     if (!contact || !changeLogTitle.trim() || !changeLogDescription.trim()) return;
@@ -150,8 +160,8 @@ export default function PortalPage() {
         createdBy: contact.name,
         createdByRole: "client",
       });
-      const updated = await getChangeLogEntries(contact.id, activeProjectId);
-      setChangeLog(updated);
+      const results = await Promise.all(companyContactIds.map((id) => getChangeLogEntries(id, activeProjectId)));
+      setChangeLog(results.flat());
       setChangeLogTitle("");
       setChangeLogDescription("");
       setShowChangeLogForm(false);
@@ -171,8 +181,8 @@ export default function PortalPage() {
         author: contact.name,
         source: "client_portal",
       });
-      const updated = await getChangeRequests(contact.id, activeProjectId);
-      setChangeRequests(updated);
+      const results = await Promise.all(companyContactIds.map((id) => getChangeRequests(id, activeProjectId)));
+      setChangeRequests(results.flat());
       setFeatureTitle("");
       setFeatureDescription("");
       setFeaturePriority("medium");

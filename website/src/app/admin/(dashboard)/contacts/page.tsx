@@ -1103,6 +1103,7 @@ function PortfolioPanel({
 }) {
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [confirmShowcase, setConfirmShowcase] = useState<Project | null>(null);
 
   const handleGenerateShowcase = async (project: Project) => {
     if (!project.repoUrl) return;
@@ -1215,7 +1216,7 @@ function PortfolioPanel({
           <div className="flex gap-2 flex-wrap">
             {project.repoUrl && (
               <button
-                onClick={() => handleGenerateShowcase(project)}
+                onClick={() => setConfirmShowcase(project)}
                 disabled={generatingId !== null}
                 className="text-sm font-medium px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
               >
@@ -1231,6 +1232,37 @@ function PortfolioPanel({
               </button>
             )}
           </div>
+
+          {/* AI Generation Cost Confirmation (Showcase) */}
+          {confirmShowcase?.id === project.id && (
+            <div className="px-4 py-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-3">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Each generation costs ~$0.50. Are you sure you want to proceed?
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => { setConfirmShowcase(null); handleGenerateShowcase(project); }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                >
+                  Generate Anyway (~$0.50)
+                </button>
+                <button
+                  onClick={() => setConfirmShowcase(null)}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full text-muted hover:text-charcoal transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {generatingId === project.id && (
             <GeneratingProgress label={`Generating showcase for ${project.name}`} />
@@ -1341,6 +1373,144 @@ function DocumentsPanel({
   const [editRequestDescription, setEditRequestDescription] = useState("");
   const [editRequestPriority, setEditRequestPriority] = useState<ChangeRequest["priority"]>("medium");
   const [savingRequest, setSavingRequest] = useState(false);
+  const [confirmGenerate, setConfirmGenerate] = useState<string | null>(null); // doc type pending confirmation
+
+  const GENERATE_PROMPTS: Record<string, { system: string; userMessage: (ctx: { discoveryMeetings: ClientDocument[]; productDocs: ClientDocument[]; solutionDocs: ClientDocument[] }) => string; label: string }> = {
+    problem_definition: {
+      system: `You are a business analyst at a software development firm called CrumbLabz. You will be provided a meeting transcript from a client discovery session about building custom software to solve business operational problems.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Create a Problem Definition Document with these sections: Client Overview, Problem Statement, Current Workflow, Tools & Systems Currently in Use, Pain Points, Impact Assessment (with Time Wasted table), Stakeholders, Constraints & Requirements, Success Criteria.
+
+End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
+
+Be specific. Extract real names, numbers, tools, and workflows. Do not generalize.`,
+      userMessage: (ctx) => {
+        const transcript = ctx.discoveryMeetings[0];
+        return transcript ? `Here is the transcript of the discovery call:\n\n${transcript.content}` : "(Paste your meeting transcript here)";
+      },
+      label: "Problem Definition",
+    },
+    solution_one_pager: {
+      system: `You are a solutions architect at CrumbLabz. You will be provided a Problem Definition Document.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Write a Solution One-Pager with these sections: The Problem, Proposed Solution, Key Features (MVP), Expected Benefits, Technical Approach, Estimated Timeline, Recommended Engagement Model.
+
+End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
+
+Tone must be executive-friendly — clear, confident, and jargon-free.`,
+      userMessage: (ctx) => {
+        const prd = ctx.productDocs.find((d) => d.type === "problem_definition");
+        return prd ? `Here is the Problem Definition Document:\n\n${prd.content}` : "(Paste your Problem Definition Document here)";
+      },
+      label: "Solution One-Pager",
+    },
+    development_plan: {
+      system: `You are a senior software project manager at CrumbLabz. You will be provided a Solution One-Pager.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Create a Development Plan with these sections: MVP Scope, Feature List, User Stories — Must Have Features, Technical Architecture, Development Phases (Phase 1: MVP Build, Phase 2: Client Review, Phase 3: Production Hardening), Assumptions & Dependencies, Risk Register, Success Metrics.
+
+End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
+
+Be specific. Extract real names, workflows, tools, and pain points.`,
+      userMessage: (ctx) => {
+        const sop = ctx.productDocs.find((d) => d.type === "solution_one_pager");
+        return sop ? `Here is the Solution One-Pager:\n\n${sop.content}` : "(Paste your Solution One-Pager here)";
+      },
+      label: "Development Plan",
+    },
+    solution_overview: {
+      system: `You are a technical writer at CrumbLabz. You have been given the contents of a GitHub repository.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Produce a Solution Overview with these sections: What We Built, How It Works, Technology Stack, Key Features, Getting Started, Architecture Overview, API & Integrations, Maintenance & Support.
+
+End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
+
+Write for a non-technical business audience.`,
+      userMessage: () => "(Paste the repository file tree and key file contents here)",
+      label: "Solution Overview",
+    },
+    getting_started: {
+      system: `You are a technical writer at CrumbLabz. You have been given the contents of a GitHub repository and a Solution Overview document.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Produce a Getting Started Guide with these sections: Welcome, Accessing Your Solution, Logging In, Your First Time Using the Solution, Key Workflows (with numbered step-by-step instructions), Tips & Best Practices, Getting Help, What's Next.
+
+End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
+
+Be EXTREMELY specific. Use actual button names, field labels, and page titles.`,
+      userMessage: (ctx) => {
+        const overview = ctx.solutionDocs.find((d) => d.type === "solution_overview");
+        return overview ? `Here is the Solution Overview:\n\n${overview.content}\n\n(Also paste repository file tree and key file contents here)` : "(Paste the Solution Overview, repository file tree, and key file contents here)";
+      },
+      label: "Getting Started Guide",
+    },
+    feature_specification: {
+      system: `You are a business analyst and technical lead at CrumbLabz.
+
+IMPORTANT: Feature Requests are the primary source of truth. Meeting Minutes are supplementary context only.
+
+IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
+
+> **CrumbLabz** | Custom Software Solutions
+> *Turning Business Headaches Into Working Tools*
+>
+> ---
+
+Produce a Feature Specification with these sections: Request Summary, Problem Context, Proposed Changes, Acceptance Criteria.
+
+End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*`,
+      userMessage: () => "(Paste meeting minutes, feature requests, and/or internal notes here)",
+      label: "Feature Specification",
+    },
+  };
+
+  const downloadPrompt = (type: string) => {
+    const prompt = GENERATE_PROMPTS[type];
+    if (!prompt) return;
+    const ctx = { discoveryMeetings, productDocs, solutionDocs };
+    const content = `# ${prompt.label} — AI Generation Prompt\n\nUse this prompt with any AI assistant (ChatGPT, Claude, etc.) to generate your ${prompt.label} document.\n\n---\n\n## System Prompt\n\nCopy this into the system/instructions field:\n\n\`\`\`\n${prompt.system}\n\`\`\`\n\n---\n\n## Your Message\n\nCopy this into the message field (replace placeholder text with your actual content if needed):\n\n\`\`\`\n${prompt.userMessage(ctx)}\n\`\`\`\n\n---\n\nAfter the AI generates the document, download it as a **.md** file and use the **Upload** button in the CRM to import it.\n`;
+    const blob = new Blob([content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${type}-prompt.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -2915,7 +3085,7 @@ function DocumentsPanel({
             Upload
           </button>
           <button
-            onClick={() => handleGenerate("problem_definition")}
+            onClick={() => setConfirmGenerate("problem_definition")}
             disabled={discoveryMeetings.length === 0 || generating !== null}
             className="text-xs font-medium px-3 py-1.5 rounded-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
           >
@@ -2931,7 +3101,7 @@ function DocumentsPanel({
             )}
           </button>
           <button
-            onClick={() => handleGenerate("solution_one_pager")}
+            onClick={() => setConfirmGenerate("solution_one_pager")}
             disabled={!productDocs.some((d) => d.type === "problem_definition") || generating !== null}
             className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
           >
@@ -2947,7 +3117,7 @@ function DocumentsPanel({
             )}
           </button>
           <button
-            onClick={() => handleGenerate("development_plan")}
+            onClick={() => setConfirmGenerate("development_plan")}
             disabled={!productDocs.some((d) => d.type === "solution_one_pager") || generating !== null}
             className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
           >
@@ -3006,6 +3176,51 @@ function DocumentsPanel({
         {generateError && (
           <div className="mb-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg">
             <p className="text-sm text-red-600">{generateError}</p>
+          </div>
+        )}
+
+        {/* AI Generation Cost Confirmation (Initial Definition) */}
+        {confirmGenerate && ["problem_definition", "solution_one_pager", "development_plan"].includes(confirmGenerate) && (
+          <div className="mb-3 px-4 py-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-3">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  Each generation costs ~$0.50. Alternatively, you can <strong>download the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  const type = confirmGenerate;
+                  setConfirmGenerate(null);
+                  if (type === "solution_overview") handleGenerateSolutionOverview();
+                  else if (type === "getting_started") handleGenerateGettingStarted();
+                  else if (type === "feature_specification") handleGenerateFeatureDoc();
+                  else handleGenerate(type as "problem_definition" | "solution_one_pager" | "development_plan");
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+              >
+                Generate Anyway (~$0.50)
+              </button>
+              <button
+                onClick={() => downloadPrompt(confirmGenerate)}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                Download Prompt Instead
+              </button>
+              <button
+                onClick={() => setConfirmGenerate(null)}
+                className="text-xs font-medium px-3 py-1.5 rounded-full text-muted hover:text-charcoal transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
@@ -3261,7 +3476,7 @@ function DocumentsPanel({
                 Upload
               </button>
               <button
-                onClick={handleGenerateSolutionOverview}
+                onClick={() => setConfirmGenerate("solution_overview")}
                 disabled={generating !== null}
                 className="text-xs font-medium px-3 py-1.5 rounded-full bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
               >
@@ -3277,7 +3492,7 @@ function DocumentsPanel({
                 )}
               </button>
               <button
-                onClick={handleGenerateGettingStarted}
+                onClick={() => setConfirmGenerate("getting_started")}
                 disabled={generating !== null || !solutionDocs.some((d) => d.type === "solution_overview")}
                 className="text-xs font-medium px-3 py-1.5 rounded-full bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 disabled:opacity-40 transition-colors flex items-center gap-1.5"
               >
@@ -3341,6 +3556,49 @@ function DocumentsPanel({
 
             {solutionDocs.length === 0 && !generating && (
               <p className="text-muted text-xs">Generate a solution overview to create client-facing tech documentation from the GitHub repository.</p>
+            )}
+
+            {/* AI Generation Cost Confirmation (Solution Assets) */}
+            {confirmGenerate && ["solution_overview", "getting_started"].includes(confirmGenerate) && (
+              <div className="px-4 py-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Each generation costs ~$0.50. Alternatively, you can <strong>download the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      const type = confirmGenerate;
+                      setConfirmGenerate(null);
+                      if (type === "solution_overview") handleGenerateSolutionOverview();
+                      else handleGenerateGettingStarted();
+                    }}
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                  >
+                    Generate Anyway (~$0.50)
+                  </button>
+                  <button
+                    onClick={() => downloadPrompt(confirmGenerate)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    Download Prompt Instead
+                  </button>
+                  <button
+                    onClick={() => setConfirmGenerate(null)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-full text-muted hover:text-charcoal transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
 
             {/* Send Solution Assets for Review */}
@@ -3714,12 +3972,50 @@ function DocumentsPanel({
 
                 {!generatingFeatureDoc && (
                   <button
-                    onClick={handleGenerateFeatureDoc}
+                    onClick={() => setConfirmGenerate("feature_specification")}
                     disabled={selectedMinuteIds.length === 0 && selectedRequestIds.length === 0 && !featureDocNotes.trim()}
                     className="bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
                   >
                     Generate Feature Specification
                   </button>
+                )}
+
+                {/* AI Generation Cost Confirmation (Feature Spec) */}
+                {confirmGenerate === "feature_specification" && (
+                  <div className="px-4 py-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-3">
+                    <div className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Each generation costs ~$0.50. Alternatively, you can <strong>download the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => { setConfirmGenerate(null); handleGenerateFeatureDoc(); }}
+                        className="text-xs font-medium px-3 py-1.5 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                      >
+                        Generate Anyway (~$0.50)
+                      </button>
+                      <button
+                        onClick={() => downloadPrompt("feature_specification")}
+                        className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                        Download Prompt Instead
+                      </button>
+                      <button
+                        onClick={() => setConfirmGenerate(null)}
+                        className="text-xs font-medium px-3 py-1.5 rounded-full text-muted hover:text-charcoal transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
