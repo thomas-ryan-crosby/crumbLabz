@@ -1293,6 +1293,7 @@ function DocumentsPanel({
   const [sendingReview, setSendingReview] = useState(false);
   const [sendReviewError, setSendReviewError] = useState<string | null>(null);
   const [reviewSent, setReviewSent] = useState(false);
+  const [confirmSendReview, setConfirmSendReview] = useState(false);
   const [comments, setComments] = useState<DocumentComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string>("");
@@ -1785,6 +1786,7 @@ function DocumentsPanel({
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
   const [solutionReviewSent, setSolutionReviewSent] = useState(false);
   const [sendingSolutionReview, setSendingSolutionReview] = useState(false);
+  const [confirmSendSolutionReview, setConfirmSendSolutionReview] = useState(false);
 
   // Product updates state
   const [productUpdates, setProductUpdates] = useState<ProductUpdate[]>([]);
@@ -3003,25 +3005,45 @@ function DocumentsPanel({
                 </svg>
                 <p className="text-sm text-blue-700 font-medium">Documents sent to {contactEmail} for review.</p>
               </div>
+            ) : confirmSendReview ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-medium text-blue-900">Confirm: Send definition documents for review</p>
+                <div className="flex items-center gap-2 bg-white rounded-md px-3 py-2 border border-blue-200">
+                  <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                  </svg>
+                  <span className="text-sm text-blue-800 font-medium">{contactEmail}</span>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setConfirmSendReview(false)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg text-muted hover:bg-border transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => { setConfirmSendReview(false); handleSendForReview(); }}
+                    disabled={sendingReview}
+                    className="text-xs font-medium px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center gap-1.5"
+                  >
+                    {sendingReview ? (
+                      <>
+                        <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Sending...
+                      </>
+                    ) : "Confirm & Send"}
+                  </button>
+                </div>
+              </div>
             ) : (
               <button
-                onClick={handleSendForReview}
-                disabled={sendingReview}
-                className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                onClick={() => setConfirmSendReview(true)}
+                className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
               >
-                {sendingReview ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                    </svg>
-                    Send to Client for Review
-                  </>
-                )}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                </svg>
+                Send to Client for Review
               </button>
             )}
           </div>
@@ -3275,25 +3297,45 @@ function DocumentsPanel({
                     </svg>
                     <p className="text-sm text-blue-700 font-medium">Solution assets sent to {contactEmail} for review.</p>
                   </div>
+                ) : confirmSendSolutionReview ? (
+                  <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
+                    <p className="text-sm font-medium text-teal-900">Confirm: Send solution assets for review</p>
+                    <div className="flex items-center gap-2 bg-white rounded-md px-3 py-2 border border-teal-200">
+                      <svg className="w-4 h-4 text-teal-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                      </svg>
+                      <span className="text-sm text-teal-800 font-medium">{contactEmail}</span>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => setConfirmSendSolutionReview(false)}
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg text-muted hover:bg-border transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => { setConfirmSendSolutionReview(false); handleSendSolutionForReview(); }}
+                        disabled={sendingSolutionReview}
+                        className="text-xs font-medium px-4 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 transition-colors flex items-center gap-1.5"
+                      >
+                        {sendingSolutionReview ? (
+                          <>
+                            <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Sending...
+                          </>
+                        ) : "Confirm & Send"}
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <button
-                    onClick={handleSendSolutionForReview}
-                    disabled={sendingSolutionReview}
-                    className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                    onClick={() => setConfirmSendSolutionReview(true)}
+                    className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    {sendingSolutionReview ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                        </svg>
-                        Send Solution to Client for Review
-                      </>
-                    )}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                    Send Solution to Client for Review
                   </button>
                 )}
               </div>
