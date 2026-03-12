@@ -12,11 +12,16 @@ const BOOKING_URL =
 
 export async function POST(request: Request) {
   try {
-    const { contactName, contactEmail, companyName, reviewType, portalUrl } = await request.json();
+    const { contactName, contactEmail, emails, companyName, reviewType, portalUrl } = await request.json();
 
-    if (!contactName || !contactEmail || !portalUrl) {
+    // Support both single email (legacy) and array of emails
+    const recipientEmails: string[] = emails && Array.isArray(emails) && emails.length > 0
+      ? emails
+      : contactEmail ? [contactEmail] : [];
+
+    if (!contactName || recipientEmails.length === 0 || !portalUrl) {
       return NextResponse.json(
-        { error: "contactName, contactEmail, and portalUrl are required" },
+        { error: "contactName, emails, and portalUrl are required" },
         { status: 400 }
       );
     }
@@ -84,7 +89,7 @@ export async function POST(request: Request) {
     const resend = getResend();
     const { error } = await resend.emails.send({
       from: "CrumbLabz <hello@crumblabz.com>",
-      to: contactEmail,
+      to: recipientEmails,
       subject,
       html: `
 <!DOCTYPE html>

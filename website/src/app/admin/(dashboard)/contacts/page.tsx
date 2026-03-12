@@ -688,6 +688,9 @@ function ContactDetail({
           actorName={actorName}
           contactName={contact.name}
           contactEmail={contact.email}
+          companyEmails={allContacts
+            .filter((c) => c.company.toLowerCase() === contact.company.toLowerCase() && c.email)
+            .map((c) => c.email)}
           companyName={contact.company}
           documents={documents}
           loadingDocs={loadingDocs}
@@ -1248,6 +1251,7 @@ function DocumentsPanel({
   actorName,
   contactName,
   contactEmail,
+  companyEmails,
   companyName,
   documents,
   loadingDocs,
@@ -1262,6 +1266,7 @@ function DocumentsPanel({
   actorName: string;
   contactName: string;
   contactEmail: string;
+  companyEmails: string[];
   companyName: string;
   documents: ClientDocument[];
   loadingDocs: boolean;
@@ -1294,6 +1299,8 @@ function DocumentsPanel({
   const [sendReviewError, setSendReviewError] = useState<string | null>(null);
   const [reviewSent, setReviewSent] = useState(false);
   const [confirmSendReview, setConfirmSendReview] = useState(false);
+  const [reviewEmails, setReviewEmails] = useState<string[]>([]);
+  const [newReviewEmail, setNewReviewEmail] = useState("");
   const [comments, setComments] = useState<DocumentComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string>("");
@@ -1499,7 +1506,7 @@ function DocumentsPanel({
     productDocs.some((d) => d.type === "solution_one_pager" && d.status === "approved") &&
     productDocs.some((d) => d.type === "development_plan" && d.status === "approved");
 
-  const handleSendForReview = async () => {
+  const handleSendForReview = async (emailsToSend: string[]) => {
     setSendingReview(true);
     setSendReviewError(null);
     try {
@@ -1517,11 +1524,11 @@ function DocumentsPanel({
       const portalTokenId = await getOrCreatePortalToken(contactId);
       const portalUrl = `${baseUrl}/portal/${portalTokenId}`;
 
-      // Send email — links to client portal
+      // Send email to all selected recipients
       const res = await fetch("/api/email/send-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactEmail, companyName, portalUrl }),
+        body: JSON.stringify({ contactName, emails: emailsToSend, companyName, portalUrl }),
       });
 
       if (!res.ok) {
@@ -1787,6 +1794,8 @@ function DocumentsPanel({
   const [solutionReviewSent, setSolutionReviewSent] = useState(false);
   const [sendingSolutionReview, setSendingSolutionReview] = useState(false);
   const [confirmSendSolutionReview, setConfirmSendSolutionReview] = useState(false);
+  const [solutionReviewEmails, setSolutionReviewEmails] = useState<string[]>([]);
+  const [newSolutionEmail, setNewSolutionEmail] = useState("");
 
   // Product updates state
   const [productUpdates, setProductUpdates] = useState<ProductUpdate[]>([]);
@@ -1815,7 +1824,7 @@ function DocumentsPanel({
       .catch(() => setRepoHead(null));
   }, [activeProject?.repoUrl]);
 
-  const handleSendSolutionForReview = async () => {
+  const handleSendSolutionForReview = async (emailsToSend: string[]) => {
     setSendingSolutionReview(true);
     try {
       const tokenId = await createReviewToken({
@@ -1835,7 +1844,7 @@ function DocumentsPanel({
       const res = await fetch("/api/email/send-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactEmail, companyName, reviewType: "solution_assets", portalUrl }),
+        body: JSON.stringify({ contactName, emails: emailsToSend, companyName, reviewType: "solution_assets", portalUrl }),
       });
 
       if (!res.ok) {
@@ -3003,16 +3012,58 @@ function DocumentsPanel({
                 <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                 </svg>
-                <p className="text-sm text-blue-700 font-medium">Documents sent to {contactEmail} for review.</p>
+                <p className="text-sm text-blue-700 font-medium">Documents sent for review.</p>
               </div>
             ) : confirmSendReview ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                 <p className="text-sm font-medium text-blue-900">Confirm: Send definition documents for review</p>
-                <div className="flex items-center gap-2 bg-white rounded-md px-3 py-2 border border-blue-200">
-                  <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                  </svg>
-                  <span className="text-sm text-blue-800 font-medium">{contactEmail}</span>
+                <div className="space-y-1.5">
+                  {reviewEmails.map((email, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-white rounded-md px-3 py-2 border border-blue-200">
+                      <svg className="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                      </svg>
+                      <span className="text-sm text-blue-800 font-medium flex-1">{email}</span>
+                      <button
+                        onClick={() => setReviewEmails(reviewEmails.filter((_, j) => j !== i))}
+                        className="p-0.5 text-blue-400 hover:text-red-500 transition-colors"
+                        title="Remove"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-1.5">
+                    <input
+                      type="email"
+                      placeholder="Add email address..."
+                      value={newReviewEmail}
+                      onChange={(e) => setNewReviewEmail(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newReviewEmail.trim() && newReviewEmail.includes("@")) {
+                          e.preventDefault();
+                          if (!reviewEmails.includes(newReviewEmail.trim())) {
+                            setReviewEmails([...reviewEmails, newReviewEmail.trim()]);
+                          }
+                          setNewReviewEmail("");
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 rounded-md border border-blue-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                    />
+                    <button
+                      onClick={() => {
+                        if (newReviewEmail.trim() && newReviewEmail.includes("@") && !reviewEmails.includes(newReviewEmail.trim())) {
+                          setReviewEmails([...reviewEmails, newReviewEmail.trim()]);
+                          setNewReviewEmail("");
+                        }
+                      }}
+                      className="text-xs font-medium px-3 py-1.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
                 <div className="flex gap-2 justify-end">
                   <button
@@ -3022,8 +3073,8 @@ function DocumentsPanel({
                     Cancel
                   </button>
                   <button
-                    onClick={() => { setConfirmSendReview(false); handleSendForReview(); }}
-                    disabled={sendingReview}
+                    onClick={() => { setConfirmSendReview(false); handleSendForReview(reviewEmails); }}
+                    disabled={sendingReview || reviewEmails.length === 0}
                     className="text-xs font-medium px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 transition-colors flex items-center gap-1.5"
                   >
                     {sendingReview ? (
@@ -3031,13 +3082,13 @@ function DocumentsPanel({
                         <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Sending...
                       </>
-                    ) : "Confirm & Send"}
+                    ) : `Send to ${reviewEmails.length} recipient${reviewEmails.length !== 1 ? "s" : ""}`}
                   </button>
                 </div>
               </div>
             ) : (
               <button
-                onClick={() => setConfirmSendReview(true)}
+                onClick={() => { setReviewEmails([...new Set(companyEmails)]); setConfirmSendReview(true); }}
                 className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -3295,16 +3346,58 @@ function DocumentsPanel({
                     <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                     </svg>
-                    <p className="text-sm text-blue-700 font-medium">Solution assets sent to {contactEmail} for review.</p>
+                    <p className="text-sm text-blue-700 font-medium">Solution assets sent for review.</p>
                   </div>
                 ) : confirmSendSolutionReview ? (
                   <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
                     <p className="text-sm font-medium text-teal-900">Confirm: Send solution assets for review</p>
-                    <div className="flex items-center gap-2 bg-white rounded-md px-3 py-2 border border-teal-200">
-                      <svg className="w-4 h-4 text-teal-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                      </svg>
-                      <span className="text-sm text-teal-800 font-medium">{contactEmail}</span>
+                    <div className="space-y-1.5">
+                      {solutionReviewEmails.map((email, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-white rounded-md px-3 py-2 border border-teal-200">
+                          <svg className="w-4 h-4 text-teal-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                          </svg>
+                          <span className="text-sm text-teal-800 font-medium flex-1">{email}</span>
+                          <button
+                            onClick={() => setSolutionReviewEmails(solutionReviewEmails.filter((_, j) => j !== i))}
+                            className="p-0.5 text-teal-400 hover:text-red-500 transition-colors"
+                            title="Remove"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-1.5">
+                        <input
+                          type="email"
+                          placeholder="Add email address..."
+                          value={newSolutionEmail}
+                          onChange={(e) => setNewSolutionEmail(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newSolutionEmail.trim() && newSolutionEmail.includes("@")) {
+                              e.preventDefault();
+                              if (!solutionReviewEmails.includes(newSolutionEmail.trim())) {
+                                setSolutionReviewEmails([...solutionReviewEmails, newSolutionEmail.trim()]);
+                              }
+                              setNewSolutionEmail("");
+                            }
+                          }}
+                          className="flex-1 px-3 py-1.5 rounded-md border border-teal-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/50"
+                        />
+                        <button
+                          onClick={() => {
+                            if (newSolutionEmail.trim() && newSolutionEmail.includes("@") && !solutionReviewEmails.includes(newSolutionEmail.trim())) {
+                              setSolutionReviewEmails([...solutionReviewEmails, newSolutionEmail.trim()]);
+                              setNewSolutionEmail("");
+                            }
+                          }}
+                          className="text-xs font-medium px-3 py-1.5 rounded-md bg-teal-100 text-teal-700 hover:bg-teal-200 transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
                     </div>
                     <div className="flex gap-2 justify-end">
                       <button
@@ -3314,8 +3407,8 @@ function DocumentsPanel({
                         Cancel
                       </button>
                       <button
-                        onClick={() => { setConfirmSendSolutionReview(false); handleSendSolutionForReview(); }}
-                        disabled={sendingSolutionReview}
+                        onClick={() => { setConfirmSendSolutionReview(false); handleSendSolutionForReview(solutionReviewEmails); }}
+                        disabled={sendingSolutionReview || solutionReviewEmails.length === 0}
                         className="text-xs font-medium px-4 py-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-60 transition-colors flex items-center gap-1.5"
                       >
                         {sendingSolutionReview ? (
@@ -3323,13 +3416,13 @@ function DocumentsPanel({
                             <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             Sending...
                           </>
-                        ) : "Confirm & Send"}
+                        ) : `Send to ${solutionReviewEmails.length} recipient${solutionReviewEmails.length !== 1 ? "s" : ""}`}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <button
-                    onClick={() => setConfirmSendSolutionReview(true)}
+                    onClick={() => { setSolutionReviewEmails([...new Set(companyEmails)]); setConfirmSendSolutionReview(true); }}
                     className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
