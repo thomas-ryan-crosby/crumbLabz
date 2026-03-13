@@ -1380,6 +1380,7 @@ function DocumentsPanel({
   const [featureUploadContent, setFeatureUploadContent] = useState("");
   const [uploadingFeature, setUploadingFeature] = useState(false);
   const [extractingFeaturePdf, setExtractingFeaturePdf] = useState(false);
+  const [featureDragOver, setFeatureDragOver] = useState(false);
 
   const GENERATE_PROMPTS: Record<string, { system: string; userMessage: (ctx: { discoveryMeetings: ClientDocument[]; productDocs: ClientDocument[]; solutionDocs: ClientDocument[] }) => string; label: string }> = {
     problem_definition: {
@@ -3984,7 +3985,12 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
 
             {/* Upload Feature Spec */}
             {showFeatureUpload && (
-              <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+              <div
+                className={`bg-neutral rounded-lg p-4 mb-3 space-y-3 ${featureDragOver ? "ring-2 ring-violet-400" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setFeatureDragOver(true); }}
+                onDragLeave={() => setFeatureDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setFeatureDragOver(false); const file = e.dataTransfer.files[0]; if (file) handleFeatureFileSelected(file); }}
+              >
                 <p className="text-xs font-bold text-charcoal">Upload Feature Specification</p>
                 <input
                   type="text"
@@ -3995,9 +4001,9 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                 />
                 <div className="flex items-center gap-2">
                   <label className="flex-1 cursor-pointer">
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border hover:border-violet-400 transition-colors">
-                      <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
-                      <span className="text-xs text-muted">{featureUploadFile ? featureUploadFile.name : "Choose file (.pdf, .md, .txt, .docx)"}</span>
+                    <div className={`flex items-center justify-center gap-2 px-3 py-4 rounded-lg border-2 border-dashed transition-colors ${featureDragOver ? "border-violet-400 bg-violet-500/10 text-violet-600" : featureUploadFile ? "border-violet-400 bg-violet-500/5 text-violet-600" : "border-border text-muted hover:border-violet-400 hover:text-violet-600"}`}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                      <span className="text-xs">{featureUploadFile ? featureUploadFile.name : "Drop a file here or click to browse (.pdf, .md, .txt, .docx)"}</span>
                     </div>
                     <input type="file" accept=".pdf,.doc,.docx,.txt,.md" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFeatureFileSelected(file); }} />
                   </label>

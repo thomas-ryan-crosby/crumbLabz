@@ -277,11 +277,45 @@ export default function PortalPage() {
             </div>
           )}
 
-          <div className="bg-white border border-[#e0e0e0] rounded-xl p-6">
-            <div className="prose prose-sm max-w-none text-[#2d2d2d]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{viewingDoc.content}</ReactMarkdown>
+          {viewingDoc.fileUrl && (
+            <div className="flex items-center gap-3 mb-4 bg-white border border-[#e0e0e0] rounded-xl p-4">
+              <svg className="w-8 h-8 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M7 18H17V16H7V18M17 14H7V12H17V14M7 10H11V8H7V10M15 2H5C3.89 2 3 2.89 3 4V20C3 21.11 3.89 22 5 22H19C20.11 22 21 21.11 21 20V8L15 2M19 20H5V4H14V9H19V20Z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[#2d2d2d] truncate">{viewingDoc.fileName || "Attached File"}</p>
+                <p className="text-xs text-[#6b6b6b]">Uploaded file</p>
+              </div>
+              <a
+                href={viewingDoc.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-[#e87a2e]/10 text-[#e87a2e] hover:bg-[#e87a2e]/20 transition-colors shrink-0"
+              >
+                View / Download
+              </a>
             </div>
-          </div>
+          )}
+
+          {viewingDoc.fileUrl && viewingDoc.fileName?.toLowerCase().endsWith(".pdf") && (
+            <iframe
+              src={viewingDoc.fileUrl}
+              className="w-full h-[600px] rounded-xl border border-[#e0e0e0] mb-4"
+              title={viewingDoc.title}
+            />
+          )}
+
+          {viewingDoc.content ? (
+            <div className="bg-white border border-[#e0e0e0] rounded-xl p-6">
+              <div className="prose prose-sm max-w-none text-[#2d2d2d]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>{viewingDoc.content}</ReactMarkdown>
+              </div>
+            </div>
+          ) : !viewingDoc.fileUrl ? (
+            <div className="bg-white border border-[#e0e0e0] rounded-xl p-6 text-center">
+              <p className="text-sm text-[#6b6b6b]">No content available for this document.</p>
+            </div>
+          ) : null}
         </div>
       </div>
     );
