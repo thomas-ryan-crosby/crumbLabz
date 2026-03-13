@@ -1374,6 +1374,12 @@ function DocumentsPanel({
   const [editRequestPriority, setEditRequestPriority] = useState<ChangeRequest["priority"]>("medium");
   const [savingRequest, setSavingRequest] = useState(false);
   const [confirmGenerate, setConfirmGenerate] = useState<string | null>(null); // doc type pending confirmation
+  const [showFeatureUpload, setShowFeatureUpload] = useState(false);
+  const [featureUploadFile, setFeatureUploadFile] = useState<File | null>(null);
+  const [featureUploadTitle, setFeatureUploadTitle] = useState("");
+  const [featureUploadContent, setFeatureUploadContent] = useState("");
+  const [uploadingFeature, setUploadingFeature] = useState(false);
+  const [extractingFeaturePdf, setExtractingFeaturePdf] = useState(false);
 
   const GENERATE_PROMPTS: Record<string, { system: string; userMessage: (ctx: { discoveryMeetings: ClientDocument[]; productDocs: ClientDocument[]; solutionDocs: ClientDocument[] }) => string; label: string }> = {
     problem_definition: {
@@ -1666,6 +1672,63 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
       await onDocumentsChanged();
     } finally {
       setUploadingDoc(false);
+    }
+  };
+
+  const handleFeatureFileSelected = async (file: File) => {
+    setFeatureUploadFile(file);
+    if (!featureUploadTitle.trim()) {
+      setFeatureUploadTitle(file.name.replace(/\.[^.]+$/, ""));
+    }
+    if (file.name.endsWith(".md") || file.name.endsWith(".txt") || file.type === "text/plain" || file.type === "text/markdown") {
+      const text = await file.text();
+      if (text) setFeatureUploadContent(text);
+    } else if (file.type === "application/pdf") {
+      setExtractingFeaturePdf(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/extract-pdf", { method: "POST", body: formData });
+        if (res.ok) {
+          const { text } = await res.json();
+          if (text) setFeatureUploadContent(text);
+        }
+      } catch {
+        // Extraction failed — user can still save with file only
+      } finally {
+        setExtractingFeaturePdf(false);
+      }
+    }
+  };
+
+  const handleUploadFeatureSpec = async () => {
+    if (!featureUploadTitle.trim() || (!featureUploadContent.trim() && !featureUploadFile)) return;
+    setUploadingFeature(true);
+    try {
+      let fileUrl = "";
+      let fileName = "";
+      if (featureUploadFile) {
+        const result = await uploadDocumentFile(contactId, featureUploadFile);
+        fileUrl = result.url;
+        fileName = result.name;
+      }
+      await addClientDocument(contactId, {
+        title: featureUploadTitle.trim(),
+        type: "feature_specification",
+        content: featureUploadContent.trim(),
+        fileUrl,
+        fileName,
+        status: "draft",
+        generatedBy: "manual",
+        projectId: activeProjectId,
+      });
+      setFeatureUploadTitle("");
+      setFeatureUploadContent("");
+      setFeatureUploadFile(null);
+      setShowFeatureUpload(false);
+      await onDocumentsChanged();
+    } finally {
+      setUploadingFeature(false);
     }
   };
 
@@ -3902,13 +3965,80 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
           <div className="border-t border-border pt-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-bold text-charcoal">Feature Backlog</h4>
-              <button
-                onClick={() => setShowCreateFeatureDoc(!showCreateFeatureDoc)}
-                className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 transition-colors"
-              >
-                {showCreateFeatureDoc ? "Cancel" : "+ Create Spec"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setShowFeatureUpload(!showFeatureUpload); if (showCreateFeatureDoc) setShowCreateFeatureDoc(false); }}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${showFeatureUpload ? "bg-charcoal text-white" : "bg-charcoal/10 text-charcoal hover:bg-charcoal/20"}`}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                  Upload
+                </button>
+                <button
+                  onClick={() => { setShowCreateFeatureDoc(!showCreateFeatureDoc); if (showFeatureUpload) setShowFeatureUpload(false); }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 hover:bg-violet-500/20 transition-colors"
+                >
+                  {showCreateFeatureDoc ? "Cancel" : "+ Create Spec"}
+                </button>
+              </div>
             </div>
+
+            {/* Upload Feature Spec */}
+            {showFeatureUpload && (
+              <div className="bg-neutral rounded-lg p-4 mb-3 space-y-3">
+                <p className="text-xs font-bold text-charcoal">Upload Feature Specification</p>
+                <input
+                  type="text"
+                  value={featureUploadTitle}
+                  onChange={(e) => setFeatureUploadTitle(e.target.value)}
+                  placeholder="Document title"
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/50"
+                />
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 cursor-pointer">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border hover:border-violet-400 transition-colors">
+                      <svg className="w-4 h-4 text-muted" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
+                      <span className="text-xs text-muted">{featureUploadFile ? featureUploadFile.name : "Choose file (.pdf, .md, .txt, .docx)"}</span>
+                    </div>
+                    <input type="file" accept=".pdf,.doc,.docx,.txt,.md" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFeatureFileSelected(file); }} />
+                  </label>
+                  {featureUploadFile && (
+                    <button onClick={() => { setFeatureUploadFile(null); setFeatureUploadContent(""); }} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                  )}
+                </div>
+                {extractingFeaturePdf && (
+                  <p className="text-xs text-muted flex items-center gap-1.5">
+                    <span className="w-3 h-3 border-2 border-muted/30 border-t-muted rounded-full animate-spin" />
+                    Extracting text from PDF...
+                  </p>
+                )}
+                {featureUploadContent && (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-muted mb-1">Extracted Content</p>
+                    <textarea
+                      value={featureUploadContent}
+                      onChange={(e) => setFeatureUploadContent(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 rounded-lg border border-border text-xs font-mono focus:outline-none focus:ring-2 focus:ring-violet-400/50 resize-y"
+                    />
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleUploadFeatureSpec}
+                    disabled={uploadingFeature || extractingFeaturePdf || !featureUploadTitle.trim() || (!featureUploadContent.trim() && !featureUploadFile)}
+                    className="bg-charcoal hover:bg-charcoal-light disabled:opacity-40 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors"
+                  >
+                    {uploadingFeature ? "Uploading..." : "Save"}
+                  </button>
+                  <button
+                    onClick={() => { setShowFeatureUpload(false); setFeatureUploadFile(null); setFeatureUploadTitle(""); setFeatureUploadContent(""); }}
+                    className="text-xs text-muted hover:text-charcoal transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Create Feature Spec — multi-select inputs */}
             {showCreateFeatureDoc && (
