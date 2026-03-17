@@ -1505,18 +1505,16 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
     },
   };
 
-  const downloadPrompt = (type: string) => {
+  const [promptCopied, setPromptCopied] = useState(false);
+  const copyPrompt = (type: string) => {
     const prompt = GENERATE_PROMPTS[type];
     if (!prompt) return;
     const ctx = { discoveryMeetings, productDocs, solutionDocs };
-    const content = `# ${prompt.label} — AI Generation Prompt\n\nUse this prompt with any AI assistant (ChatGPT, Claude, etc.) to generate your ${prompt.label} document.\n\n---\n\n## System Prompt\n\nCopy this into the system/instructions field:\n\n\`\`\`\n${prompt.system}\n\`\`\`\n\n---\n\n## Your Message\n\nCopy this into the message field (replace placeholder text with your actual content if needed):\n\n\`\`\`\n${prompt.userMessage(ctx)}\n\`\`\`\n\n---\n\nAfter the AI generates the document, download it as a **.md** file and use the **Upload** button in the CRM to import it.\n`;
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${type}-prompt.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const content = `# ${prompt.label} — AI Generation Prompt\n\nUse this prompt with any AI assistant (ChatGPT, Claude, etc.) to generate your ${prompt.label} document.\n\n---\n\n## System Prompt\n\nCopy this into the system/instructions field:\n\n${prompt.system}\n\n---\n\n## Your Message\n\nCopy this into the message field (replace placeholder text with your actual content if needed):\n\n${prompt.userMessage(ctx)}\n\n---\n\nAfter the AI generates the document, download it as a .md file and use the Upload button in the CRM to import it.\n`;
+    navigator.clipboard.writeText(content).then(() => {
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2000);
+    });
   };
 
   useEffect(() => {
@@ -3253,7 +3251,7 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
               <div>
                 <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
                 <p className="text-xs text-amber-700 mt-1">
-                  Each generation costs ~$0.50. Alternatively, you can <strong>download the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
+                  Each generation costs ~$0.50. Alternatively, you can <strong>copy the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
                 </p>
               </div>
             </div>
@@ -3272,11 +3270,11 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                 Generate Anyway (~$0.50)
               </button>
               <button
-                onClick={() => downloadPrompt(confirmGenerate)}
+                onClick={() => copyPrompt(confirmGenerate)}
                 className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1"
               >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                Download Prompt Instead
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                {promptCopied ? "Copied!" : "Copy Prompt Instead"}
               </button>
               <button
                 onClick={() => setConfirmGenerate(null)}
@@ -3632,7 +3630,7 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                   <div>
                     <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
                     <p className="text-xs text-amber-700 mt-1">
-                      Each generation costs ~$0.50. Alternatively, you can <strong>download the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
+                      Each generation costs ~$0.50. Alternatively, you can <strong>copy the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
                     </p>
                   </div>
                 </div>
@@ -3649,11 +3647,11 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                     Generate Anyway (~$0.50)
                   </button>
                   <button
-                    onClick={() => downloadPrompt(confirmGenerate)}
+                    onClick={() => copyPrompt(confirmGenerate)}
                     className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                    Download Prompt Instead
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    {promptCopied ? "Copied!" : "Copy Prompt Instead"}
                   </button>
                   <button
                     onClick={() => setConfirmGenerate(null)}
@@ -4126,7 +4124,7 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                       <div>
                         <p className="text-sm font-semibold text-amber-800">Heads up — this uses the Anthropic API</p>
                         <p className="text-xs text-amber-700 mt-1">
-                          Each generation costs ~$0.50. Alternatively, you can <strong>download the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
+                          Each generation costs ~$0.50. Alternatively, you can <strong>copy the prompt</strong> below and paste it into an AI tool you already pay for (ChatGPT, Claude, etc.), then upload the result as a markdown file using the Upload button.
                         </p>
                       </div>
                     </div>
@@ -4138,11 +4136,11 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                         Generate Anyway (~$0.50)
                       </button>
                       <button
-                        onClick={() => downloadPrompt("feature_specification")}
+                        onClick={() => copyPrompt("feature_specification")}
                         className="text-xs font-medium px-3 py-1.5 rounded-full bg-charcoal/10 text-charcoal hover:bg-charcoal/20 transition-colors flex items-center gap-1"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                        Download Prompt Instead
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        {promptCopied ? "Copied!" : "Copy Prompt Instead"}
                       </button>
                       <button
                         onClick={() => setConfirmGenerate(null)}
