@@ -1511,10 +1511,16 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
     if (!prompt) return;
     const ctx = { discoveryMeetings, productDocs, solutionDocs };
     const content = `# ${prompt.label} — AI Generation Prompt\n\nUse this prompt with any AI assistant (ChatGPT, Claude, etc.) to generate your ${prompt.label} document.\n\n---\n\n## System Prompt\n\nCopy this into the system/instructions field:\n\n${prompt.system}\n\n---\n\n## Your Message\n\nCopy this into the message field (replace placeholder text with your actual content if needed):\n\n${prompt.userMessage(ctx)}\n\n---\n\nAfter the AI generates the document, download it as a .md file and use the Upload button in the CRM to import it.\n`;
-    navigator.clipboard.writeText(content).then(() => {
-      setPromptCopied(true);
-      setTimeout(() => setPromptCopied(false), 2000);
-    });
+    const textarea = document.createElement("textarea");
+    textarea.value = content;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 2000);
   };
 
   useEffect(() => {
