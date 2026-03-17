@@ -6,6 +6,21 @@ function getClient() {
   return new Anthropic({ apiKey: key });
 }
 
+const TECH_STACK_CONTEXT = `
+CRUMBLABZ PREFERRED TECHNOLOGY STACK — Use this when making any technical recommendations:
+- Default Database: Firebase Firestore (NoSQL, real-time sync, subcollections, serverless). NOT PostgreSQL unless a specific integration demands it.
+- Default Auth: Firebase Authentication (email/password)
+- Default File Storage: Firebase Storage
+- Default Frontend: Next.js (App Router) + TypeScript + Tailwind CSS
+- Default Backend: Vercel Serverless Functions / Next.js API Routes + Firebase Admin SDK
+- Default Email: Resend
+- Default AI: Anthropic Claude API
+- Default Hosting: Vercel
+- PostgreSQL is legacy only — used in older projects, never recommended for new builds
+- Express.js is legacy only — use Next.js API routes for new projects
+- Always recommend Firebase/Firestore over PostgreSQL for new projects due to speed of development, real-time capabilities, and familiarity
+`;
+
 const PROBLEM_DEFINITION_PROMPT = `You are a business analyst at a software development firm called CrumbLabz. You will be provided two documents: a meeting summary PDF and a meeting transcript PDF from a client discovery session about building custom software to solve business operational problems. Use both documents together — the summary for high-level context and the transcript for specific details, exact quotes, names, and nuance.
 
 IMPORTANT: Start the document with this exact branded header (in markdown blockquote format):
@@ -93,7 +108,8 @@ Write a Solution One-Pager using exactly this structure:
 
 ## Technical Approach
 - Plain bullet list of implementation decisions (no jargon)
-
+- IMPORTANT: Always recommend technologies from the CrumbLabz preferred stack (see below). Default to Firebase/Firestore, Next.js, TypeScript, Tailwind CSS, and Vercel. Do NOT recommend PostgreSQL, Express, or other non-default technologies unless the client's specific situation demands it.
+${TECH_STACK_CONTEXT}
 ## Estimated Timeline
 - Table: Phase | Scope | Timeline
 - One closing sentence on sequencing rationale
@@ -186,6 +202,8 @@ Create a Development Plan using exactly this structure:
 - Each includes: "As [user], I want… so that…" statement followed by a plain-English narrative paragraph describing the interaction
 
 ## Technical Architecture
+IMPORTANT: Always recommend technologies from the CrumbLabz preferred stack. Default to Firebase Firestore (NOT PostgreSQL), Next.js + TypeScript + Tailwind CSS, Firebase Auth, Firebase Storage, and Vercel hosting. Only deviate if the client's specific requirements absolutely demand it.
+${TECH_STACK_CONTEXT}
 - High-Level Overview
 - Frontend (technology + what the user experiences)
 - Backend (technology + what it handles behind the scenes)
@@ -482,6 +500,8 @@ Then include these sections:
 - Key components, APIs, or database changes needed
 - Integration points with existing functionality
 - Any dependencies or prerequisites
+- IMPORTANT: Always recommend technologies from the CrumbLabz preferred stack. Default to Firebase Firestore, Next.js + TypeScript, and Vercel. Do NOT recommend PostgreSQL or Express for new work.
+${TECH_STACK_CONTEXT}
 
 ## Estimated Scope
 - Small / Medium / Large classification
@@ -550,6 +570,8 @@ Output a clean markdown file with these sections:
 - Frontend, backend, database, and hosting decisions from the Development Plan
 - Third-party services and APIs required
 - Key dependencies and frameworks
+- IMPORTANT: Ensure recommendations align with the CrumbLabz preferred stack. Default to Firebase/Firestore, Next.js + TypeScript + Tailwind, Firebase Auth, Firebase Storage, Vercel, and Resend. Flag any deviation from the default stack with a rationale.
+${TECH_STACK_CONTEXT}
 
 # Architecture
 - High-level system design (components and how they connect)
