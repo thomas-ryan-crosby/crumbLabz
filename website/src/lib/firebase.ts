@@ -711,6 +711,7 @@ export interface Project {
   portfolioDescription: string;
   portfolioBenefits: string;
   portfolioContent: string;
+  accessQuickRef: string;
   createdAt: Date | null;
   updatedAt: Date | null;
 }
@@ -758,6 +759,7 @@ function mapProject(d: { id: string; data: () => Record<string, unknown> }): Pro
     portfolioDescription: (data.portfolioDescription as string) || "",
     portfolioBenefits: (data.portfolioBenefits as string) || "",
     portfolioContent: (data.portfolioContent as string) || "",
+    accessQuickRef: (data.accessQuickRef as string) || "",
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : null,
   };
@@ -808,6 +810,7 @@ export async function updateProject(
     portfolioDescription?: string;
     portfolioBenefits?: string;
     portfolioContent?: string;
+    accessQuickRef?: string;
   }
 ) {
   return updateDoc(doc(db, "projects", projectId), {

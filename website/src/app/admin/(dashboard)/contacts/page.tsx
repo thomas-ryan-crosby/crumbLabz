@@ -1575,6 +1575,28 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
   );
   const unassignedDocs = documents.filter((d) => !d.projectId);
   const activeProject = projects.find((p) => p.id === activeProjectId) || null;
+  const [accessQuickRef, setAccessQuickRef] = useState("");
+  const [accessQuickRefSaving, setAccessQuickRefSaving] = useState(false);
+  const [accessQuickRefSaved, setAccessQuickRefSaved] = useState(false);
+
+  // Sync access quick ref when active project changes
+  useEffect(() => {
+    setAccessQuickRef(activeProject?.accessQuickRef || "");
+  }, [activeProject?.id, activeProject?.accessQuickRef]);
+
+  const handleSaveAccessQuickRef = async () => {
+    if (!activeProject) return;
+    setAccessQuickRefSaving(true);
+    await updateProject(activeProject.id, { accessQuickRef });
+    setAccessQuickRefSaving(false);
+    setAccessQuickRefSaved(true);
+    setTimeout(() => setAccessQuickRefSaved(false), 2000);
+    // refresh projects
+    const results = await Promise.all(companyContactIds.map((id) => getProjectsForContact(id)));
+    const all = results.flat();
+    const unique = Array.from(new Map(all.map((p) => [p.id, p])).values());
+    setProjects(unique);
+  };
 
   const handleFileSelected = async (file: File) => {
     setUploadFile(file);
@@ -3459,6 +3481,31 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wide text-muted mb-1">Solution Assets</h3>
         <p className="text-xs text-muted mb-3">GitHub repository, solution overview, and getting started guide — client-facing deliverables generated from the codebase.</p>
+
+        {/* Access Quick Reference */}
+        {activeProject && (
+          <div className="mb-4 bg-neutral rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-charcoal">Access Quick Reference</label>
+              {accessQuickRefSaved && <span className="text-[10px] text-emerald-600 font-medium">Saved</span>}
+            </div>
+            <p className="text-[10px] text-muted mb-2">Quick instructions for the client on how to access their solution (URL, login, etc.). This shows prominently on the client portal.</p>
+            <textarea
+              value={accessQuickRef}
+              onChange={(e) => setAccessQuickRef(e.target.value)}
+              placeholder="e.g. Visit https://app.example.com and log in with your email. Default password: welcome123"
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 resize-y mb-2"
+            />
+            <button
+              onClick={handleSaveAccessQuickRef}
+              disabled={accessQuickRefSaving || accessQuickRef === (activeProject.accessQuickRef || "")}
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+            >
+              {accessQuickRefSaving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        )}
 
         {/* Create GitHub Repository */}
         {activeProject && !activeProject.repoUrl && (
