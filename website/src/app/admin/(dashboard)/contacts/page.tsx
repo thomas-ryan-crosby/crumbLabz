@@ -1382,7 +1382,21 @@ function DocumentsPanel({
   const [extractingFeaturePdf, setExtractingFeaturePdf] = useState(false);
   const [featureDragOver, setFeatureDragOver] = useState(false);
 
-  const GENERATE_PROMPTS: Record<string, { system: string; userMessage: (ctx: { discoveryMeetings: ClientDocument[]; productDocs: ClientDocument[]; solutionDocs: ClientDocument[] }) => string; label: string }> = {
+  const TECH_STACK_REF = `
+CRUMBLABZ PREFERRED TECHNOLOGY STACK — Use this when making any technical recommendations:
+- Default Database: Firebase Firestore (NoSQL, real-time sync, subcollections, serverless). NOT PostgreSQL unless a specific integration demands it.
+- Default Auth: Firebase Authentication (email/password)
+- Default File Storage: Firebase Storage
+- Default Frontend: Next.js (App Router) + TypeScript + Tailwind CSS
+- Default Backend: Vercel Serverless Functions / Next.js API Routes + Firebase Admin SDK
+- Default Email: Resend
+- Default AI: Anthropic Claude API
+- Default Hosting: Vercel
+- PostgreSQL is legacy only — used in older projects, never recommended for new builds
+- Express.js is legacy only — use Next.js API routes for new projects
+- Always recommend Firebase/Firestore over PostgreSQL for new projects`;
+
+  const GENERATE_PROMPTS: Record<string, { system: string; label: string }> = {
     problem_definition: {
       system: `You are a business analyst at a software development firm called CrumbLabz. You will be provided a meeting transcript from a client discovery session about building custom software to solve business operational problems.
 
@@ -1398,10 +1412,6 @@ Create a Problem Definition Document with these sections: Client Overview, Probl
 End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
 
 Be specific. Extract real names, numbers, tools, and workflows. Do not generalize.`,
-      userMessage: (ctx) => {
-        const transcript = ctx.discoveryMeetings[0];
-        return transcript ? `Here is the transcript of the discovery call:\n\n${transcript.content}` : "(Paste your meeting transcript here)";
-      },
       label: "Problem Definition",
     },
     solution_one_pager: {
@@ -1416,13 +1426,12 @@ IMPORTANT: Start the document with this exact branded header (in markdown blockq
 
 Write a Solution One-Pager with these sections: The Problem, Proposed Solution, Key Features (MVP), Expected Benefits, Technical Approach, Estimated Timeline, Recommended Engagement Model.
 
+When recommending technologies in the Technical Approach section, always use the CrumbLabz preferred stack:
+${TECH_STACK_REF}
+
 End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
 
 Tone must be executive-friendly — clear, confident, and jargon-free.`,
-      userMessage: (ctx) => {
-        const prd = ctx.productDocs.find((d) => d.type === "problem_definition");
-        return prd ? `Here is the Problem Definition Document:\n\n${prd.content}` : "(Paste your Problem Definition Document here)";
-      },
       label: "Solution One-Pager",
     },
     development_plan: {
@@ -1437,13 +1446,12 @@ IMPORTANT: Start the document with this exact branded header (in markdown blockq
 
 Create a Development Plan with these sections: MVP Scope, Feature List, User Stories — Must Have Features, Technical Architecture, Development Phases (Phase 1: MVP Build, Phase 2: Client Review, Phase 3: Production Hardening), Assumptions & Dependencies, Risk Register, Success Metrics.
 
+IMPORTANT: For the Technical Architecture section, always recommend technologies from the CrumbLabz preferred stack:
+${TECH_STACK_REF}
+
 End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
 
 Be specific. Extract real names, workflows, tools, and pain points.`,
-      userMessage: (ctx) => {
-        const sop = ctx.productDocs.find((d) => d.type === "solution_one_pager");
-        return sop ? `Here is the Solution One-Pager:\n\n${sop.content}` : "(Paste your Solution One-Pager here)";
-      },
       label: "Development Plan",
     },
     solution_overview: {
@@ -1461,7 +1469,6 @@ Produce a Solution Overview with these sections: What We Built, How It Works, Te
 End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
 
 Write for a non-technical business audience.`,
-      userMessage: () => "(Paste the repository file tree and key file contents here)",
       label: "Solution Overview",
     },
     getting_started: {
@@ -1479,10 +1486,6 @@ Produce a Getting Started Guide with these sections: Welcome, Accessing Your Sol
 End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*
 
 Be EXTREMELY specific. Use actual button names, field labels, and page titles.`,
-      userMessage: (ctx) => {
-        const overview = ctx.solutionDocs.find((d) => d.type === "solution_overview");
-        return overview ? `Here is the Solution Overview:\n\n${overview.content}\n\n(Also paste repository file tree and key file contents here)` : "(Paste the Solution Overview, repository file tree, and key file contents here)";
-      },
       label: "Getting Started Guide",
     },
     feature_specification: {
@@ -1497,10 +1500,12 @@ IMPORTANT: Start the document with this exact branded header (in markdown blockq
 >
 > ---
 
-Produce a Feature Specification with these sections: Request Summary, Problem Context, Proposed Changes, Acceptance Criteria.
+Produce a Feature Specification with these sections: Request Summary, Problem Context, Proposed Changes, Acceptance Criteria, Technical Approach, Estimated Scope, Out of Scope.
+
+When recommending technologies in the Technical Approach section, always use the CrumbLabz preferred stack:
+${TECH_STACK_REF}
 
 End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confidential and intended for the named client only.*`,
-      userMessage: () => "(Paste meeting minutes, feature requests, and/or internal notes here)",
       label: "Feature Specification",
     },
   };
@@ -1509,8 +1514,7 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
   const copyPrompt = (type: string) => {
     const prompt = GENERATE_PROMPTS[type];
     if (!prompt) return;
-    const ctx = { discoveryMeetings, productDocs, solutionDocs };
-    const content = `# ${prompt.label} — AI Generation Prompt\n\nUse this prompt with any AI assistant (ChatGPT, Claude, etc.) to generate your ${prompt.label} document.\n\n---\n\n## System Prompt\n\nCopy this into the system/instructions field:\n\n${prompt.system}\n\n---\n\n## Your Message\n\nCopy this into the message field (replace placeholder text with your actual content if needed):\n\n${prompt.userMessage(ctx)}\n\n---\n\nAfter the AI generates the document, download it as a .md file and use the Upload button in the CRM to import it.\n`;
+    const content = prompt.system;
     const textarea = document.createElement("textarea");
     textarea.value = content;
     textarea.style.position = "fixed";
