@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import ContactForm from "@/components/sections/ContactForm";
 import ScrollRevealProvider from "@/components/ScrollRevealProvider";
+import ContactPageClient from "./ContactPageClient";
 
 export const metadata: Metadata = {
   title: "Contact — CrumbLabz",
@@ -24,10 +24,10 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Form */}
+      {/* Chat + Form */}
       <section className="py-24 md:py-32">
         <div className="max-w-2xl mx-auto px-6 animate-in">
-          <ContactForm />
+          <ContactPageClient />
         </div>
       </section>
     </ScrollRevealProvider>
