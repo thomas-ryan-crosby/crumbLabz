@@ -3,10 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   getContacts,
+  getProjects,
+  getClientDocuments,
   getCurrentTeamMember,
   PIPELINE_STAGES,
   TEAM_MEMBERS,
   type Contact,
+  type Project,
+  type ClientDocument,
 } from "@/lib/firebase";
 import { useAuth } from "@/lib/AuthContext";
 import Link from "next/link";
@@ -15,13 +19,26 @@ export default function AdminDashboardPage() {
   const { user } = useAuth();
   const currentMember = getCurrentTeamMember(user);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [allDocuments, setAllDocuments] = useState<ClientDocument[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getContacts().then((data) => {
-      setContacts(data);
+    async function load() {
+      const [contactsData, projectsData] = await Promise.all([
+        getContacts(),
+        getProjects(),
+      ]);
+      setContacts(contactsData);
+      setProjects(projectsData);
+      // Fetch documents for all contacts in parallel
+      const docResults = await Promise.all(
+        contactsData.map((c) => getClientDocuments(c.id))
+      );
+      setAllDocuments(docResults.flat());
       setLoading(false);
-    });
+    }
+    load();
   }, []);
 
   // Group contacts by company — dashboard should be company-based
@@ -93,6 +110,66 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Project Status Overview */}
+      {projects.length > 0 && (
+        <div className="bg-white rounded-xl border border-border mb-8">
+          <div className="px-6 py-4 border-b border-border">
+            <h2 className="font-semibold">Project Status Overview</h2>
+            <p className="text-xs text-muted mt-1">Document coverage across project phases</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="px-6 py-3 font-semibold text-xs uppercase tracking-wide text-muted">Project</th>
+                  <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted text-center">Discovery</th>
+                  <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted text-center">Initial Definition</th>
+                  <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted text-center">Solution Assets</th>
+                  <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wide text-muted text-center">Maintenance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {projects.map((project) => {
+                  const pDocs = allDocuments.filter((d) => d.projectId === project.id);
+                  const hasDiscovery = pDocs.some((d) => d.type === "meeting_transcript" && (d.phase === "discovery" || !d.phase));
+                  const hasDefinition = pDocs.some((d) => ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type));
+                  const hasDefinitionMeetings = pDocs.some((d) => d.type === "meeting_transcript" && d.phase === "initial_definition");
+                  const hasSolution = pDocs.some((d) => ["solution_overview", "getting_started"].includes(d.type));
+                  const hasFeatures = pDocs.some((d) => d.type === "feature_specification");
+                  const hasMaintenance = pDocs.some((d) => d.type === "meeting_transcript" && d.phase === "maintenance");
+
+                  const discoveryCount = pDocs.filter((d) => d.type === "meeting_transcript" && (d.phase === "discovery" || !d.phase)).length;
+                  const definitionCount = pDocs.filter((d) => ["problem_definition", "solution_one_pager", "development_plan"].includes(d.type) || (d.type === "meeting_transcript" && d.phase === "initial_definition")).length;
+                  const solutionCount = pDocs.filter((d) => ["solution_overview", "getting_started", "feature_specification"].includes(d.type)).length;
+                  const maintenanceCount = pDocs.filter((d) => d.type === "meeting_transcript" && d.phase === "maintenance").length;
+
+                  return (
+                    <tr key={project.id} className="hover:bg-neutral/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="font-medium text-sm">{project.name}</p>
+                        <p className="text-xs text-muted">{project.companyName || "—"}</p>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <PhaseStatus filled={hasDiscovery} count={discoveryCount} />
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <PhaseStatus filled={hasDefinition || hasDefinitionMeetings} count={definitionCount} />
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <PhaseStatus filled={hasSolution || hasFeatures} count={solutionCount} hasRepo={!!project.repoUrl} />
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <PhaseStatus filled={hasMaintenance} count={maintenanceCount} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Team workload */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
@@ -207,6 +284,24 @@ function StatCard({
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-muted text-xs mt-1">{label}</p>
     </div>
+  );
+}
+
+function PhaseStatus({ filled, count, hasRepo }: { filled: boolean; count: number; hasRepo?: boolean }) {
+  if (!filled && !hasRepo) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted">
+        <span className="w-2 h-2 rounded-full bg-border" />
+        —
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+      {count > 0 ? `${count} doc${count !== 1 ? "s" : ""}` : ""}
+      {hasRepo && count > 0 ? " + repo" : hasRepo ? "repo" : ""}
+    </span>
   );
 }
 
