@@ -8,12 +8,12 @@ interface Message {
   content: string;
 }
 
-export default function ChatIntakeWidget({ onFallback }: { onFallback?: () => void }) {
+export default function ChatIntakeWidget() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [intakeComplete, setIntakeComplete] = useState(false);
-  const [started, setStarted] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -27,40 +27,42 @@ export default function ChatIntakeWidget({ onFallback }: { onFallback?: () => vo
 
   // Auto-focus input after assistant responds
   useEffect(() => {
-    if (!sending && started && !intakeComplete) {
+    if (!sending && !intakeComplete) {
       inputRef.current?.focus();
     }
-  }, [sending, started, intakeComplete]);
+  }, [sending, intakeComplete]);
 
-  const startChat = async () => {
-    setStarted(true);
+  // Auto-start the conversation on mount
+  useEffect(() => {
+    if (initialized) return;
+    setInitialized(true);
     setSending(true);
 
-    const userMsg: Message = {
+    const initMsg: Message = {
       role: "user",
-      content: "Hi, I'm interested in learning about how CrumbLabz can help my business.",
+      content: "Hi, I'd like to get in touch with CrumbLabz.",
     };
 
-    try {
-      const res = await fetch("/api/chat/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [userMsg] }),
-      });
-      const data = await res.json();
-      setMessages([{ role: "assistant", content: data.message }]);
-    } catch {
-      setMessages([
-        {
-          role: "assistant",
-          content:
-            "Hey there! Thanks for visiting CrumbLabz. Tell me — what's a process in your business that feels slow, manual, or just plain frustrating?",
-        },
-      ]);
-    } finally {
-      setSending(false);
-    }
-  };
+    fetch("/api/chat/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: [initMsg] }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setMessages([{ role: "assistant", content: data.message }]);
+      })
+      .catch(() => {
+        setMessages([
+          {
+            role: "assistant",
+            content:
+              "Hey there! Welcome to CrumbLabz. Let's start with the basics — what's your name and company?",
+          },
+        ]);
+      })
+      .finally(() => setSending(false));
+  }, [initialized]);
 
   const sendMessage = async () => {
     if (!input.trim() || sending || intakeComplete) return;
@@ -92,7 +94,7 @@ export default function ChatIntakeWidget({ onFallback }: { onFallback?: () => vo
             name: data.intakeData.name || "",
             company: data.intakeData.company || "",
             email: data.intakeData.email || "",
-            phone: "",
+            phone: data.intakeData.phone || "",
             headache: data.intakeData.headache || "",
           });
           // Fire welcome email
@@ -130,57 +132,6 @@ export default function ChatIntakeWidget({ onFallback }: { onFallback?: () => vo
       sendMessage();
     }
   };
-
-  // Landing state — haven't started chat yet
-  if (!started) {
-    return (
-      <div className="space-y-8">
-        <div className="bg-white rounded-xl border border-border p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-6 h-6 text-accent"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-lg font-bold text-charcoal mb-2">
-            Chat with our intake assistant
-          </h3>
-          <p className="text-muted text-sm mb-6 max-w-md mx-auto">
-            Tell us what&apos;s slowing your business down. Our AI assistant
-            will ask a few quick questions so our team can hit the ground
-            running on your discovery call.
-          </p>
-          <button
-            onClick={startChat}
-            className="bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-3.5 rounded-lg text-base transition-colors"
-          >
-            Start the Conversation
-          </button>
-        </div>
-
-        {onFallback && (
-          <p className="text-center text-xs text-muted">
-            Prefer a form?{" "}
-            <button
-              onClick={onFallback}
-              className="text-accent hover:underline font-medium"
-            >
-              Use the classic contact form instead
-            </button>
-          </p>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-xl border border-border overflow-hidden">
