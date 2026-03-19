@@ -187,7 +187,7 @@ export default function PortalPage() {
       setFeatureTitle("");
       setFeatureDescription("");
       setFeaturePriority("medium");
-      setShowFeatureRequestForm(false);
+      setFeatureRequestMode(null);
     } finally {
       setSubmittingFeature(false);
     }
