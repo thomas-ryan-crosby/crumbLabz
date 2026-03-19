@@ -22,6 +22,7 @@ import {
   type ProductUpdate,
   type ChangeLogEntry,
 } from "@/lib/firebase";
+import FeatureRequestChat from "@/components/FeatureRequestChat";
 
 const mdComponents: Components = {
   table: ({ children, ...props }) => (
@@ -86,7 +87,7 @@ export default function PortalPage() {
   const [submittingChangeLog, setSubmittingChangeLog] = useState(false);
 
   // Feature request form state
-  const [showFeatureRequestForm, setShowFeatureRequestForm] = useState(false);
+  const [featureRequestMode, setFeatureRequestMode] = useState<null | "choice" | "form" | "chat">(null);
   const [featureTitle, setFeatureTitle] = useState("");
   const [featureDescription, setFeatureDescription] = useState("");
   const [featurePriority, setFeaturePriority] = useState<ChangeRequest["priority"]>("medium");
@@ -699,14 +700,65 @@ export default function PortalPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b]">Feature Requests</h3>
                   <button
-                    onClick={() => setShowFeatureRequestForm(!showFeatureRequestForm)}
+                    onClick={() => setFeatureRequestMode(featureRequestMode ? null : "choice")}
                     className="text-xs font-medium px-3 py-1.5 rounded-full bg-[#e87a2e]/10 text-[#e87a2e] hover:bg-[#e87a2e]/20 transition-colors"
                   >
-                    {showFeatureRequestForm ? "Cancel" : "+ New Request"}
+                    {featureRequestMode ? "Cancel" : "+ New Request"}
                   </button>
                 </div>
 
-                {showFeatureRequestForm && (
+                {/* Mode choice */}
+                {featureRequestMode === "choice" && (
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <button
+                      onClick={() => setFeatureRequestMode("chat")}
+                      className="group bg-white border border-[#e0e0e0] rounded-xl p-5 text-left hover:border-[#e87a2e] hover:shadow-sm transition-all"
+                    >
+                      <svg className="w-5 h-5 text-[#e87a2e] mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
+                      </svg>
+                      <h4 className="text-sm font-bold text-[#2d2d2d] mb-1">Chat through it</h4>
+                      <p className="text-xs text-[#6b6b6b] leading-relaxed">Describe what you need and our assistant will help shape it into a clear request.</p>
+                    </button>
+                    <button
+                      onClick={() => setFeatureRequestMode("form")}
+                      className="group bg-white border border-[#e0e0e0] rounded-xl p-5 text-left hover:border-[#e87a2e] hover:shadow-sm transition-all"
+                    >
+                      <svg className="w-5 h-5 text-[#e87a2e] mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                      <h4 className="text-sm font-bold text-[#2d2d2d] mb-1">Fill out a form</h4>
+                      <p className="text-xs text-[#6b6b6b] leading-relaxed">Know exactly what you want? Submit a quick form with title, description, and priority.</p>
+                    </button>
+                  </div>
+                )}
+
+                {/* Chat mode */}
+                {featureRequestMode === "chat" && (
+                  <div className="mb-4">
+                    <FeatureRequestChat
+                      variant="portal"
+                      onCancel={() => setFeatureRequestMode(null)}
+                      onFeaturesReady={async (features) => {
+                        if (!contact) return;
+                        for (const f of features) {
+                          await addChangeRequest(contact.id, activeProjectId, {
+                            title: f.title,
+                            description: f.description,
+                            priority: f.priority,
+                            author: contact.name,
+                            source: "client_portal",
+                          });
+                        }
+                        const results = await Promise.all(companyContactIds.map((id) => getChangeRequests(id, activeProjectId)));
+                        setChangeRequests(results.flat());
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Form mode */}
+                {featureRequestMode === "form" && (
                   <div className="bg-white border border-[#e0e0e0] rounded-xl p-5 mb-4 space-y-3">
                     <input
                       type="text"
@@ -748,7 +800,7 @@ export default function PortalPage() {
                   </div>
                 )}
 
-                {changeRequests.length === 0 && !showFeatureRequestForm ? (
+                {changeRequests.length === 0 && !featureRequestMode ? (
                   <p className="text-[#6b6b6b] text-sm">No feature requests yet. Submit a request for anything you&apos;d like added or changed.</p>
                 ) : (
                   <div className="space-y-3">
