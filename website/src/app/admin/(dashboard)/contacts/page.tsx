@@ -4068,7 +4068,7 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                               `## Feature Request: ${cr.title}`,
                               "",
                               `**Project:** ${activeProject?.name || "—"}`,
-                              `**Client:** ${contact.company || contact.name}`,
+                              `**Client:** ${companyName || contactName}`,
                               `**Priority:** ${cr.priority}`,
                               `**Status:** ${cr.status}`,
                               `**Requested by:** ${cr.author}`,
