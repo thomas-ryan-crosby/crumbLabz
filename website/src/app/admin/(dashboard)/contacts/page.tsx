@@ -4063,7 +4063,7 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                           {isLocked && " · Linked to spec"}
                         </p>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
                             const md = [
                               `## Feature Request: ${cr.title}`,
                               "",
@@ -4090,18 +4090,15 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
                             textarea.select();
                             document.execCommand("copy");
                             document.body.removeChild(textarea);
-                            const btn = document.activeElement as HTMLButtonElement;
-                            if (btn) {
-                              const orig = btn.innerHTML;
-                              btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`;
-                              setTimeout(() => { btn.innerHTML = orig; }, 1500);
-                            }
+                            const btn = e.currentTarget;
+                            const origText = btn.querySelector("span");
+                            if (origText) { origText.textContent = "Copied!"; setTimeout(() => { origText.textContent = "Copy Prompt"; }, 1500); }
                           }}
                           title="Copy as prompt for Claude Code"
-                          className="flex items-center gap-1 text-[10px] text-muted hover:text-accent transition-colors"
+                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent/10 text-accent hover:bg-accent/20 transition-colors text-xs font-medium"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
-                          Copy prompt
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
+                          <span>Copy Prompt</span>
                         </button>
                       </div>
                     </div>
