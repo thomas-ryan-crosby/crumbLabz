@@ -336,15 +336,10 @@ export default function PortalPage() {
 
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
           {/* Value statement */}
-          <div className="bg-white border border-[#e0e0e0] rounded-xl p-6">
+          <div className="rounded-xl px-6 py-5">
             <h2 className="text-lg font-bold text-[#2d2d2d] mb-2">Welcome to your CrumbLabz portal</h2>
             <p className="text-sm text-[#6b6b6b] leading-relaxed">
-              CrumbLabz builds custom software tools that eliminate the manual work slowing your business down.
-              This portal is your window into every project we&apos;re building together &mdash; from discovery
-              conversations and project plans, all the way through to the finished solution and ongoing improvements.
-            </p>
-            <p className="text-sm text-[#6b6b6b] leading-relaxed mt-3">
-              Select a project below to view documents, track progress, submit feature requests, and manage billing.
+              This is a simple place to keep everything about your project in one spot &mdash; documents, meeting notes, feature requests, and progress updates. Select a project below to get started.
             </p>
           </div>
 
@@ -363,7 +358,7 @@ export default function PortalPage() {
                   <button
                     key={p.id}
                     onClick={() => openProject(p.id)}
-                    className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
+                    className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-base font-bold text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{p.name}</h4>
@@ -495,25 +490,28 @@ export default function PortalPage() {
         {/* ===== DISCOVERY TAB ===== */}
         {activeTab === "discovery" && (
           <div className="space-y-4">
-            <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
+            <div className="bg-[#f7f7f5] rounded-xl px-5 py-4">
               <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Discovery</h2>
-              <p className="text-sm text-[#6b6b6b] leading-relaxed">
+              <p className="text-xs text-[#6b6b6b] leading-relaxed">
                 Notes and transcripts from our initial discovery conversations. These capture the problems you shared, ideas discussed, and context that shapes the project direction.
               </p>
             </div>
 
             {discoveryDocs.length === 0 ? (
-              <p className="text-[#6b6b6b] text-sm">No discovery documents available yet.</p>
+              <p className="text-[#6b6b6b] text-sm pl-1">No discovery documents available yet.</p>
             ) : (
               discoveryDocs.map((d) => (
                 <button
                   key={d.id}
                   onClick={() => setViewingDoc(d)}
-                  className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-5 hover:border-[#e87a2e] transition-colors"
+                  className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-sm font-bold text-[#2d2d2d]">{d.title}</h3>
-                    <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                    <h3 className="text-sm font-bold text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{d.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                      <svg className="w-4 h-4 text-[#c0c0c0] group-hover:text-[#e87a2e] transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    </div>
                   </div>
                   <p className="text-xs text-[#6b6b6b]">Meeting Notes</p>
                 </button>
@@ -524,29 +522,32 @@ export default function PortalPage() {
 
         {/* ===== INITIAL DEFINITION TAB ===== */}
         {activeTab === "initial_definition" && (
-          <div className="space-y-6">
-            <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
+          <div className="space-y-4">
+            <div className="bg-[#f7f7f5] rounded-xl px-5 py-4">
               <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Initial Definition</h2>
-              <p className="text-sm text-[#6b6b6b] leading-relaxed">
-                The core documents that define your project — the problem we&apos;re solving, our proposed approach, and the development roadmap. Review each document and approve it or leave feedback so we can move forward.
+              <p className="text-xs text-[#6b6b6b] leading-relaxed">
+                The core documents that define your project — the problem we&apos;re solving, our proposed approach, and the development roadmap. Take a look and let us know your thoughts.
               </p>
             </div>
 
             {definitionDocs.length === 0 && definitionMeetings.length === 0 ? (
-              <p className="text-[#6b6b6b] text-sm">No definition documents available yet.</p>
+              <p className="text-[#6b6b6b] text-sm pl-1">No definition documents available yet.</p>
             ) : (
               <>
                 {definitionDocs.map((d) => (
                   <button
                     key={d.id}
                     onClick={() => setViewingDoc(d)}
-                    className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-5 hover:border-[#e87a2e] transition-colors"
+                    className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-sm font-bold text-[#2d2d2d]">{DOC_LABELS[d.type] || d.title}</h3>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                        d.status === "approved" ? "bg-emerald-500/10 text-emerald-700" : "bg-blue-500/10 text-blue-700"
-                      }`}>{d.status}</span>
+                      <h3 className="text-sm font-bold text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{DOC_LABELS[d.type] || d.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                          d.status === "approved" ? "bg-emerald-500/10 text-emerald-700" : "bg-blue-500/10 text-blue-700"
+                        }`}>{d.status}</span>
+                        <svg className="w-4 h-4 text-[#c0c0c0] group-hover:text-[#e87a2e] transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                      </div>
                     </div>
                     <p className="text-xs text-[#6b6b6b]">{d.title}</p>
                   </button>
@@ -555,18 +556,23 @@ export default function PortalPage() {
                 {definitionMeetings.length > 0 && (
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b] mb-3 mt-4">Meeting Minutes</h3>
-                    {definitionMeetings.map((d) => (
-                      <button
-                        key={d.id}
-                        onClick={() => setViewingDoc(d)}
-                        className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-5 hover:border-[#e87a2e] transition-colors mb-3"
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="text-sm font-bold text-[#2d2d2d]">{d.title}</h3>
-                          <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
-                        </div>
-                      </button>
-                    ))}
+                    <div className="space-y-3">
+                      {definitionMeetings.map((d) => (
+                        <button
+                          key={d.id}
+                          onClick={() => setViewingDoc(d)}
+                          className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{d.title}</h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                              <svg className="w-4 h-4 text-[#c0c0c0] group-hover:text-[#e87a2e] transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
@@ -593,24 +599,29 @@ export default function PortalPage() {
 
             {/* Solution Documents */}
             <div className="space-y-4">
-              <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
+              <div className="bg-[#f7f7f5] rounded-xl px-5 py-4">
                 <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Solution Documents</h2>
-                <p className="text-sm text-[#6b6b6b] leading-relaxed">
+                <p className="text-xs text-[#6b6b6b] leading-relaxed">
                   A technical overview of the tool we built and a step-by-step guide to get you started. These documents are updated as the solution evolves.
                 </p>
               </div>
 
               {solutionDocs.length === 0 ? (
-                <p className="text-[#6b6b6b] text-sm">Solution documentation is not yet available. Your CrumbLabz team will publish it here once development is complete.</p>
+                <p className="text-[#6b6b6b] text-sm pl-1">Solution documentation is not yet available. Your CrumbLabz team will publish it here once development is complete.</p>
               ) : (
                 solutionDocs.map((d) => (
                   <button
                     key={d.id}
                     onClick={() => setViewingDoc(d)}
-                    className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-5 hover:border-[#e87a2e] transition-colors"
+                    className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                   >
-                    <h3 className="text-sm font-bold text-[#2d2d2d] mb-1">{DOC_LABELS[d.type] || d.title}</h3>
-                    <p className="text-xs text-[#6b6b6b]">{d.title}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors mb-0.5">{DOC_LABELS[d.type] || d.title}</h3>
+                        <p className="text-xs text-[#6b6b6b]">{d.title}</p>
+                      </div>
+                      <svg className="w-4 h-4 text-[#c0c0c0] group-hover:text-[#e87a2e] transition-colors shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    </div>
                   </button>
                 ))
               )}
@@ -638,9 +649,9 @@ export default function PortalPage() {
 
             {/* Maintenance & Continuous Development */}
             <div className="space-y-6">
-              <div className="bg-white border border-[#e0e0e0] rounded-xl p-5">
+              <div className="bg-[#f7f7f5] rounded-xl px-5 py-4">
                 <h2 className="text-sm font-bold text-[#2d2d2d] mb-1">Maintenance &amp; Continuous Development</h2>
-                <p className="text-sm text-[#6b6b6b] leading-relaxed">
+                <p className="text-xs text-[#6b6b6b] leading-relaxed">
                   Track every improvement we make to your solution. Submit feature requests, log issues, and follow along as we implement updates. We&apos;re your ongoing development partner.
                 </p>
               </div>
@@ -654,11 +665,14 @@ export default function PortalPage() {
                       <button
                         key={d.id}
                         onClick={() => setViewingDoc(d)}
-                        className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-4 hover:border-[#e87a2e] transition-colors"
+                        className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-4 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                       >
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-[#2d2d2d]">{d.title}</h4>
-                          <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                          <h4 className="text-sm font-medium text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{d.title}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                            <svg className="w-4 h-4 text-[#c0c0c0] group-hover:text-[#e87a2e] transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                          </div>
                         </div>
                       </button>
                     ))}
@@ -670,16 +684,16 @@ export default function PortalPage() {
               {featureDocs.length > 0 && (
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wide text-[#6b6b6b] mb-3">Feature Backlog</h3>
-                  <p className="text-xs text-[#6b6b6b] mb-3">Formal feature specifications created from your feedback and meetings. Review and approve each document before we begin implementation.</p>
+                  <p className="text-xs text-[#6b6b6b] mb-3">Feature specifications created from your feedback and meetings.</p>
                   <div className="space-y-3">
                     {featureDocs.map((d) => (
                       <button
                         key={d.id}
                         onClick={() => setViewingDoc(d)}
-                        className="w-full text-left bg-white border border-[#e0e0e0] rounded-xl p-4 hover:border-[#e87a2e] transition-colors"
+                        className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-4 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                       >
                         <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-medium text-[#2d2d2d]">{d.title}</h4>
+                          <h4 className="text-sm font-medium text-[#2d2d2d] group-hover:text-[#e87a2e] transition-colors">{d.title}</h4>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                               d.status === "approved" ? "bg-green-100 text-green-700"
@@ -687,6 +701,7 @@ export default function PortalPage() {
                                   : "bg-gray-100 text-gray-600"
                             }`}>{d.status === "review" ? "Awaiting Review" : d.status}</span>
                             <span className="text-xs text-[#6b6b6b]">{d.createdAt?.toLocaleDateString() || "—"}</span>
+                            <svg className="w-4 h-4 text-[#c0c0c0] group-hover:text-[#e87a2e] transition-colors" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                           </div>
                         </div>
                       </button>
@@ -805,7 +820,7 @@ export default function PortalPage() {
                 ) : (
                   <div className="space-y-3">
                     {changeRequests.map((cr) => (
-                      <div key={cr.id} className="bg-white border border-[#e0e0e0] rounded-xl p-4">
+                      <div key={cr.id} className="bg-[#f7f7f5] border border-[#e0e0e0] rounded-xl p-4">
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="text-sm font-medium text-[#2d2d2d]">{cr.title}</h4>
                           <div className="flex items-center gap-2">
