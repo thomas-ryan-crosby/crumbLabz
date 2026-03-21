@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const firstName = name.split(" ")[0];
+    const firstName = (name || "").trim().split(" ")[0] || company || "there";
 
     const resend = getResend();
     const { error } = await resend.emails.send({

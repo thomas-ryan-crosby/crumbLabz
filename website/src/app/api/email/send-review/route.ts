@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const firstName = contactName.split(" ")[0];
+    const firstName = (contactName || "").trim().split(" ")[0] || companyName || "there";
     const isSolutionReview = reviewType === "solution_assets";
 
     const subject = isSolutionReview
