@@ -82,6 +82,27 @@ export async function POST(request: Request) {
       </p>
     </div>
 
+    <!-- Support -->
+    <div style="background:#ffffff;border-radius:12px;padding:24px;border:1px solid #e0e0e0;margin-top:16px;">
+      <p style="color:#2d2d2d;font-size:14px;line-height:1.6;margin:0 0 12px;">
+        We're here to support you every step of the way. Have a question or just want to talk something through? Reach out anytime.
+      </p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:6px 0;">
+            <p style="color:#2d2d2d;font-size:13px;margin:0;"><strong>Ryan Crosby</strong></p>
+            <a href="mailto:thomas.ryan.crosby@gmail.com" style="color:#e87a2e;font-size:13px;text-decoration:none;">thomas.ryan.crosby@gmail.com</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;">
+            <p style="color:#2d2d2d;font-size:13px;margin:0;"><strong>Josh Meister</strong></p>
+            <a href="mailto:jpmeister95@gmail.com" style="color:#e87a2e;font-size:13px;text-decoration:none;">jpmeister95@gmail.com</a>
+          </td>
+        </tr>
+      </table>
+    </div>
+
     <!-- Footer -->
     <div style="text-align:center;margin-top:32px;">
       <p style="color:#6b6b6b;font-size:12px;margin:0;">

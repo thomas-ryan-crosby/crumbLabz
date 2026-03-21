@@ -39,52 +39,38 @@ export async function POST(request: Request) {
         Hi ${firstName},
       </p>
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 16px;">
-        The first version of your solution for <strong>${companyName || "your project"}</strong> is ready for you to review. We want to be upfront — this is a <strong>Version 1</strong>. It may not be perfect, and it may not cover everything you need yet. That's by design.
-      </p>
-
-      <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 16px;">
-        Our goal is to get a working tool in your hands as quickly as possible so you can start using it and tell us what needs to change. <strong>This is an iterative process</strong> — we'll continue refining and improving the solution until it fully meets your needs.
+        The first version of your solution for <strong>${companyName || "your project"}</strong> is ready. We want to be upfront — this is a <strong>Version 1</strong>. It may not be perfect yet, and that's by design. Our goal is to get a working tool in your hands quickly so you can start using it and tell us what to improve.
       </p>
 
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 8px;">
         <strong>What we've prepared:</strong>
       </p>
       <ol style="color:#2d2d2d;font-size:15px;line-height:1.8;margin:0 0 24px;padding-left:20px;">
-        <li><strong>Solution Overview</strong> — what was built, the technology behind it, and how it all fits together</li>
-        <li><strong>Getting Started Guide</strong> — step-by-step instructions on how to use your new tool</li>
+        <li><strong>Solution Overview</strong> — what was built and how it works</li>
+        <li><strong>Getting Started Guide</strong> — step-by-step instructions to get up and running</li>
       </ol>
-
-      <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 16px;">
-        After reviewing, you can submit <strong>change requests</strong> for anything you'd like improved, added, or adjusted. Think of these as your wish list — no request is too small. Each one helps us make the tool better for you.
-      </p>
-
-      <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 24px;">
-        We'll track every request, implement changes, and push updates so you can see progress in real time. This isn't a one-and-done handoff — <strong>we're your ongoing development partner</strong>.
-      </p>
       `
       : `
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 16px;">
         Hi ${firstName},
       </p>
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 16px;">
-        Great news — your project documents for <strong>${companyName || "your project"}</strong> are ready for your review.
+        Great news — your project documents for <strong>${companyName || "your project"}</strong> are ready. We've put together the key documents that outline what we heard, what we'd recommend, and how we'd build it.
       </p>
 
       <p style="color:#2d2d2d;font-size:16px;line-height:1.6;margin:0 0 8px;">
-        <strong>We've prepared three documents for you:</strong>
+        <strong>What's inside:</strong>
       </p>
       <ol style="color:#2d2d2d;font-size:15px;line-height:1.8;margin:0 0 24px;padding-left:20px;">
-        <li><strong>Problem Definition</strong> — a clear write-up of the problem we're solving</li>
+        <li><strong>Problem Definition</strong> — a write-up of the problem we're solving</li>
         <li><strong>Solution One-Pager</strong> — our proposed approach and key features</li>
-        <li><strong>Development Plan</strong> — the technical roadmap and timeline</li>
+        <li><strong>Development Plan</strong> — the technical roadmap</li>
       </ol>
 
       <p style="color:#2d2d2d;font-size:15px;line-height:1.6;margin:0 0 24px;">
-        Please review each document and either <strong>approve</strong> it or leave <strong>comments</strong> with any feedback. Once all three are approved, we'll kick off development.
+        Take a look when you get a chance and let us know your thoughts — no formal approvals needed, just your feedback so we can make sure we're on the right track.
       </p>
       `;
-
-    const buttonText = isSolutionReview ? "Open Your Client Portal" : "Open Your Client Portal";
 
     const resend = getResend();
     const { error } = await resend.emails.send({
@@ -112,18 +98,39 @@ export async function POST(request: Request) {
 
       <div style="text-align:center;margin:24px 0;">
         <a href="${portalUrl}" style="display:inline-block;background:#e87a2e;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:8px;">
-          ${buttonText}
+          Open Your Client Portal
         </a>
       </div>
 
-      <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:24px 0 0;text-align:center;">
-        Your portal link never expires — you can access it anytime. If you have questions, just reply to this email.
-      </p>
-
-      <div style="text-align:center;margin-top:16px;">
-        <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:0 0 8px;">
-          Prefer to talk it through? Schedule a call with us.
+      <!-- Portal overview -->
+      <div style="background:#f7f7f5;border-radius:8px;padding:16px;margin:24px 0 0;">
+        <p style="color:#2d2d2d;font-size:14px;font-weight:600;margin:0 0 8px;">What is the Client Portal?</p>
+        <p style="color:#6b6b6b;font-size:13px;line-height:1.6;margin:0;">
+          Your portal is a simple place to keep everything about your project in one spot — documents, meeting notes, feature requests, and progress updates. Your link never expires, so you can come back anytime.
         </p>
+      </div>
+    </div>
+
+    <!-- Support -->
+    <div style="background:#ffffff;border-radius:12px;padding:24px;border:1px solid #e0e0e0;margin-top:16px;">
+      <p style="color:#2d2d2d;font-size:14px;line-height:1.6;margin:0 0 12px;">
+        We're here to support you every step of the way. Have a question, want to talk something through, or just need a hand? Reach out anytime.
+      </p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:6px 0;">
+            <p style="color:#2d2d2d;font-size:13px;margin:0;"><strong>Ryan Crosby</strong></p>
+            <a href="mailto:thomas.ryan.crosby@gmail.com" style="color:#e87a2e;font-size:13px;text-decoration:none;">thomas.ryan.crosby@gmail.com</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;">
+            <p style="color:#2d2d2d;font-size:13px;margin:0;"><strong>Josh Meister</strong></p>
+            <a href="mailto:jpmeister95@gmail.com" style="color:#e87a2e;font-size:13px;text-decoration:none;">jpmeister95@gmail.com</a>
+          </td>
+        </tr>
+      </table>
+      <div style="text-align:center;margin-top:12px;">
         <a href="${BOOKING_URL}" style="color:#e87a2e;font-size:13px;font-weight:600;text-decoration:none;">
           Book a Meeting &rarr;
         </a>
