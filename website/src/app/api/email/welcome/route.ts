@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     const { error } = await resend.emails.send({
       from: "CrumbLabz <hello@crumblabz.com>",
       to: email,
+      cc: ["thomas.ryan.crosby@gmail.com", "jpmeister95@gmail.com"],
       subject:
         "Thanks for reaching out to CrumbLabz — here's what happens next",
       html: `

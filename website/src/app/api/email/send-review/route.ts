@@ -90,6 +90,7 @@ export async function POST(request: Request) {
     const { error } = await resend.emails.send({
       from: "CrumbLabz <hello@crumblabz.com>",
       to: recipientEmails,
+      cc: ["thomas.ryan.crosby@gmail.com", "jpmeister95@gmail.com"],
       subject,
       html: `
 <!DOCTYPE html>
