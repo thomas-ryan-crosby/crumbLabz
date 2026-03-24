@@ -1326,6 +1326,9 @@ function DocumentsPanel({
   const [showRevisions, setShowRevisions] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
   const [createProjectError, setCreateProjectError] = useState<string | null>(null);
+  const [showLinkRepo, setShowLinkRepo] = useState(false);
+  const [linkRepoUrl, setLinkRepoUrl] = useState("");
+  const [linkingRepo, setLinkingRepo] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [sendingReview, setSendingReview] = useState(false);
@@ -1863,6 +1866,34 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
       setCreateProjectError(err instanceof Error ? err.message : "Failed to create repository");
     } finally {
       setCreatingProject(false);
+    }
+  };
+
+  const handleLinkRepo = async () => {
+    if (!activeProject || !linkRepoUrl.trim()) return;
+    setLinkingRepo(true);
+    setCreateProjectError(null);
+    try {
+      // Normalize URL — accept full URLs or owner/repo shorthand
+      let url = linkRepoUrl.trim();
+      if (!url.startsWith("http")) {
+        url = `https://github.com/${url}`;
+      }
+      // Extract repo name from URL
+      const repoName = url.replace(/\/$/, "").split("/").pop() || "";
+      await updateProject(activeProject.id, { repoUrl: url, repoName });
+      // Refresh projects list
+      const results = await Promise.all(companyContactIds.map((id) => getProjectsForContact(id)));
+      const all = results.flat();
+      const unique = Array.from(new Map(all.map((p) => [p.id, p])).values());
+      setProjects(unique);
+      await onProjectCreated();
+      setShowLinkRepo(false);
+      setLinkRepoUrl("");
+    } catch (err) {
+      setCreateProjectError(err instanceof Error ? err.message : "Failed to link repository");
+    } finally {
+      setLinkingRepo(false);
     }
   };
 
@@ -3508,28 +3539,68 @@ End with: --- *Prepared by CrumbLabz | crumblabz.com* *This document is confiden
           </div>
         )}
 
-        {/* Create GitHub Repository */}
+        {/* Create or Link GitHub Repository */}
         {activeProject && !activeProject.repoUrl && (
-          <div className="mb-3">
-            <button
-              onClick={handleCreateRepo}
-              disabled={creatingProject}
-              className="w-full text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
-            >
-              {creatingProject ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Creating Repository...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+          <div className="mb-3 space-y-2">
+            {!showLinkRepo ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateRepo}
+                  disabled={creatingProject}
+                  className="flex-1 text-sm font-medium px-4 py-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                >
+                  {creatingProject ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                      </svg>
+                      Create New Repo
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowLinkRepo(true)}
+                  disabled={creatingProject}
+                  className="flex-1 text-sm font-medium px-4 py-3 rounded-lg border border-border text-charcoal hover:bg-neutral disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
                   </svg>
-                  Create GitHub Repository
-                </>
-              )}
-            </button>
+                  Link Existing Repo
+                </button>
+              </div>
+            ) : (
+              <div className="bg-neutral rounded-lg p-4 space-y-3">
+                <p className="text-xs font-bold text-charcoal">Link Existing GitHub Repository</p>
+                <input
+                  type="text"
+                  value={linkRepoUrl}
+                  onChange={(e) => setLinkRepoUrl(e.target.value)}
+                  placeholder="https://github.com/owner/repo or owner/repo"
+                  className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleLinkRepo}
+                    disabled={linkingRepo || !linkRepoUrl.trim()}
+                    className="text-sm font-medium px-4 py-2 rounded-lg bg-accent hover:bg-accent-hover disabled:opacity-40 text-white transition-colors"
+                  >
+                    {linkingRepo ? "Linking..." : "Link Repository"}
+                  </button>
+                  <button
+                    onClick={() => { setShowLinkRepo(false); setLinkRepoUrl(""); }}
+                    className="text-sm text-muted hover:text-charcoal transition-colors px-3"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
