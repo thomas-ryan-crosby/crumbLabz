@@ -15,6 +15,7 @@ const DOC_LABELS: Record<string, string> = {
   CallScript_MVPPresentation: "Call Script: MVP Presentation",
   CrumbLabz_AIPromptsReference: "AI Prompts Reference",
   CrumbLabz_TechStack: "Preferred Technology Stack",
+  CrumbLabz_OnboardingGuide: "Developer Onboarding Guide",
 };
 
 export async function GET(request: Request) {
