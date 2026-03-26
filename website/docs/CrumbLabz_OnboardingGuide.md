@@ -202,7 +202,7 @@ git stash pop
 
 ## Part 6: Learning Resources
 
-Work through these in order. Each builds on the previous.
+Work through these in order. Each builds on the previous. **The most important sections are the first and the last** — Git is your daily tool, and software design thinking is what separates good decisions from bad ones. Claude Code can write the code, but *you* decide what gets built and how it's structured.
 
 ### Week 1: Git and the Command Line
 
@@ -210,26 +210,70 @@ Work through these in order. Each builds on the previous.
 - [Git It? How to use Git and Github](https://www.youtube.com/watch?v=HkdAHXoRtos) (30 min) - Beginner-friendly walkthrough
 - [Learn Git Branching](https://learngitbranching.js.org/) (interactive) - Practice branching in your browser
 
-### Week 2: How Websites Work
+### Week 2: How Websites Work (Skim-Level)
+
+You don't need to master writing HTML/CSS/JS by hand — Claude Code handles that. But you should understand what these technologies *are* so you can have informed conversations about them.
 
 - [How The Web Works](https://www.youtube.com/watch?v=hJHvdBlSxug) (12 min) - Basics of web requests
 - [HTML in 100 Seconds](https://www.youtube.com/watch?v=ok-plXXHlWw) (2 min)
 - [CSS in 100 Seconds](https://www.youtube.com/watch?v=OEV8gMkCHXQ) (2 min)
 - [JavaScript in 100 Seconds](https://www.youtube.com/watch?v=DHjqpvDnNGE) (2 min)
-- [HTML & CSS Full Course for Beginners](https://www.youtube.com/watch?v=mU6anWqZJcc) (6 hrs) - Work through at your own pace
+- [React in 100 Seconds](https://www.youtube.com/watch?v=Tn6-PIqc4UM) (2 min) - Our projects use React
+- [Next.js in 100 Seconds](https://www.youtube.com/watch?v=Sklc_fQBmcs) (2 min) - Our framework built on React
+- [APIs Explained](https://www.youtube.com/watch?v=GZvSYJDk-us) (3 min) - How apps talk to each other
+- [Databases in 100 Seconds](https://www.youtube.com/watch?v=Cz3WcZLRaWc) (2 min) - Where data lives
 
-### Week 3: JavaScript Fundamentals
+### Week 3-4: Software Design and Architecture (Most Important)
 
-- [JavaScript for Beginners](https://www.youtube.com/watch?v=W6NZfCO5SIk) (3.5 hrs) - Solid intro course
-- [JavaScript Array Methods](https://www.youtube.com/watch?v=R8rmfD9Y5-c) (8 min) - You'll see these everywhere
+This is the highest-value knowledge you can build. Claude Code can write any code you ask for, but it can't decide *what the right thing to build is* or *how it should be organized*. That's your job. These resources teach you how to think about software at a high level.
 
-### Week 4: React (Our Web Framework)
+#### Start Here: How to Think About Building Software
 
-- [React in 100 Seconds](https://www.youtube.com/watch?v=Tn6-PIqc4UM) (2 min) - Quick overview
-- [React for Beginners](https://www.youtube.com/watch?v=SqcY0GlETPk) (1 hr) - Hands-on tutorial
-- [Next.js in 100 Seconds](https://www.youtube.com/watch?v=Sklc_fQBmcs) (2 min) - Our projects use Next.js
+- [How to Think Like a Programmer](https://www.youtube.com/watch?v=azcrPFhaY9k) (14 min) - Problem-solving mindset before touching code
+- [Software Design in 7 Minutes](https://www.youtube.com/watch?v=FLtqAi7WNBY) (7 min) - Why structure matters
+- [How to Design Software Architecture](https://www.youtube.com/watch?v=BrT3AO8bVQY) (15 min) - High-level overview of architecture thinking
+- [Fireship: 10 Design Patterns Explained](https://www.youtube.com/watch?v=tv-_1er1mWI) (12 min) - Common patterns you'll see everywhere
 
-### Ongoing: Reference Cheat Sheets
+#### How to Choose the Right Approach
+
+- [Monolith vs Microservices](https://www.youtube.com/watch?v=NdeTGlZ__Do) (5 min) - When to keep things simple vs split them up
+- [Client-Side vs Server-Side Rendering](https://www.youtube.com/watch?v=f1rF9YKm1Ms) (7 min) - Where should code run? (Directly relevant to our Next.js projects)
+- [REST API Explained](https://www.youtube.com/watch?v=-MTSQjw5DrM) (8 min) - How to design how your frontend talks to your backend
+- [SQL vs NoSQL](https://www.youtube.com/watch?v=Q5aTUc7c4jg) (6 min) - Choosing the right database type (we use Firebase/NoSQL)
+- [When to Use a Database vs File Storage vs Cache](https://www.youtube.com/watch?v=W2Z7fbCLSTw) (10 min) - Where should data live?
+
+#### Thinking About Users and Product
+
+- [How to Write User Stories](https://www.youtube.com/watch?v=Fw98L-kcRpc) (8 min) - Translate what users need into what you build
+- [MVP: Minimum Viable Product](https://www.youtube.com/watch?v=1hHMwLxN6EM) (5 min) - Build the smallest useful thing first
+- [Technical Debt Explained](https://www.youtube.com/watch?v=J1lnp-nU4wM) (8 min) - Why shortcuts now cost more later
+
+#### Code Organization and Quality
+
+- [Clean Code - Uncle Bob (Lesson 1)](https://www.youtube.com/watch?v=7EmboKQH8lM) (2 hrs) - The gold standard talk on writing maintainable code. Watch even if you're not writing code yourself — it teaches you how to *evaluate* what Claude Code produces
+- [SOLID Principles in 100 Seconds](https://www.youtube.com/watch?v=q1qKv5TBaOA) (2 min) - Five rules for well-structured code
+- [DRY, KISS, YAGNI](https://www.youtube.com/watch?v=dGBOsb7JHXQ) (5 min) - Three principles: Don't Repeat Yourself, Keep It Simple, You Aren't Gonna Need It
+- [Separation of Concerns](https://www.youtube.com/watch?v=0ZNIQOO2sfA) (6 min) - Keep different responsibilities in different places
+
+#### Security and Deployment Basics
+
+- [Web Security in 100 Seconds](https://www.youtube.com/watch?v=hBc2x1AU34U) (2 min) - Common vulnerabilities to watch for
+- [Environment Variables Explained](https://www.youtube.com/watch?v=2LZHWjQ0DoA) (5 min) - How we keep secrets out of code
+- [CI/CD in 100 Seconds](https://www.youtube.com/watch?v=scEDHsr3APg) (2 min) - How code goes from your computer to production
+- [DNS and Domains Explained](https://www.youtube.com/watch?v=uvr9lhUGAKw) (6 min) - How website addresses work
+
+### Ongoing: Key Concepts to Internalize
+
+These aren't videos — they're mental models to keep in mind when making decisions:
+
+1. **"What's the simplest thing that could work?"** - Always start here. Don't over-engineer.
+2. **Separate what changes from what stays the same** - Put config in config files, not buried in code.
+3. **If you're copy-pasting, something's wrong** - Ask Claude to refactor into a reusable piece.
+4. **Name things by what they do, not how they do it** - `sendWelcomeEmail` is better than `firebaseFunction3`.
+5. **Every decision is a tradeoff** - Faster to build vs easier to maintain, simple vs flexible, etc. There's rarely a "right" answer.
+6. **When in doubt, ask Claude to explain the tradeoffs** - Before building something, ask: "What are the pros and cons of approach A vs approach B?"
+
+### Reference Cheat Sheets
 
 - [Git Cheat Sheet (PDF)](https://education.github.com/git-cheat-sheet-education.pdf) - Print this out and keep it handy
 - [VS Code Keyboard Shortcuts](https://code.visualstudio.com/shortcuts/keyboard-shortcuts-windows.pdf) - Speed up your workflow
