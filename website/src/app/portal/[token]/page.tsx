@@ -15,6 +15,7 @@ import {
   getChangeLogEntries,
   addChangeLogEntry,
   addChangeRequest,
+  logPortalVisit,
   type Contact,
   type ClientDocument,
   type Project,
@@ -112,6 +113,9 @@ export default function PortalPage() {
         }
         setContact(c);
 
+        // Track portal visit
+        logPortalVisit({ contactId: c.id, companyName: c.company, action: "portal_open" });
+
         // Aggregate docs and projects across all contacts in the same company
         const companyContacts = contacts.filter(
           (ct) => ct.company.toLowerCase() === c.company.toLowerCase()
@@ -163,6 +167,7 @@ export default function PortalPage() {
       });
       const results = await Promise.all(companyContactIds.map((id) => getChangeLogEntries(id, activeProjectId)));
       setChangeLog(results.flat());
+      logPortalVisit({ contactId: contact.id, companyName: contact.company, projectId: activeProjectId, action: "change_log" });
       setChangeLogTitle("");
       setChangeLogDescription("");
       setShowChangeLogForm(false);
@@ -184,6 +189,7 @@ export default function PortalPage() {
       });
       const results = await Promise.all(companyContactIds.map((id) => getChangeRequests(id, activeProjectId)));
       setChangeRequests(results.flat());
+      logPortalVisit({ contactId: contact.id, companyName: contact.company, projectId: activeProjectId, action: "feature_request" });
       setFeatureTitle("");
       setFeatureDescription("");
       setFeaturePriority("medium");
@@ -197,6 +203,16 @@ export default function PortalPage() {
     setActiveProjectId(projectId);
     setActiveTab("billing");
     setViewingDoc(null);
+    if (contact) {
+      logPortalVisit({ contactId: contact.id, companyName: contact.company, projectId, action: "project_view" });
+    }
+  };
+
+  const openDocument = (d: ClientDocument) => {
+    setViewingDoc(d);
+    if (contact) {
+      logPortalVisit({ contactId: contact.id, companyName: contact.company, projectId: activeProjectId, action: "document_view", documentType: d.type });
+    }
   };
 
   const backToProjects = () => {
@@ -503,7 +519,7 @@ export default function PortalPage() {
               discoveryDocs.map((d) => (
                 <button
                   key={d.id}
-                  onClick={() => setViewingDoc(d)}
+                  onClick={() => openDocument(d)}
                   className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -537,7 +553,7 @@ export default function PortalPage() {
                 {definitionDocs.map((d) => (
                   <button
                     key={d.id}
-                    onClick={() => setViewingDoc(d)}
+                    onClick={() => openDocument(d)}
                     className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                   >
                     <div className="flex items-center justify-between mb-1">
@@ -560,7 +576,7 @@ export default function PortalPage() {
                       {definitionMeetings.map((d) => (
                         <button
                           key={d.id}
-                          onClick={() => setViewingDoc(d)}
+                          onClick={() => openDocument(d)}
                           className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                         >
                           <div className="flex items-center justify-between">
@@ -612,7 +628,7 @@ export default function PortalPage() {
                 solutionDocs.map((d) => (
                   <button
                     key={d.id}
-                    onClick={() => setViewingDoc(d)}
+                    onClick={() => openDocument(d)}
                     className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-5 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                   >
                     <div className="flex items-center justify-between">
@@ -664,7 +680,7 @@ export default function PortalPage() {
                     {maintenanceMeetings.map((d) => (
                       <button
                         key={d.id}
-                        onClick={() => setViewingDoc(d)}
+                        onClick={() => openDocument(d)}
                         className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-4 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                       >
                         <div className="flex items-center justify-between">
@@ -689,7 +705,7 @@ export default function PortalPage() {
                     {featureDocs.map((d) => (
                       <button
                         key={d.id}
-                        onClick={() => setViewingDoc(d)}
+                        onClick={() => openDocument(d)}
                         className="w-full text-left bg-white border border-[#e0e0e0] border-l-[3px] border-l-[#e87a2e] rounded-xl p-4 hover:border-[#e87a2e] hover:shadow-sm transition-all group"
                       >
                         <div className="flex items-center justify-between">

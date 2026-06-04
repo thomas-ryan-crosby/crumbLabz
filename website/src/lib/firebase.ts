@@ -1017,4 +1017,50 @@ export async function getPortalToken(tokenId: string): Promise<{ contactId: stri
   return { contactId: data.contactId as string };
 }
 
+// --- Portal visit tracking ---
+
+export interface PortalVisit {
+  id: string;
+  contactId: string;
+  companyName: string;
+  projectId: string;
+  action: "portal_open" | "project_view" | "document_view" | "feature_request" | "change_log";
+  documentType?: string;
+  createdAt: Date | null;
+}
+
+export async function logPortalVisit(data: {
+  contactId: string;
+  companyName: string;
+  projectId?: string;
+  action: PortalVisit["action"];
+  documentType?: string;
+}) {
+  return addDoc(collection(db, "portalVisits"), {
+    contactId: data.contactId,
+    companyName: data.companyName,
+    projectId: data.projectId || "",
+    action: data.action,
+    documentType: data.documentType || "",
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function getPortalVisits(): Promise<PortalVisit[]> {
+  const q = query(collection(db, "portalVisits"), orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      contactId: (data.contactId as string) || "",
+      companyName: (data.companyName as string) || "",
+      projectId: (data.projectId as string) || "",
+      action: (data.action as PortalVisit["action"]) || "portal_open",
+      documentType: (data.documentType as string) || "",
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : null,
+    };
+  });
+}
+
 export { auth, db, onAuthStateChanged, type User };
