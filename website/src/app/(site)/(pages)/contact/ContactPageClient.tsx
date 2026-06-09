@@ -6,8 +6,19 @@ import ContactForm from "@/components/sections/ContactForm";
 
 type Mode = null | "chat" | "form";
 
+// Temporarily disable the AI intake chat assistant. Set to true to restore the
+// chat option on the contact page. When false, the page skips the chooser and
+// shows the contact form directly; the form remains fully active either way.
+const CHAT_ASSISTANT_ENABLED: boolean = false;
+
 export default function ContactPageClient() {
-  const [mode, setMode] = useState<Mode>(null);
+  const [mode, setMode] = useState<Mode>(CHAT_ASSISTANT_ENABLED ? null : "form");
+
+  // Chat assistant temporarily disabled — go straight to the form, with no
+  // chooser and no "back to options" control.
+  if (!CHAT_ASSISTANT_ENABLED) {
+    return <ContactForm />;
+  }
 
   if (mode === "form") {
     return (
