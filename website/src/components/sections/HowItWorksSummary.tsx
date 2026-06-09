@@ -33,11 +33,6 @@ export default function HowItWorksSummary() {
               </div>
               <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
               <p className="text-white/50 text-sm leading-relaxed">{step.description}</p>
-
-              {/* Connector line on desktop */}
-              {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-7 left-full w-full h-px bg-gradient-to-r from-white/20 to-transparent" />
-              )}
             </div>
           ))}
         </div>
