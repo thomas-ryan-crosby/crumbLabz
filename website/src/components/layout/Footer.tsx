@@ -11,7 +11,8 @@ const navLinks = [
 
 export default function Footer() {
   return (
-    <footer className="bg-charcoal text-white">
+    <footer className="relative bg-charcoal text-white">
+      <div className="h-1 w-full bg-gradient-to-r from-amber via-accent to-terracotta" />
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="grid md:grid-cols-3 gap-10">
           {/* Brand */}

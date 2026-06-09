@@ -9,8 +9,8 @@ const steps = [
 
 export default function HowItWorksSummary() {
   return (
-    <section className="bg-charcoal text-white py-24 md:py-32">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="grain relative overflow-hidden bg-mesh-warm text-white py-24 md:py-32">
+      <div className="relative z-[2] max-w-7xl mx-auto px-6">
         <div className="max-w-2xl mx-auto text-center mb-16 animate-in">
           <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
             The Process
@@ -25,7 +25,10 @@ export default function HowItWorksSummary() {
         <div className="grid md:grid-cols-4 gap-8">
           {steps.map((step, i) => (
             <div key={step.number} className={`animate-in animate-in-delay-${i + 1} relative`}>
-              <div className="text-accent text-4xl font-black mb-4 opacity-40">
+              <div
+                className="text-5xl font-bold mb-4 text-gradient-warm"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
                 {step.number}
               </div>
               <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
@@ -33,7 +36,7 @@ export default function HowItWorksSummary() {
 
               {/* Connector line on desktop */}
               {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-6 left-full w-full h-px bg-white/10" />
+                <div className="hidden md:block absolute top-7 left-full w-full h-px bg-gradient-to-r from-white/20 to-transparent" />
               )}
             </div>
           ))}
@@ -42,10 +45,10 @@ export default function HowItWorksSummary() {
         <div className="text-center mt-14 animate-in">
           <Link
             href="/how-it-works"
-            className="text-accent hover:text-accent-hover font-semibold text-sm transition-colors inline-flex items-center gap-2"
+            className="text-accent hover:text-accent-hover font-semibold text-sm transition-colors inline-flex items-center gap-2 group"
           >
             Learn more about our process
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
           </Link>

@@ -57,7 +57,7 @@ const problems = [
 
 export default function ProblemSection() {
   return (
-    <section className="bg-neutral py-24 md:py-32">
+    <section className="bg-cream py-24 md:py-32">
       <div className="max-w-7xl mx-auto px-6">
         {/* Problem statement */}
         <div className="max-w-3xl mx-auto text-center mb-20 animate-in">
@@ -94,7 +94,7 @@ export default function ProblemSection() {
             {problems.map((problem, i) => (
               <div
                 key={problem.title}
-                className={`animate-in animate-in-delay-${i + 1} group relative bg-white rounded-xl p-7 border border-border hover:border-accent/30 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300`}
+                className={`animate-in animate-in-delay-${i + 1} group relative bg-white rounded-2xl p-7 border border-border/70 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300`}
               >
                 <div className="absolute top-0 left-0 right-0 h-1 bg-accent rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className="w-11 h-11 rounded-lg bg-accent-light text-accent flex items-center justify-center mb-4 group-hover:bg-accent group-hover:text-white transition-colors duration-300">

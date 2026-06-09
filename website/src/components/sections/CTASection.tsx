@@ -32,18 +32,21 @@ export default function CTASection() {
   };
 
   const inputStyles =
-    "w-full px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors";
+    "w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors";
 
   return (
-    <section className="bg-charcoal text-white py-24 md:py-32">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="grain relative overflow-hidden bg-mesh-warm text-white py-24 md:py-32">
+      <div className="relative z-[2] max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           {/* Left text */}
           <div className="animate-in">
             <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
               Get Started
             </p>
-            <h2 className="text-white mb-6">Start With One Problem</h2>
+            <h2 className="text-white mb-6 text-balance">
+              Start with{" "}
+              <span className="text-gradient-warm">one problem</span>
+            </h2>
             <p className="text-white/60 text-lg leading-relaxed mb-6">
               Tell us about a process in your business that feels slow,
               repetitive, or frustrating. We&apos;ll map it out and show you
@@ -58,14 +61,17 @@ export default function CTASection() {
           {/* Right form */}
           <div className="animate-in animate-in-delay-2">
             {submitted ? (
-              <div className="bg-white/5 border border-white/10 rounded-xl p-10 text-center">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center backdrop-blur">
                 <h3 className="text-white text-2xl mb-3">Thanks for reaching out!</h3>
                 <p className="text-white/60">
                   We&apos;ll be in touch soon to discuss your problem.
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-4 bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 backdrop-blur"
+              >
                 <div>
                   <input
                     name="name"
@@ -98,9 +104,12 @@ export default function CTASection() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-semibold px-8 py-4 rounded-lg text-base transition-colors"
+                  className="group w-full inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-60 text-white font-semibold px-8 py-4 rounded-xl text-base shadow-lift transition-all duration-300 hover:-translate-y-0.5"
                 >
                   {submitting ? "Sending..." : "Start the Conversation"}
+                  {!submitting && (
+                    <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+                  )}
                 </button>
               </form>
             )}
