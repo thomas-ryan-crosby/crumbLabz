@@ -298,6 +298,27 @@
   }
 }
 
+/* Orbit ring + counter-rotation: the group spins while each label spins the
+   opposite way at the same rate, so the labels stay upright as they orbit. */
+@keyframes orbitSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes orbitSpinRev {
+  to { transform: rotate(-360deg); }
+}
+.orbit-spin {
+  animation: orbitSpin 7s linear infinite;
+}
+.orbit-spin-rev {
+  animation: orbitSpinRev 7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbit-spin,
+  .orbit-spin-rev {
+    animation: none;
+  }
+}
+
 /* Seamless marquee — two copies translated by -50% for a continuous loop */
 @keyframes marquee {
   from { transform: translateX(0); }

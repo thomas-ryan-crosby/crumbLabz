@@ -3,225 +3,209 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
-// The 4-beat story: ideas (crumbs) gather → form the cookie → delivered software.
-const STEPS = ["Discuss", "Ideate", "Prototype", "Deliver"];
-const STEP_MS = [1700, 1700, 1700, 4000];
-const CRUMBS = ["Discussion", "Ideation", "Prototype"];
-const BARS = [42, 55, 48, 67, 60, 78, 72, 96];
-
-// Resting positions for each crumb chip (above the card), and where they fly
-// to on delivery (up toward the cookie stamp at the top-right).
-const CRUMB_REST = [
-  { x: 30, y: -56 },
-  { x: 178, y: -68 },
-  { x: 322, y: -54 },
+// Process steps orbit the center, spiral in, and bake into the CrumbLabz logo
+// lockup (cookie + wordmark), which then becomes the delivered dashboard.
+const STEPS = [
+  { label: "Discovery", a: 0 },
+  { label: "Ideation", a: 72 },
+  { label: "Prototype", a: 144 },
+  { label: "Build", a: 216 },
+  { label: "Launch", a: 288 },
 ];
 
-function crumbStyle(i: number, step: number, delivered: boolean): React.CSSProperties {
-  const rest = CRUMB_REST[i];
-  const base: React.CSSProperties = {
-    transition:
-      "transform 0.8s var(--ease-out-expo), opacity 0.55s ease",
-  };
-  if (delivered) {
-    return { ...base, transform: `translate(405px, -8px) scale(0.4)`, opacity: 0 };
-  }
-  if (step >= i) {
-    return { ...base, transform: `translate(${rest.x}px, ${rest.y}px) scale(1)`, opacity: 1 };
-  }
-  return { ...base, transform: `translate(${rest.x}px, ${rest.y - 14}px) scale(0.85)`, opacity: 0 };
-}
+const SEQUENCE: [Phase, number][] = [
+  ["scatter", 150],
+  ["orbit", 1100],
+  ["gather", 1200],
+  ["form", 700],
+  ["spin", 850],
+  ["reveal", 850],
+  ["hold", 2400],
+];
+
+type Phase = "scatter" | "orbit" | "gather" | "form" | "spin" | "reveal" | "hold";
+
+const ORBIT_RADIUS = 168;
+const BARS = [42, 55, 48, 67, 60, 78, 72, 96];
 
 export default function HeroShowcase() {
-  const [step, setStep] = useState(0);
+  const [phase, setPhase] = useState<Phase>("scatter");
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setStep(3); // show the delivered state, no looping
+      setPhase("hold"); // show the delivered dashboard, no looping
       return;
     }
     let timer: ReturnType<typeof setTimeout>;
-    let current = 0;
-    const advance = () => {
-      timer = setTimeout(() => {
-        current = (current + 1) % 4;
-        setStep(current);
-        advance();
-      }, STEP_MS[current]);
+    let i = 0;
+    const run = () => {
+      setPhase(SEQUENCE[i][0]);
+      const d = SEQUENCE[i][1];
+      i = (i + 1) % SEQUENCE.length;
+      timer = setTimeout(run, d);
     };
-    advance();
+    run();
     return () => clearTimeout(timer);
   }, []);
 
-  const delivered = step === 3;
-  const tiles = [
-    { v: "248", l: "Orders" },
-    { v: "14h", l: "Saved / wk", accent: true },
-    { v: "98%", l: "On time" },
-  ];
+  const chipsVisible = phase === "orbit" || phase === "gather";
+  const radius = phase === "scatter" || phase === "orbit" ? ORBIT_RADIUS : 0;
+  const logoVisible = phase === "form" || phase === "spin";
+  const logoScale =
+    phase === "form" ? 1 : phase === "spin" ? 1.06 : phase === "reveal" || phase === "hold" ? 1.15 : 0.5;
+  const delivered = phase === "reveal" || phase === "hold";
 
   return (
     <div className="relative" style={{ perspective: "1500px" }}>
-      <div className="relative" style={{ transform: "rotateY(-13deg) rotateX(7deg)" }}>
-        {/* Glow */}
-        <div className="absolute -inset-10 rounded-[2.5rem] bg-accent/20 blur-3xl" />
+      <div className="relative" style={{ transform: "rotateY(-12deg) rotateX(6deg)" }}>
+        <div className="relative" style={{ width: 470, height: 440 }}>
+          {/* Glow */}
+          <div className="absolute inset-6 rounded-[2.5rem] bg-accent/20 blur-3xl" />
 
-        {/* Crumb chips — the inputs that gather into the cookie */}
-        {CRUMBS.map((label, i) => (
-          <div
-            key={label}
-            className="absolute left-0 top-0 z-20"
-            style={crumbStyle(i, step, delivered)}
-          >
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5 backdrop-blur whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-              {label}
-            </span>
-          </div>
-        ))}
-
-        {/* Cookie stamp — crumbs become the cookie on delivery */}
-        <div
-          className="absolute -top-6 -right-2 z-30"
-          style={{
-            opacity: delivered ? 1 : 0,
-            transform: delivered ? "scale(1) rotate(-8deg)" : "scale(0.3) rotate(35deg)",
-            transition: "transform 0.6s var(--ease-out-expo), opacity 0.5s ease",
-          }}
-        >
-          <Image
-            src="/images/CrumbLabz_Cookie.png"
-            alt=""
-            width={76}
-            height={76}
-            className="drop-shadow-xl"
-          />
-        </div>
-
-        {/* Floating app card — the delivered software, assembling as steps advance */}
-        <div className="animate-float-y relative w-[470px] max-w-full rounded-2xl bg-white text-charcoal shadow-2xl ring-1 ring-black/10 overflow-hidden">
-          {/* Window chrome */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-neutral">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#e0726b]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#e6b450]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#5aa86a]" />
-            <span className="ml-3 text-[11px] text-muted">app.crumblabz.com</span>
-          </div>
-
-          <div className="p-5">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`w-2 h-2 rounded-full transition-colors duration-500 ${
-                    delivered ? "bg-emerald-500 animate-pulse" : "bg-accent/40"
-                  }`}
-                />
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-accent">
-                    {delivered ? "Live" : "Building"}
-                  </p>
-                  <p
-                    className="text-[15px] font-bold text-charcoal"
-                    style={{ fontFamily: "var(--font-display)" }}
-                  >
-                    Operations Dashboard
-                  </p>
-                </div>
-              </div>
-              <span
-                className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 transition-colors duration-500 ${
-                  delivered
-                    ? "bg-emerald-500/10 text-emerald-700"
-                    : "text-muted border border-border"
-                }`}
+          {/* Orbiting process steps */}
+          <div className="orbit-spin absolute left-1/2 top-1/2" style={{ width: 0, height: 0 }}>
+            {STEPS.map((s) => (
+              <div
+                key={s.label}
+                className="absolute left-0 top-0"
+                style={{
+                  transform: `rotate(${s.a}deg) translateX(${radius}px)`,
+                  transition: "transform 1.2s cubic-bezier(0.5, 0, 0.15, 1)",
+                }}
               >
-                {delivered && (
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                  </svg>
-                )}
-                {delivered ? "Delivered" : "This Month"}
-              </span>
-            </div>
-
-            {/* Process stepper */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-2">
-                {STEPS.map((label, i) => (
+                {/* Counter the arm's static angle */}
+                <div style={{ transform: `rotate(${-s.a}deg)` }}>
+                  {/* Counter the group's live spin → label stays upright */}
                   <span
-                    key={label}
-                    className={`text-[9px] font-bold uppercase tracking-wide transition-colors duration-300 ${
-                      i <= step ? "text-accent" : "text-muted/40"
-                    }`}
+                    className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5 backdrop-blur"
+                    style={{ opacity: chipsVisible ? 1 : 0, transition: "opacity 0.5s ease" }}
                   >
-                    {label}
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                    {s.label}
                   </span>
-                ))}
+                </div>
               </div>
-              <div className="relative h-1 rounded-full bg-neutral">
-                <div
-                  className="absolute left-0 top-0 h-1 rounded-full bg-accent transition-all duration-700 ease-out"
-                  style={{ width: `${(step / 3) * 100}%` }}
-                />
-                {STEPS.map((_, i) => (
-                  <span
-                    key={i}
-                    className={`absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 transition-colors duration-300 ${
-                      i <= step ? "bg-accent border-accent" : "bg-white border-border"
-                    }`}
-                    style={{ left: `calc(${(i / 3) * 100}% - 5px)` }}
-                  />
-                ))}
-              </div>
-            </div>
+            ))}
+          </div>
 
-            {/* Metric tiles — skeleton until "Ideate" */}
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              {tiles.map((m, i) => (
-                <div key={i} className="relative rounded-xl border border-border p-3 h-[52px]">
-                  <div
-                    className="absolute inset-3 flex flex-col gap-1.5 transition-opacity duration-500"
-                    style={{ opacity: step >= 1 ? 0 : 1 }}
-                  >
-                    <div className="h-4 w-8 rounded bg-neutral" />
-                    <div className="h-2 w-10 rounded bg-neutral" />
+          {/* Logo lockup — crumbs bake into the official cookie + wordmark */}
+          <div className="absolute inset-0 grid place-items-center" style={{ zIndex: 3 }}>
+            <div
+              className="flex items-center gap-3"
+              style={{
+                opacity: logoVisible ? 1 : 0,
+                transform: `scale(${logoScale})`,
+                transition:
+                  "transform 0.7s cubic-bezier(0.2, 1.25, 0.4, 1), opacity 0.5s ease",
+              }}
+            >
+              <Image
+                src="/images/CrumbLabz_Cookie.png"
+                alt=""
+                width={60}
+                height={60}
+                className="drop-shadow-xl"
+                style={{
+                  transform: phase === "spin" ? "rotate(360deg)" : "rotate(0deg)",
+                  transition: "transform 0.85s cubic-bezier(0.4, 0, 0.2, 1)",
+                }}
+              />
+              <Image
+                src="/images/CrumbLabz_Wordmark.png"
+                alt="CrumbLabz"
+                width={150}
+                height={34}
+                className="brightness-0 invert"
+              />
+            </div>
+          </div>
+
+          {/* Delivered dashboard */}
+          <div className="absolute inset-0 grid place-items-center" style={{ zIndex: 2 }}>
+            <div
+              className="relative w-[382px] max-w-full rounded-2xl bg-white text-charcoal shadow-2xl ring-1 ring-black/10 overflow-hidden"
+              style={{
+                opacity: delivered ? 1 : 0,
+                transform: `scale(${delivered ? 1 : 0.72})`,
+                transition:
+                  "transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.55s ease",
+              }}
+            >
+              {/* Cookie badge — brand continuity from the logo */}
+              <div
+                className="absolute -top-5 -right-3 z-10"
+                style={{
+                  opacity: phase === "hold" ? 1 : 0,
+                  transform: phase === "hold" ? "scale(1) rotate(-8deg)" : "scale(0.3) rotate(30deg)",
+                  transition: "transform 0.6s cubic-bezier(0.2, 1.25, 0.4, 1), opacity 0.5s ease",
+                }}
+              >
+                <Image src="/images/CrumbLabz_Cookie.png" alt="" width={56} height={56} className="drop-shadow-lg" />
+              </div>
+
+              {/* Window chrome */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-neutral">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#e0726b]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#e6b450]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#5aa86a]" />
+                <span className="ml-3 text-[11px] text-muted">app.crumblabz.com</span>
+              </div>
+
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-accent">Live</p>
+                      <p className="text-[15px] font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>
+                        Operations Dashboard
+                      </p>
+                    </div>
                   </div>
-                  <div
-                    className="transition-opacity duration-500"
-                    style={{ opacity: step >= 1 ? 1 : 0, transitionDelay: `${i * 110}ms` }}
-                  >
-                    <p className={`text-lg font-bold tabular-nums ${m.accent ? "text-accent" : ""}`}>
-                      {m.v}
-                    </p>
-                    <p className="text-[9px] uppercase tracking-wide text-muted">{m.l}</p>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 bg-emerald-500/10 text-emerald-700">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    Delivered
+                  </span>
+                </div>
+
+                {/* Metric tiles */}
+                <div className="grid grid-cols-3 gap-3 mb-5">
+                  {[
+                    { v: "248", l: "Orders" },
+                    { v: "14h", l: "Saved / wk", accent: true },
+                    { v: "98%", l: "On time" },
+                  ].map((m, i) => (
+                    <div key={i} className="rounded-xl border border-border p-3">
+                      <p className={`text-lg font-bold tabular-nums ${m.accent ? "text-accent" : ""}`}>{m.v}</p>
+                      <p className="text-[9px] uppercase tracking-wide text-muted">{m.l}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Chart */}
+                <div className="rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[11px] font-semibold text-charcoal">Throughput</p>
+                    <p className="text-[9px] text-muted">Last 8 weeks</p>
+                  </div>
+                  <div className="flex items-end gap-2 h-20">
+                    {BARS.map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-t"
+                        style={{
+                          height: delivered ? `${h}%` : "12%",
+                          background:
+                            i === BARS.length - 1 ? "var(--color-accent)" : "rgba(232,122,46,0.28)",
+                          transition: "height 0.7s cubic-bezier(0.16, 1, 0.3, 1)",
+                          transitionDelay: `${i * 55}ms`,
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Chart — bars rise at "Prototype", last bar pops on "Deliver" */}
-            <div className="rounded-xl border border-border p-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[11px] font-semibold text-charcoal">Throughput</p>
-                <p className="text-[9px] text-muted">Last 8 weeks</p>
-              </div>
-              <div className="flex items-end gap-2 h-20">
-                {BARS.map((h, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-t"
-                    style={{
-                      height: step >= 2 ? `${h}%` : "12%",
-                      background:
-                        i === BARS.length - 1 && delivered
-                          ? "var(--color-accent)"
-                          : "rgba(232,122,46,0.28)",
-                      transition: "height 0.7s var(--ease-out-expo), background-color 0.4s ease",
-                      transitionDelay: `${i * 55}ms`,
-                    }}
-                  />
-                ))}
               </div>
             </div>
           </div>
