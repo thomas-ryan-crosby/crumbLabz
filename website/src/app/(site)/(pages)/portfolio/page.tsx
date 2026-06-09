@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPortfolioProjects } from "@/lib/firebase";
 import ScrollRevealProvider from "@/components/ScrollRevealProvider";
+import PageHero from "@/components/sections/PageHero";
+import Magnetic from "@/components/motion/Magnetic";
 import { type DisplayProject, FEATURED_PROJECTS } from "@/lib/featuredProjects";
 
 export default function PortfolioPage() {
@@ -23,28 +25,21 @@ export default function PortfolioPage() {
 
   return (
     <ScrollRevealProvider>
-      {/* Hero */}
-      <section className="relative bg-charcoal text-white py-24 md:py-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-charcoal-dark/50 to-transparent" />
-        <div className="relative max-w-7xl mx-auto px-6 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 hero-fade-in">
-            Our Work
-          </h1>
-          <p className="text-lg md:text-xl text-white/70 max-w-2xl mx-auto hero-fade-in hero-delay-1">
-            Real solutions we&apos;ve built for real businesses. Each project started with a problem and ended with a working tool.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="Portfolio"
+        title={<>Our <span className="text-gradient-warm">Work</span></>}
+        subtitle="Real solutions we've built for real businesses. Each project started with a problem and ended with a working tool."
+      />
 
       {/* Projects */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="py-20 md:py-28 bg-cream">
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-6">
             {allProjects.map((project) => (
                 <button
                   key={project.id}
                   onClick={() => setSelectedProject(project)}
-                  className="text-left bg-white border border-border rounded-xl p-6 hover:shadow-lg hover:border-accent/30 transition-all duration-300 group"
+                  className="text-left bg-white border border-border/70 rounded-2xl p-6 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300 group"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-xl font-bold text-charcoal group-hover:text-accent transition-colors">
@@ -88,20 +83,25 @@ export default function PortfolioPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-charcoal text-white py-16">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 animate-in">
+      <section className="grain relative overflow-hidden bg-mesh-warm text-white py-20 md:py-24">
+        <div className="relative z-[2] max-w-3xl mx-auto px-6 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold mb-4 animate-in text-white">
             Have a similar problem?
           </h2>
-          <p className="text-white/60 mb-8 animate-in animate-delay-1">
+          <p className="text-white/60 mb-8 animate-in animate-in-delay-1">
             Every project starts with a conversation about what&apos;s slowing your business down.
           </p>
-          <Link
-            href="/contact"
-            className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-3 rounded-lg transition-colors animate-in animate-delay-2"
-          >
-            Tell Us Your Headache
-          </Link>
+          <div className="animate-in animate-in-delay-2">
+            <Magnetic>
+              <Link
+                href="/contact"
+                className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-xl shadow-lift transition-all duration-300 hover:-translate-y-0.5"
+              >
+                Tell Us Your Headache
+                <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+              </Link>
+            </Magnetic>
+          </div>
         </div>
       </section>
 
@@ -160,9 +160,10 @@ export default function PortfolioPage() {
               <div className="pt-4 border-t border-border text-center">
                 <Link
                   href="/contact"
-                  className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-6 py-2.5 rounded-lg transition-colors text-sm"
+                  className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-6 py-3 rounded-xl shadow-lift transition-all duration-300 hover:-translate-y-0.5 text-sm"
                 >
                   Start a Similar Project
+                  <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
                 </Link>
               </div>
             </div>
