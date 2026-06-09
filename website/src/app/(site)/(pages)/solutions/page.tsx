@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ScrollRevealProvider from "@/components/ScrollRevealProvider";
+import PageHero from "@/components/sections/PageHero";
+import Marquee from "@/components/motion/Marquee";
+import Magnetic from "@/components/motion/Magnetic";
 
 export const metadata: Metadata = {
   title: "Solutions — CrumbLabz",
@@ -64,54 +67,85 @@ const solutions = [
 export default function SolutionsPage() {
   return (
     <ScrollRevealProvider>
-      {/* Hero */}
-      <section className="bg-charcoal text-white pt-32 pb-20 md:pt-40 md:pb-28">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <p className="hero-fade-in text-accent font-semibold text-sm uppercase tracking-widest mb-4">
-            What We Solve
-          </p>
-          <h1 className="hero-fade-in hero-fade-in-delay-1 text-white mb-6">Solutions</h1>
-          <p className="hero-fade-in hero-fade-in-delay-2 text-lg text-white/60 max-w-xl mx-auto">
-            We solve the operational problems that slow your business down.
-            Here are the types of challenges we tackle most often.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="What We Solve"
+        title={<><span className="text-gradient-warm">Solutions</span></>}
+        subtitle="We solve the operational problems that slow your business down. Here are the types of challenges we tackle most often."
+      />
 
-      {/* Solutions Grid */}
-      <section className="py-24 md:py-32">
+      {/* Capabilities marquee */}
+      <div className="bg-white border-b border-border">
+        <Marquee
+          items={[
+            "Workflow Automation",
+            "Business Dashboards",
+            "Reporting Automation",
+            "System Integration",
+            "Customer Communication",
+            "Firebase",
+            "Next.js",
+            "TypeScript",
+            "Claude AI",
+            "Vercel",
+          ]}
+        />
+      </div>
+
+      {/* Solutions Grid (bento) */}
+      <section className="py-24 md:py-32 bg-cream">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-6">
-            {solutions.map((solution, i) => (
-              <div
-                key={solution.title}
-                className={`animate-in animate-in-delay-${(i % 4) + 1} group bg-white rounded-xl p-8 border border-border hover:border-accent/30 hover:shadow-lg transition-all duration-300`}
-              >
-                <div className="w-12 h-12 rounded-lg bg-accent-light text-accent flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300">
-                  {solution.icon}
+            {solutions.map((solution, i) => {
+              if (i === 0) {
+                return (
+                  <div
+                    key={solution.title}
+                    className="animate-in grain relative overflow-hidden md:col-span-2 bg-mesh-warm text-white rounded-3xl p-8 md:p-10"
+                  >
+                    <div className="relative z-[2] md:max-w-2xl">
+                      <div className="w-12 h-12 rounded-xl bg-white/10 text-accent flex items-center justify-center mb-5">
+                        {solution.icon}
+                      </div>
+                      <h3 className="text-2xl font-bold mb-3 text-white">{solution.title}</h3>
+                      <p className="text-white/60 leading-relaxed text-lg">{solution.description}</p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={solution.title}
+                  className={`animate-in animate-in-delay-${(i % 4) + 1} group bg-white rounded-2xl p-8 border border-border/70 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-accent-light text-accent flex items-center justify-center mb-5 group-hover:bg-accent group-hover:text-white transition-colors duration-300">
+                    {solution.icon}
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">{solution.title}</h3>
+                  <p className="text-muted leading-relaxed">{solution.description}</p>
                 </div>
-                <h3 className="text-xl font-bold mb-3">{solution.title}</h3>
-                <p className="text-muted leading-relaxed">{solution.description}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="bg-neutral py-24">
+      <section className="bg-white py-24">
         <div className="max-w-3xl mx-auto px-6 text-center animate-in">
           <h2 className="mb-6">Don&apos;t See Your Problem Listed?</h2>
           <p className="text-lg text-muted mb-10">
             Every business is different. Tell us what&apos;s slowing you down and
             we&apos;ll figure out the best way to solve it.
           </p>
-          <Link
-            href="/contact"
-            className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-lg text-lg transition-colors"
-          >
-            Start the Conversation
-          </Link>
+          <Magnetic>
+            <Link
+              href="/contact"
+              className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-xl text-lg shadow-lift transition-all duration-300 hover:-translate-y-0.5"
+            >
+              Start the Conversation
+              <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+            </Link>
+          </Magnetic>
         </div>
       </section>
     </ScrollRevealProvider>

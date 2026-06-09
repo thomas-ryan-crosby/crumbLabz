@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Magnetic from "@/components/motion/Magnetic";
 
 export default function Hero() {
   return (
@@ -25,19 +26,23 @@ export default function Hero() {
           </p>
 
           <div className="hero-fade-in hero-fade-in-delay-3 flex flex-wrap gap-4">
-            <Link
-              href="/contact"
-              className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-7 py-4 rounded-xl text-base shadow-lift transition-all duration-300 hover:-translate-y-0.5"
-            >
-              Tell Us Your Headache
-              <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
-            </Link>
-            <Link
-              href="/how-it-works"
-              className="inline-flex items-center border border-white/20 hover:border-white/40 hover:bg-white/5 text-white font-semibold px-7 py-4 rounded-xl text-base backdrop-blur transition-all duration-300"
-            >
-              See How It Works
-            </Link>
+            <Magnetic>
+              <Link
+                href="/contact"
+                className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-7 py-4 rounded-xl text-base shadow-lift transition-all duration-300 hover:-translate-y-0.5"
+              >
+                Tell Us Your Headache
+                <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+              </Link>
+            </Magnetic>
+            <Magnetic strength={0.25}>
+              <Link
+                href="/how-it-works"
+                className="inline-flex items-center border border-white/20 hover:border-white/40 hover:bg-white/5 text-white font-semibold px-7 py-4 rounded-xl text-base backdrop-blur transition-all duration-300"
+              >
+                See How It Works
+              </Link>
+            </Magnetic>
           </div>
 
           {/* Trust line */}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ScrollRevealProvider from "@/components/ScrollRevealProvider";
+import PageHero from "@/components/sections/PageHero";
+import Magnetic from "@/components/motion/Magnetic";
 
 export const metadata: Metadata = {
   title: "How It Works — CrumbLabz",
@@ -41,59 +43,61 @@ const steps = [
 export default function HowItWorksPage() {
   return (
     <ScrollRevealProvider>
-      {/* Hero */}
-      <section className="bg-charcoal text-white pt-32 pb-20 md:pt-40 md:pb-28">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <p className="hero-fade-in text-accent font-semibold text-sm uppercase tracking-widest mb-4">
-            The Process
-          </p>
-          <h1 className="hero-fade-in hero-fade-in-delay-1 text-white mb-6">How It Works</h1>
-          <p className="hero-fade-in hero-fade-in-delay-2 text-lg text-white/60 max-w-xl mx-auto">
-            A simple, four-step process from problem to working solution.
-            No jargon. No surprises.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="The Process"
+        title={<>How It <span className="text-gradient-warm">Works</span></>}
+        subtitle="A simple, four-step process from problem to working solution. No jargon. No surprises."
+      />
 
-      {/* Steps */}
-      <section className="py-24 md:py-32">
+      {/* Steps timeline */}
+      <section className="py-24 md:py-32 bg-white">
         <div className="max-w-4xl mx-auto px-6">
-          <div className="space-y-20">
-            {steps.map((step, i) => (
-              <div key={step.number} className={`animate-in animate-in-delay-${i + 1} flex gap-8 md:gap-12`}>
-                <div className="shrink-0">
-                  <div className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center text-lg font-bold shadow-lg shadow-accent/20">
-                    {step.number}
+          <div className="relative">
+            {/* Vertical connector */}
+            <div className="hidden md:block absolute left-8 top-6 bottom-6 w-px bg-gradient-to-b from-accent via-accent/40 to-transparent" />
+
+            <div className="space-y-10 md:space-y-14">
+              {steps.map((step, i) => (
+                <div
+                  key={step.number}
+                  className={`animate-in animate-in-delay-${i + 1} relative flex gap-6 md:gap-10`}
+                >
+                  <div className="shrink-0 relative z-[1]">
+                    <div
+                      className="w-16 h-16 rounded-2xl bg-accent text-white flex items-center justify-center text-lg font-bold shadow-lift"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {step.number}
+                    </div>
+                  </div>
+                  <div className="flex-1 bg-white rounded-2xl border border-border/70 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300 p-7 md:p-8">
+                    <h2 className="text-2xl md:text-3xl font-bold mb-2">{step.title}</h2>
+                    <p className="text-accent font-semibold text-sm mb-4">{step.highlight}</p>
+                    <p className="text-muted text-lg leading-relaxed">{step.description}</p>
                   </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-2">
-                    {step.title}
-                  </h2>
-                  <p className="text-accent font-semibold text-sm mb-4">
-                    {step.highlight}
-                  </p>
-                  <p className="text-muted text-lg leading-relaxed">{step.description}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="bg-neutral py-24">
+      <section className="bg-cream py-24">
         <div className="max-w-3xl mx-auto px-6 text-center animate-in">
           <h2 className="mb-6">Ready to Solve a Problem?</h2>
           <p className="text-lg text-muted mb-10">
             It starts with describing one operational headache. We handle the rest.
           </p>
-          <Link
-            href="/contact"
-            className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-lg text-lg transition-colors"
-          >
-            Tell Us Your Headache
-          </Link>
+          <Magnetic>
+            <Link
+              href="/contact"
+              className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-xl text-lg shadow-lift transition-all duration-300 hover:-translate-y-0.5"
+            >
+              Tell Us Your Headache
+              <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+            </Link>
+          </Magnetic>
         </div>
       </section>
     </ScrollRevealProvider>

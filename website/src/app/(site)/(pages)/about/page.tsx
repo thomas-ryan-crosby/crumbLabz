@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ScrollRevealProvider from "@/components/ScrollRevealProvider";
+import PageHero from "@/components/sections/PageHero";
+import Magnetic from "@/components/motion/Magnetic";
 
 export const metadata: Metadata = {
   title: "About — CrumbLabz",
@@ -33,22 +35,14 @@ const beliefs = [
 export default function AboutPage() {
   return (
     <ScrollRevealProvider>
-      {/* Hero */}
-      <section className="bg-charcoal text-white pt-32 pb-20 md:pt-40 md:pb-28">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <p className="hero-fade-in text-accent font-semibold text-sm uppercase tracking-widest mb-4">
-            Who We Are
-          </p>
-          <h1 className="hero-fade-in hero-fade-in-delay-1 text-white mb-6">About CrumbLabz</h1>
-          <p className="hero-fade-in hero-fade-in-delay-2 text-lg text-white/60 max-w-xl mx-auto">
-            A solutions-focused development studio that helps businesses solve
-            operational problems by rapidly building custom software tools.
-          </p>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="Who We Are"
+        title={<>About <span className="text-gradient-warm">CrumbLabz</span></>}
+        subtitle="A solutions-focused development studio that helps businesses solve operational problems by rapidly building custom software tools."
+      />
 
       {/* Mission */}
-      <section className="py-24 md:py-32">
+      <section className="py-24 md:py-32 bg-white">
         <div className="max-w-4xl mx-auto px-6">
           <div className="grid md:grid-cols-5 gap-12 items-start">
             <div className="md:col-span-2 animate-in">
@@ -74,7 +68,7 @@ export default function AboutPage() {
       </section>
 
       {/* Core Beliefs */}
-      <section className="bg-neutral py-24 md:py-32">
+      <section className="bg-cream py-24 md:py-32">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16 animate-in">
             <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
@@ -86,8 +80,14 @@ export default function AboutPage() {
             {beliefs.map((belief, i) => (
               <div
                 key={belief.title}
-                className={`animate-in animate-in-delay-${i + 1} bg-white rounded-xl p-8 border border-border`}
+                className={`animate-in animate-in-delay-${i + 1} group bg-white rounded-2xl p-8 border border-border/70 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300`}
               >
+                <div
+                  className="text-3xl font-bold text-gradient-warm mb-4"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </div>
                 <h3 className="text-xl font-bold mb-3">{belief.title}</h3>
                 <p className="text-muted leading-relaxed">{belief.description}</p>
               </div>
@@ -97,7 +97,7 @@ export default function AboutPage() {
       </section>
 
       {/* Vision */}
-      <section className="py-24 md:py-32">
+      <section className="py-24 md:py-32 bg-white">
         <div className="max-w-3xl mx-auto px-6 text-center animate-in">
           <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
             Our Vision
@@ -112,12 +112,15 @@ export default function AboutPage() {
             Technology should not be a barrier to efficiency. It should be a
             tool that is accessible, adaptable, and fast to implement.
           </p>
-          <Link
-            href="/contact"
-            className="inline-block bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-lg text-lg transition-colors"
-          >
-            Start the Conversation
-          </Link>
+          <Magnetic>
+            <Link
+              href="/contact"
+              className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-8 py-4 rounded-xl text-lg shadow-lift transition-all duration-300 hover:-translate-y-0.5"
+            >
+              Start the Conversation
+              <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+            </Link>
+          </Magnetic>
         </div>
       </section>
     </ScrollRevealProvider>
