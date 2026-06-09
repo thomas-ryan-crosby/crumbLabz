@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Magnetic from "@/components/motion/Magnetic";
+import HeroShowcase from "@/components/sections/HeroShowcase";
 
 export default function Hero() {
   return (
@@ -55,77 +56,9 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Product showcase — floating, tilted "app we built" */}
+        {/* Product showcase — animated crumbs → cookie → delivered software */}
         <div className="hero-fade-in hero-fade-in-delay-2 hidden lg:block">
-          <div className="relative" style={{ perspective: "1500px" }}>
-            <div
-              className="relative"
-              style={{ transform: "rotateY(-13deg) rotateX(7deg)" }}
-            >
-              {/* Glow */}
-              <div className="absolute -inset-10 rounded-[2.5rem] bg-accent/20 blur-3xl" />
-
-              {/* Floating app card */}
-              <div className="animate-float-y relative w-[470px] max-w-full rounded-2xl bg-white text-charcoal shadow-2xl ring-1 ring-black/10 overflow-hidden">
-                {/* Window chrome */}
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-neutral">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#e0726b]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#e6b450]" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#5aa86a]" />
-                  <span className="ml-3 text-[11px] text-muted">app.crumblabz.com</span>
-                </div>
-
-                {/* App body */}
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-accent">Live</p>
-                      <p className="text-[15px] font-bold text-charcoal" style={{ fontFamily: "var(--font-display)" }}>
-                        Operations Dashboard
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-muted border border-border rounded-full px-2.5 py-1">This Month</span>
-                  </div>
-
-                  {/* Metric tiles */}
-                  <div className="grid grid-cols-3 gap-3 mb-5">
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-lg font-bold tabular-nums">248</p>
-                      <p className="text-[9px] uppercase tracking-wide text-muted">Orders</p>
-                    </div>
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-lg font-bold tabular-nums text-accent">14h</p>
-                      <p className="text-[9px] uppercase tracking-wide text-muted">Saved / wk</p>
-                    </div>
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="text-lg font-bold tabular-nums">98%</p>
-                      <p className="text-[9px] uppercase tracking-wide text-muted">On time</p>
-                    </div>
-                  </div>
-
-                  {/* Mini bar chart */}
-                  <div className="rounded-xl border border-border p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[11px] font-semibold text-charcoal">Throughput</p>
-                      <p className="text-[9px] text-muted">Last 8 weeks</p>
-                    </div>
-                    <div className="flex items-end gap-2 h-20">
-                      {[42, 55, 48, 67, 60, 78, 72, 90].map((h, i) => (
-                        <div
-                          key={i}
-                          className="flex-1 rounded-t"
-                          style={{
-                            height: `${h}%`,
-                            background: i === 7 ? "var(--color-accent)" : "rgba(232,122,46,0.28)",
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <HeroShowcase />
         </div>
       </div>
     </section>
