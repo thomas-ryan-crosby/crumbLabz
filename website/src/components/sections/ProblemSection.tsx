@@ -57,54 +57,69 @@ const problems = [
 
 export default function ProblemSection() {
   return (
-    <section className="bg-cream py-24 md:py-32">
-      <div className="max-w-7xl mx-auto px-6">
-        {/* Problem statement */}
-        <div className="max-w-3xl mx-auto text-center mb-20 animate-in">
-          <p className="text-accent font-semibold text-sm uppercase tracking-widest mb-3">
+    <section className="relative bg-cream py-24 md:py-32 overflow-hidden">
+      {/* Soft decorative glow for depth */}
+      <div className="pointer-events-none absolute -top-32 -right-24 w-[42rem] h-[42rem] rounded-full bg-accent/5 blur-3xl" />
+
+      <div className="relative max-w-7xl mx-auto px-6">
+        {/* Editorial intro — one statement instead of two stacked headers */}
+        <div className="max-w-3xl mb-16 animate-in">
+          <p className="inline-flex items-center gap-2.5 text-accent font-semibold text-sm uppercase tracking-widest mb-5">
+            <span className="w-6 h-px bg-accent" />
             The Problem
           </p>
-          <h2 className="mb-6">
-            Every business has processes that drain time and energy.
+          <h2 className="mb-5 text-balance">
+            Every business has processes that quietly{" "}
+            <span className="text-gradient-warm">drain time and energy.</span>
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto">
-            These are the headaches we eliminate.
+          <p className="text-lg text-muted max-w-2xl">
+            Sound familiar? These are the everyday headaches we turn into working
+            tools — quickly, and without the overhead of a traditional software
+            project.
           </p>
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center justify-center gap-3 mb-20 animate-in">
-          <div className="h-px w-16 bg-border" />
-          <div className="w-2 h-2 rounded-full bg-accent" />
-          <div className="h-px w-16 bg-border" />
-        </div>
+        {/* Headache → fix grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {problems.map((problem, i) => (
+            <div
+              key={problem.title}
+              className={`animate-in animate-in-delay-${(i % 3) + 1} group relative overflow-hidden bg-white rounded-2xl border border-border/70 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300`}
+            >
+              {/* Accent bar grows in on hover */}
+              <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent origin-top scale-y-0 group-hover:scale-y-100 transition-transform duration-300" />
 
-        {/* Sound Familiar + Cards */}
-        <div className="animate-in">
-          <div className="max-w-3xl mx-auto text-center mb-14">
-            <h2 className="mb-6">Sound Familiar?</h2>
-            <p className="text-lg text-muted max-w-2xl mx-auto">
-              CrumbLabz identifies these inefficiencies and builds targeted tools
-              that eliminate them — quickly and without the overhead of a traditional
-              software project.
-            </p>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {problems.map((problem, i) => (
-              <div
-                key={problem.title}
-                className={`animate-in animate-in-delay-${i + 1} group relative bg-white rounded-2xl p-7 border border-border/70 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300`}
-              >
-                <div className="absolute top-0 left-0 right-0 h-1 bg-accent rounded-t-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className="w-11 h-11 rounded-lg bg-accent-light text-accent flex items-center justify-center mb-4 group-hover:bg-accent group-hover:text-white transition-colors duration-300">
-                  {problem.icon}
+              <div className="p-7">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-12 h-12 rounded-xl bg-accent-light text-accent flex items-center justify-center group-hover:bg-accent group-hover:text-white transition-colors duration-300">
+                    {problem.icon}
+                  </div>
+                  <span
+                    className="text-2xl font-bold text-charcoal/10 tabular-nums leading-none"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
                 </div>
-                <h3 className="text-lg font-bold mb-2">{problem.title}</h3>
-                <p className="text-sm text-muted leading-relaxed">{problem.description}</p>
+
+                {/* The pain */}
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted/60 mb-1">
+                  The headache
+                </p>
+                <h3 className="text-lg font-bold text-charcoal mb-4 group-hover:text-accent transition-colors duration-300">
+                  {problem.title}
+                </h3>
+
+                {/* The fix */}
+                <div className="flex gap-2.5 pt-4 border-t border-border/70">
+                  <svg className="w-4 h-4 text-accent shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                  <p className="text-sm text-muted leading-relaxed">{problem.description}</p>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>
