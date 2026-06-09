@@ -11,6 +11,21 @@
   --color-muted: #6b6b6b;
   --color-border: #e0e0e0;
 
+  /* Engineered Warmth — warm material palette */
+  --color-cream: #faf7f2;
+  --color-ink: #1b1916;
+  --color-ember: #c2410c;
+  --color-amber: #f59e0b;
+  --color-terracotta: #d4612e;
+
+  /* Type — Inter for body, Space Grotesk for display */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Soft, layered elevation (replaces flat 1px borders as the depth cue) */
+  --shadow-soft: 0 1px 2px rgba(27, 25, 22, 0.04), 0 6px 20px -6px rgba(27, 25, 22, 0.08);
+  --shadow-lift: 0 12px 48px -12px rgba(27, 25, 22, 0.22);
+
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -24,19 +39,26 @@
   }
 
   h1, h2, h3, h4 {
-    @apply font-bold leading-tight tracking-tight;
+    font-family: var(--font-display);
+    @apply font-semibold leading-tight;
+    letter-spacing: -0.02em;
   }
 
+  /* Fluid type scale — oversized, tightly tracked display headings */
   h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl;
+    font-size: clamp(2.75rem, 1.4rem + 4.2vw, 4.5rem);
+    line-height: 1.03;
+    letter-spacing: -0.035em;
   }
 
   h2 {
-    @apply text-3xl md:text-4xl;
+    font-size: clamp(1.875rem, 1rem + 2.6vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
   }
 
   h3 {
-    @apply text-xl md:text-2xl;
+    font-size: clamp(1.25rem, 1rem + 0.8vw, 1.6rem);
   }
 }
 
@@ -222,5 +244,56 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Engineered Warmth — material & motion utilities
+   ============================================================ */
+
+/* Warm radial-gradient mesh for dark hero/CTA bands */
+.bg-mesh-warm {
+  background-color: #16140f;
+  background-image:
+    radial-gradient(62% 80% at 78% 18%, rgba(232, 122, 46, 0.22), transparent 60%),
+    radial-gradient(54% 64% at 12% 92%, rgba(212, 97, 46, 0.18), transparent 58%),
+    radial-gradient(44% 52% at 48% 48%, rgba(245, 158, 11, 0.07), transparent 72%);
+}
+
+/* Subtle film grain — adds tactility over dark surfaces without hurting perf.
+   Applied via ::after so the host element just needs `position: relative`. */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Warm gradient text for headline accents */
+.text-gradient-warm {
+  background: linear-gradient(100deg, #f7b733 0%, #e87a2e 45%, #d4612e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Gentle vertical float for the hero product showcase. Tilt is applied
+   separately on a wrapper so it survives prefers-reduced-motion. */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+.animate-float-y {
+  animation: floatY 7s var(--ease-out-expo) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-y {
+    animation: none;
   }
 }
