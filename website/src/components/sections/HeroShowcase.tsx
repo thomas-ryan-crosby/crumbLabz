@@ -20,7 +20,7 @@ const SEQUENCE: [Phase, number][] = [
   ["form", 1100],
   ["logohold", 1800],
   ["reveal", 1100],
-  ["hold", 3000],
+  ["hold", 6000],
 ];
 
 type Phase =
@@ -58,8 +58,15 @@ export default function HeroShowcase() {
   const chipsVisible = phase === "orbit" || phase === "gather";
   const radius = phase === "scatter" || phase === "orbit" ? ORBIT_RADIUS : 0;
   const logoVisible = phase === "form" || phase === "logohold";
+  // Pop in (form) → slow continuous grow (logohold) → fast explode out (reveal).
   const logoScale =
-    phase === "form" ? 1 : phase === "logohold" ? 1.12 : phase === "reveal" || phase === "hold" ? 1.3 : 0.55;
+    phase === "form" ? 1 : phase === "logohold" ? 1.14 : phase === "reveal" || phase === "hold" ? 1.7 : 0.55;
+  const logoTransition =
+    phase === "logohold"
+      ? "transform 1.9s cubic-bezier(0.33, 0, 0.4, 1), opacity 0.5s ease"
+      : phase === "reveal" || phase === "hold"
+        ? "transform 0.5s cubic-bezier(0.5, 0, 0.85, 0.3), opacity 0.45s ease"
+        : "transform 0.75s cubic-bezier(0.2, 1.25, 0.4, 1), opacity 0.55s ease";
   const delivered = phase === "reveal" || phase === "hold";
 
   return (
@@ -84,7 +91,7 @@ export default function HeroShowcase() {
                 <div style={{ transform: `rotate(${-s.a}deg)` }}>
                   {/* Counter the group's live spin → label stays upright */}
                   <span
-                    className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[13px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
+                    className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center justify-center gap-2 min-w-[132px] whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[13px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
                     style={{ opacity: chipsVisible ? 1 : 0, transition: "opacity 0.5s ease" }}
                   >
                     <span className="w-2 h-2 rounded-full bg-accent" />
@@ -101,8 +108,7 @@ export default function HeroShowcase() {
               style={{
                 opacity: logoVisible ? 1 : 0,
                 transform: `scale(${logoScale})`,
-                transition:
-                  "transform 0.75s cubic-bezier(0.2, 1.25, 0.4, 1), opacity 0.55s ease",
+                transition: logoTransition,
               }}
             >
               <Image
@@ -121,9 +127,9 @@ export default function HeroShowcase() {
               className="relative w-[382px] max-w-full rounded-2xl bg-white text-charcoal shadow-2xl ring-1 ring-black/10 overflow-hidden"
               style={{
                 opacity: delivered ? 1 : 0,
-                transform: `scale(${delivered ? 1 : 0.72})`,
+                transform: `scale(${delivered ? 1 : 0.55})`,
                 transition:
-                  "transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.55s ease",
+                  "transform 0.7s cubic-bezier(0.2, 1.2, 0.4, 1), opacity 0.5s ease",
               }}
             >
               {/* Window chrome */}
