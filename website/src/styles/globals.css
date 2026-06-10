@@ -307,10 +307,10 @@
   to { transform: rotate(-360deg); }
 }
 .orbit-spin {
-  animation: orbitSpin 12s linear infinite;
+  animation: orbitSpin 17s linear infinite;
 }
 .orbit-spin-rev {
-  animation: orbitSpinRev 12s linear infinite;
+  animation: orbitSpinRev 17s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .orbit-spin,

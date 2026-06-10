@@ -14,14 +14,13 @@ const STEPS = [
 ];
 
 const SEQUENCE: [Phase, number][] = [
-  ["scatter", 250],
-  ["orbit", 2600],
-  ["gather", 1900],
-  ["form", 950],
-  ["spin", 1100],
-  ["logohold", 1100],
-  ["reveal", 1000],
-  ["hold", 2700],
+  ["scatter", 300],
+  ["orbit", 3800],
+  ["gather", 2600],
+  ["form", 1100],
+  ["logohold", 1800],
+  ["reveal", 1100],
+  ["hold", 3000],
 ];
 
 type Phase =
@@ -29,12 +28,11 @@ type Phase =
   | "orbit"
   | "gather"
   | "form"
-  | "spin"
   | "logohold"
   | "reveal"
   | "hold";
 
-const ORBIT_RADIUS = 168;
+const ORBIT_RADIUS = 184;
 const BARS = [42, 55, 48, 67, 60, 78, 72, 96];
 
 export default function HeroShowcase() {
@@ -59,9 +57,9 @@ export default function HeroShowcase() {
 
   const chipsVisible = phase === "orbit" || phase === "gather";
   const radius = phase === "scatter" || phase === "orbit" ? ORBIT_RADIUS : 0;
-  const logoVisible = phase === "form" || phase === "spin" || phase === "logohold";
+  const logoVisible = phase === "form" || phase === "logohold";
   const logoScale =
-    phase === "form" ? 1 : phase === "spin" ? 1.05 : phase === "logohold" ? 1.1 : phase === "reveal" || phase === "hold" ? 1.25 : 0.5;
+    phase === "form" ? 1 : phase === "logohold" ? 1.12 : phase === "reveal" || phase === "hold" ? 1.3 : 0.55;
   const delivered = phase === "reveal" || phase === "hold";
 
   return (
@@ -79,17 +77,17 @@ export default function HeroShowcase() {
                 className="absolute left-0 top-0"
                 style={{
                   transform: `rotate(${s.a}deg) translateX(${radius}px)`,
-                  transition: "transform 1.6s cubic-bezier(0.5, 0, 0.15, 1)",
+                  transition: "transform 2.2s cubic-bezier(0.5, 0, 0.15, 1)",
                 }}
               >
                 {/* Counter the arm's static angle */}
                 <div style={{ transform: `rotate(${-s.a}deg)` }}>
                   {/* Counter the group's live spin → label stays upright */}
                   <span
-                    className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-[12px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
+                    className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[13px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
                     style={{ opacity: chipsVisible ? 1 : 0, transition: "opacity 0.5s ease" }}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                    <span className="w-2 h-2 rounded-full bg-accent" />
                     {s.label}
                   </span>
                 </div>
@@ -100,31 +98,19 @@ export default function HeroShowcase() {
           {/* Logo lockup — crumbs bake into the official cookie + wordmark */}
           <div className="absolute inset-0 grid place-items-center" style={{ zIndex: 3 }}>
             <div
-              className="flex items-center gap-4"
               style={{
                 opacity: logoVisible ? 1 : 0,
                 transform: `scale(${logoScale})`,
                 transition:
-                  "transform 0.7s cubic-bezier(0.2, 1.25, 0.4, 1), opacity 0.55s ease",
+                  "transform 0.75s cubic-bezier(0.2, 1.25, 0.4, 1), opacity 0.55s ease",
               }}
             >
               <Image
-                src="/images/CrumbLabz_Cookie.png"
-                alt=""
-                width={92}
-                height={92}
-                className="drop-shadow-2xl"
-                style={{
-                  transform: phase === "spin" ? "rotate(360deg)" : "rotate(0deg)",
-                  transition: "transform 0.95s cubic-bezier(0.4, 0, 0.2, 1)",
-                }}
-              />
-              <Image
-                src="/images/CrumbLabz_Wordmark.png"
+                src="/images/CrumbLabz_LogoFull.png"
                 alt="CrumbLabz"
-                width={224}
-                height={51}
-                className="brightness-0 invert"
+                width={320}
+                height={75}
+                className="brightness-0 invert drop-shadow-2xl"
               />
             </div>
           </div>
