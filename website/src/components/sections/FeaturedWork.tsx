@@ -24,12 +24,11 @@ export default function FeaturedWork() {
           </p>
           <h2 className="mb-5">Real tools, really shipped</h2>
           <p className="text-lg text-muted">
-            A look at actual software we&apos;ve built for businesses. Click
-            through to see each one.
+            A look at actual software we&apos;ve built for real businesses.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-[0.82fr_1.18fr] gap-8 items-start">
+        <div className="hidden lg:grid lg:grid-cols-[0.82fr_1.18fr] gap-8 items-start">
           {/* Project selector */}
           <div className="flex flex-col gap-3 animate-in">
             {FEATURED_PROJECTS.map((p, i) => {
@@ -100,6 +99,17 @@ export default function FeaturedWork() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Mobile: skip the interactive gallery, link straight to the portfolio */}
+        <div className="lg:hidden">
+          <Link
+            href="/portfolio"
+            className="group inline-flex items-center gap-2 bg-accent hover:bg-accent-hover text-white font-semibold px-7 py-4 rounded-xl shadow-lift transition-all duration-300 hover:-translate-y-0.5"
+          >
+            Explore the full portfolio
+            <span className="transition-transform duration-300 group-hover:translate-x-1">&rarr;</span>
+          </Link>
         </div>
       </div>
     </section>
