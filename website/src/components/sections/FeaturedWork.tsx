@@ -83,10 +83,12 @@ export default function FeaturedWork() {
                 </span>
               </div>
 
-              <div
-                className="rounded-2xl bg-white border border-border/60 p-4 overflow-hidden"
-                dangerouslySetInnerHTML={{ __html: project.portfolioContent }}
-              />
+              <div className="rounded-2xl bg-white border border-border/60 overflow-x-auto">
+                <div
+                  className="p-4 min-w-[440px]"
+                  dangerouslySetInnerHTML={{ __html: project.portfolioContent }}
+                />
+              </div>
 
               {project.portfolioBenefits && (
                 <div className="mt-5 bg-accent/5 border border-accent/20 rounded-xl p-4">

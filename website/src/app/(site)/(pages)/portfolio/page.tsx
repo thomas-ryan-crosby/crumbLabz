@@ -147,7 +147,9 @@ export default function PortfolioPage() {
               </div>
 
               {selectedProject.portfolioContent && (
-                <div className="mb-6 border border-border rounded-xl p-4 overflow-hidden" dangerouslySetInnerHTML={{ __html: selectedProject.portfolioContent }} />
+                <div className="mb-6 border border-border rounded-xl overflow-x-auto">
+                  <div className="p-4 min-w-[440px]" dangerouslySetInnerHTML={{ __html: selectedProject.portfolioContent }} />
+                </div>
               )}
 
               {selectedProject.portfolioBenefits && (
