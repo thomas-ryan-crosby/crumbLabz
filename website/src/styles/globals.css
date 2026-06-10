@@ -319,6 +319,20 @@
   }
 }
 
+/* Subtle "breathe" to keep the delivered dashboard feeling alive */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.018); }
+}
+.dash-breathe {
+  animation: breathe 3.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-breathe {
+    animation: none;
+  }
+}
+
 /* Seamless marquee — two copies translated by -50% for a continuous loop */
 @keyframes marquee {
   from { transform: translateX(0); }

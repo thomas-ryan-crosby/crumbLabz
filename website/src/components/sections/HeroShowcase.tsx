@@ -15,7 +15,7 @@ const STEPS = [
 
 const SEQUENCE: [Phase, number][] = [
   ["scatter", 300],
-  ["orbit", 3800],
+  ["orbit", 5200],
   ["gather", 2600],
   ["form", 1100],
   ["logohold", 1800],
@@ -78,7 +78,7 @@ export default function HeroShowcase() {
 
           {/* Orbiting process steps */}
           <div className="orbit-spin absolute left-1/2 top-1/2" style={{ width: 0, height: 0 }}>
-            {STEPS.map((s) => (
+            {STEPS.map((s, i) => (
               <div
                 key={s.label}
                 className="absolute left-0 top-0"
@@ -92,7 +92,12 @@ export default function HeroShowcase() {
                   {/* Counter the group's live spin → label stays upright */}
                   <span
                     className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center justify-center gap-2 min-w-[132px] whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[13px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
-                    style={{ opacity: chipsVisible ? 1 : 0, transition: "opacity 0.5s ease" }}
+                    style={{
+                      opacity: chipsVisible ? 1 : 0,
+                      transition: "opacity 0.5s ease",
+                      // Reveal one pill at a time so they can be read in order
+                      transitionDelay: chipsVisible ? `${i * 0.42}s` : "0s",
+                    }}
                   >
                     <span className="w-2 h-2 rounded-full bg-accent" />
                     {s.label}
@@ -124,7 +129,6 @@ export default function HeroShowcase() {
           {/* Delivered dashboard */}
           <div className="absolute inset-0 grid place-items-center" style={{ zIndex: 2 }}>
             <div
-              className="relative w-[382px] max-w-full rounded-2xl bg-white text-charcoal shadow-2xl ring-1 ring-black/10 overflow-hidden"
               style={{
                 opacity: delivered ? 1 : 0,
                 transform: `scale(${delivered ? 1 : 0.55})`,
@@ -132,6 +136,9 @@ export default function HeroShowcase() {
                   "transform 0.7s cubic-bezier(0.2, 1.2, 0.4, 1), opacity 0.5s ease",
               }}
             >
+              <div
+                className={`relative w-[382px] max-w-full rounded-2xl bg-white text-charcoal shadow-2xl ring-1 ring-black/10 overflow-hidden${delivered ? " dash-breathe" : ""}`}
+              >
               {/* Window chrome */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-neutral">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#e0726b]" />
@@ -196,6 +203,7 @@ export default function HeroShowcase() {
                   </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
         </div>
