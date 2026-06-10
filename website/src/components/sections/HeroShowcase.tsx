@@ -18,36 +18,40 @@ const STEPS = [
 
 type Phase = "scatter" | "orbit" | "gather" | "form" | "logohold" | "reveal" | "hold";
 
-// [phase, revealed, launched, ringAngle, ringTransMs, durationMs]
+const EASE_DEFAULT = "cubic-bezier(0.45, 0, 0.2, 1)";
+const EASE_ACCEL = "cubic-bezier(0.4, 0, 0.95, 0.25)"; // slow → fast (spin builds up)
+const EASE_SETTLE = "cubic-bezier(0.1, 0.7, 0.25, 1)"; // carry momentum, then settle
+
+// [phase, revealed, launched, ringAngle, ringTransMs, durationMs, ringEase]
 // revealed = pills faded in (at center); launched = pills flown out to the ring.
-const FRAMES: [Phase, number, number, number, number, number][] = [
-  ["scatter", 0, 0, -18, 0, 600],
+const FRAMES: [Phase, number, number, number, number, number, string][] = [
+  ["scatter", 0, 0, -18, 0, 600, EASE_DEFAULT],
 
-  ["orbit", 1, 0, -18, 1100, 850], // Discovery appears at center
-  ["orbit", 1, 1, -18, 1100, 1500], // flies to the top
-  ["orbit", 1, 1, 54, 1100, 1300], // ring rotates clockwise
+  ["orbit", 1, 0, -18, 1100, 850, EASE_DEFAULT], // Discovery appears at center
+  ["orbit", 1, 1, -18, 1100, 1500, EASE_DEFAULT], // flies to the top
+  ["orbit", 1, 1, 54, 1100, 1300, EASE_DEFAULT], // ring rotates clockwise
 
-  ["orbit", 2, 1, 54, 1100, 850], // Ideation
-  ["orbit", 2, 2, 54, 1100, 1500],
-  ["orbit", 2, 2, 126, 1100, 1300],
+  ["orbit", 2, 1, 54, 1100, 850, EASE_DEFAULT], // Ideation
+  ["orbit", 2, 2, 54, 1100, 1500, EASE_DEFAULT],
+  ["orbit", 2, 2, 126, 1100, 1300, EASE_DEFAULT],
 
-  ["orbit", 3, 2, 126, 1100, 850], // Prototype
-  ["orbit", 3, 3, 126, 1100, 1500],
-  ["orbit", 3, 3, 198, 1100, 1300],
+  ["orbit", 3, 2, 126, 1100, 850, EASE_DEFAULT], // Prototype
+  ["orbit", 3, 3, 126, 1100, 1500, EASE_DEFAULT],
+  ["orbit", 3, 3, 198, 1100, 1300, EASE_DEFAULT],
 
-  ["orbit", 4, 3, 198, 1100, 850], // Build
-  ["orbit", 4, 4, 198, 1100, 1500],
-  ["orbit", 4, 4, 270, 1100, 1300],
+  ["orbit", 4, 3, 198, 1100, 850, EASE_DEFAULT], // Build
+  ["orbit", 4, 4, 198, 1100, 1500, EASE_DEFAULT],
+  ["orbit", 4, 4, 270, 1100, 1300, EASE_DEFAULT],
 
-  ["orbit", 5, 4, 270, 1100, 850], // Launch appears
-  ["orbit", 5, 5, 270, 1100, 1300], // flies to the top
-  ["orbit", 5, 5, 810, 380, 750], // FAST SPIN (+540°)
-  ["gather", 5, 5, 810, 600, 1500], // converge to center
+  ["orbit", 5, 4, 270, 1100, 850, EASE_DEFAULT], // Launch appears
+  ["orbit", 5, 5, 270, 1100, 1300, EASE_DEFAULT], // flies to the top
+  ["orbit", 5, 5, 1350, 1700, 1700, EASE_ACCEL], // spin builds up over 3 turns
+  ["gather", 5, 5, 1890, 1300, 1500, EASE_SETTLE], // momentum carries into the converge
 
-  ["form", 5, 5, 810, 0, 1100],
-  ["logohold", 5, 5, 810, 0, 1800],
-  ["reveal", 5, 5, 810, 0, 1100],
-  ["hold", 5, 5, 810, 0, 5000],
+  ["form", 5, 5, 1890, 0, 1100, EASE_DEFAULT],
+  ["logohold", 5, 5, 1890, 0, 1800, EASE_DEFAULT],
+  ["reveal", 5, 5, 1890, 0, 1100, EASE_DEFAULT],
+  ["hold", 5, 5, 1890, 0, 5000, EASE_DEFAULT],
 ];
 
 const ORBIT_RADIUS = 184;
@@ -59,6 +63,7 @@ export default function HeroShowcase() {
   const [launched, setLaunched] = useState(0);
   const [ringAngle, setRingAngle] = useState(-18);
   const [ringTrans, setRingTrans] = useState(0);
+  const [ringEase, setRingEase] = useState(EASE_DEFAULT);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -70,12 +75,13 @@ export default function HeroShowcase() {
     let timer: ReturnType<typeof setTimeout>;
     let i = 0;
     const run = () => {
-      const [p, r, l, ang, trans, d] = FRAMES[i];
+      const [p, r, l, ang, trans, d, ease] = FRAMES[i];
       setPhase(p);
       setRevealed(r);
       setLaunched(l);
       setRingAngle(ang);
       setRingTrans(trans);
+      setRingEase(ease);
       i = (i + 1) % FRAMES.length;
       timer = setTimeout(run, d);
     };
@@ -85,7 +91,7 @@ export default function HeroShowcase() {
 
   const chipsActive = phase === "scatter" || phase === "orbit" || phase === "gather";
   const onRing = phase === "scatter" || phase === "orbit";
-  const ringTransition = `transform ${ringTrans}ms cubic-bezier(0.45, 0, 0.2, 1)`;
+  const ringTransition = `transform ${ringTrans}ms ${ringEase}`;
 
   const logoVisible = phase === "form" || phase === "logohold";
   const logoScale =
