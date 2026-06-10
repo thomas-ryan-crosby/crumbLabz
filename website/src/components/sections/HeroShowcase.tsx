@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
-// Process steps orbit the center, spiral in, and bake into the CrumbLabz logo
-// lockup (cookie + wordmark), which then becomes the delivered dashboard.
+// Process steps appear one at a time at the TOP of the ring, fan out, circle,
+// then spiral in and bake into the CrumbLabz logo, which becomes the dashboard.
 const STEPS = [
   { label: "Discovery", a: 0 },
   { label: "Ideation", a: 72 },
@@ -13,49 +13,56 @@ const STEPS = [
   { label: "Launch", a: 288 },
 ];
 
-const SEQUENCE: [Phase, number][] = [
-  ["scatter", 300],
-  ["orbit", 5200],
-  ["gather", 2600],
-  ["form", 1100],
-  ["logohold", 1800],
-  ["reveal", 1100],
-  ["hold", 6000],
-];
+type Phase = "scatter" | "orbit" | "gather" | "form" | "logohold" | "reveal" | "hold";
 
-type Phase =
-  | "scatter"
-  | "orbit"
-  | "gather"
-  | "form"
-  | "logohold"
-  | "reveal"
-  | "hold";
+// [phase, revealedCount, ringAngle(deg), duration(ms)]
+// ringAngle is set so each newly revealed pill (armAngle + ringAngle ≡ 270°)
+// lands at the top; revealing one per frame, slowly, makes them readable.
+const FRAMES: [Phase, number, number, number][] = [
+  ["scatter", 0, 270, 500],
+  ["orbit", 1, 270, 1700],
+  ["orbit", 2, 198, 1700],
+  ["orbit", 3, 126, 1700],
+  ["orbit", 4, 54, 1700],
+  ["orbit", 5, -18, 1900],
+  ["orbit", 5, -120, 2600],
+  ["gather", 5, -120, 2300],
+  ["form", 5, -120, 1100],
+  ["logohold", 5, -120, 1800],
+  ["reveal", 5, -120, 1100],
+  ["hold", 5, -120, 5500],
+];
 
 const ORBIT_RADIUS = 184;
 const BARS = [42, 55, 48, 67, 60, 78, 72, 96];
+const RING_TRANSITION = "transform 1.4s cubic-bezier(0.45, 0, 0.2, 1)";
 
 export default function HeroShowcase() {
   const [phase, setPhase] = useState<Phase>("scatter");
+  const [revealed, setRevealed] = useState(0);
+  const [ringAngle, setRingAngle] = useState(270);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setPhase("hold"); // show the delivered dashboard, no looping
+      setPhase("hold");
+      setRevealed(5);
       return;
     }
     let timer: ReturnType<typeof setTimeout>;
     let i = 0;
     const run = () => {
-      setPhase(SEQUENCE[i][0]);
-      const d = SEQUENCE[i][1];
-      i = (i + 1) % SEQUENCE.length;
+      const [p, r, ang, d] = FRAMES[i];
+      setPhase(p);
+      setRevealed(r);
+      setRingAngle(ang);
+      i = (i + 1) % FRAMES.length;
       timer = setTimeout(run, d);
     };
     run();
     return () => clearTimeout(timer);
   }, []);
 
-  const chipsVisible = phase === "orbit" || phase === "gather";
+  const chipsActive = phase === "scatter" || phase === "orbit" || phase === "gather";
   const radius = phase === "scatter" || phase === "orbit" ? ORBIT_RADIUS : 0;
   const logoVisible = phase === "form" || phase === "logohold";
   // Pop in (form) → slow continuous grow (logohold) → fast explode out (reveal).
@@ -76,8 +83,11 @@ export default function HeroShowcase() {
           {/* Glow */}
           <div className="absolute inset-6 rounded-[2.5rem] bg-accent/20 blur-3xl" />
 
-          {/* Orbiting process steps */}
-          <div className="orbit-spin absolute left-1/2 top-1/2" style={{ width: 0, height: 0 }}>
+          {/* Orbiting process steps (ring rotation driven in JS) */}
+          <div
+            className="absolute left-1/2 top-1/2"
+            style={{ width: 0, height: 0, transform: `rotate(${ringAngle}deg)`, transition: RING_TRANSITION }}
+          >
             {STEPS.map((s, i) => (
               <div
                 key={s.label}
@@ -89,14 +99,13 @@ export default function HeroShowcase() {
               >
                 {/* Counter the arm's static angle */}
                 <div style={{ transform: `rotate(${-s.a}deg)` }}>
-                  {/* Counter the group's live spin → label stays upright */}
+                  {/* Counter the ring rotation → label always upright */}
                   <span
-                    className="orbit-spin-rev absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center justify-center gap-2 min-w-[132px] whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[13px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
+                    className="absolute inline-flex items-center justify-center gap-2 min-w-[132px] whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[13px] font-semibold text-charcoal shadow-lift ring-1 ring-black/5"
                     style={{
-                      opacity: chipsVisible ? 1 : 0,
-                      transition: "opacity 0.5s ease",
-                      // Reveal one pill at a time so they can be read in order
-                      transitionDelay: chipsVisible ? `${i * 0.42}s` : "0s",
+                      transform: `translate(-50%, -50%) rotate(${-ringAngle}deg)`,
+                      opacity: chipsActive && i < revealed ? 1 : 0,
+                      transition: `${RING_TRANSITION}, opacity 0.6s ease`,
                     }}
                   >
                     <span className="w-2 h-2 rounded-full bg-accent" />
@@ -203,7 +212,7 @@ export default function HeroShowcase() {
                   </div>
                 </div>
               </div>
-            </div>
+              </div>
             </div>
           </div>
         </div>
