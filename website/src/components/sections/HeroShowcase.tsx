@@ -56,12 +56,16 @@ const FRAMES: [Phase, number, number, number, number, number, string][] = [
 
 const ORBIT_RADIUS = 184;
 const BARS = [42, 55, 48, 67, 60, 78, 72, 96];
+// Show the finished dashboard first so the headline can be read before the
+// crumbs → cookie animation begins.
+const INITIAL_HOLD_MS = 3500;
 
 export default function HeroShowcase() {
-  const [phase, setPhase] = useState<Phase>("scatter");
-  const [revealed, setRevealed] = useState(0);
-  const [launched, setLaunched] = useState(0);
-  const [ringAngle, setRingAngle] = useState(-18);
+  // Start on the delivered dashboard (see INITIAL_HOLD_MS).
+  const [phase, setPhase] = useState<Phase>("hold");
+  const [revealed, setRevealed] = useState(5);
+  const [launched, setLaunched] = useState(5);
+  const [ringAngle, setRingAngle] = useState(1890);
   const [ringTrans, setRingTrans] = useState(0);
   const [ringEase, setRingEase] = useState(EASE_DEFAULT);
 
@@ -85,7 +89,8 @@ export default function HeroShowcase() {
       i = (i + 1) % FRAMES.length;
       timer = setTimeout(run, d);
     };
-    run();
+    // Hold on the finished dashboard first, then start the sequence.
+    timer = setTimeout(run, INITIAL_HOLD_MS);
     return () => clearTimeout(timer);
   }, []);
 
