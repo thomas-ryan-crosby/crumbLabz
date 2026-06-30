@@ -298,4 +298,4 @@ These aren't videos — they're mental models to keep in mind when making decisi
 
 ---
 
-*Last updated: March 2026. If anything in this guide is unclear or outdated, ask a team member or ask Claude Code!*
+*Last updated: 2026-03-26. If anything in this guide is unclear or outdated, ask a team member or ask Claude Code!*

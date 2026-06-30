@@ -139,3 +139,7 @@ This is the meeting where you present the Problem Definition Document and Soluti
 - **Welcome pushback.** Every correction makes the final product better. Treat objections as collaboration, not resistance.
 - **Scope discipline.** The MVP should be small and focused. "Yes, and we can add that in phase two" is your best friend.
 - **Leave with a clear next step.** Never end with "let me know." End with "I'll do X by Y date, and we'll reconnect on Z."
+
+---
+
+*Last updated: 2026-03-09*

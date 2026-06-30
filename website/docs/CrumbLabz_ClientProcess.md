@@ -262,3 +262,7 @@ CrumbLabz is built for long-term client relationships. When a client comes back 
 - **Let AI handle the busywork.** Meeting transcripts, document drafts, and development acceleration — AI is embedded in the process so the team can focus on problem-solving and client relationships.
 - **The answer is yes.** If a client has a problem, we find a way to solve it. Flexibility and willingness are competitive advantages.
 - **Document everything.** Every meeting is recorded, every decision is captured. This protects both CrumbLabz and the client, and ensures nothing falls through the cracks.
+
+---
+
+*Last updated: 2026-03-09*

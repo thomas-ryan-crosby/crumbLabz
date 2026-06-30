@@ -266,3 +266,7 @@ FIREFLIES_WEBHOOK_SECRET=your_webhook_secret  # optional, for verifying webhook 
 - Resend API key is server-side only
 - Client documents containing business details should be protected behind Firebase Auth (already in place)
 - Consider adding Firestore security rules to restrict the `documents` subcollection to authenticated admin users
+
+---
+
+*Last updated: 2026-03-09*

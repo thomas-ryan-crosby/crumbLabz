@@ -129,3 +129,7 @@ This is the first real conversation with a potential client. The goal is to deep
 - **Use their language.** If they call it a "tracker," don't call it a "dashboard." Mirror their vocabulary.
 - **Build trust through competence.** Ask sharp, specific follow-up questions. It shows you understand their world.
 - **End with certainty.** They should leave the call knowing exactly what happens next and when.
+
+---
+
+*Last updated: 2026-03-09*

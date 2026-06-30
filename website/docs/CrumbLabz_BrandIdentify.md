@@ -138,3 +138,7 @@ The company’s long-term ambition is to make powerful operational tools accessi
 Every business has processes that slow it down.
 CrumbLabz exists to identify those inefficiencies and build the tools that eliminate them.
 **One problem at a time.**
+
+---
+
+*Last updated: 2026-03-06*

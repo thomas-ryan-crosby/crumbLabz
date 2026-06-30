@@ -103,3 +103,7 @@ CrumbLabz builds, hosts, and maintains the tool for the client on an ongoing mon
 - **Tiered licensing:** Introduce tiers (e.g., Basic, Pro, Enterprise) as solution complexity and client size varies.
 - **Paid solution design:** As demand grows and brand trust is established, consider charging a nominal fee for solution design to filter serious prospects and value the work appropriately.
 - **Retainer model:** For clients with multiple ongoing needs, offer a monthly retainer that covers a set number of development hours beyond a specific licensed solution.
+
+---
+
+*Last updated: 2026-03-06*

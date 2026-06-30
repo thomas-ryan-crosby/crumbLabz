@@ -231,3 +231,7 @@ Case studies showing real examples of solved problems
 **Final Positioning Statement**
 The website should consistently reinforce a simple idea:
 If something in your business feels slow, repetitive, or frustrating, CrumbLabz can build a tool to fix it.
+
+---
+
+*Last updated: 2026-03-06*

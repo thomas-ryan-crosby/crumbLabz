@@ -208,3 +208,7 @@ For Monthly License clients:
 - [ ] Configure recurring billing in Stripe/Square
 - [ ] Send welcome email with access details and support contact
 - [ ] Schedule first monthly check-in (30 days out)
+
+---
+
+*Last updated: 2026-03-09*

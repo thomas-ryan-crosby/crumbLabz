@@ -172,3 +172,7 @@ React + Vite Frontend → Vercel Serverless Functions
 - **PostgreSQL only when required** — Not the default; used in legacy projects or when specific integrations demand it
 
 Our stack prioritizes **speed of development**, **minimal infrastructure complexity**, and **cost-effective managed services**.
+
+---
+
+*Last updated: 2026-03-17*
